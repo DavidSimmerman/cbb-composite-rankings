@@ -57,28 +57,9 @@ export type WinLossRecord = `${number}-${number}`;
 
 const columns: ColumnDef<KenpomTeam>[] = [
 	{
-		accessorKey: 'rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					Rank
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => <div className="text-center">{row.original.rank}</div>,
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
 		accessorKey: 'team',
-		header: () => <>Team</>,
-		cell: ({ row }) => <>{row.original.team}</>,
+		header: () => <div className="px-1">Team</div>,
+		cell: ({ row }) => <div className="px-4 truncate max-w-[18ch]">{row.original.team}</div>,
 		enableSorting: false,
 		enableHiding: false
 	},
@@ -97,7 +78,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-purple-600/15 -m-2 p-2">-</div>,
+		cell: () => <div className="text-center bg-purple-600/15 -my-2 py-2">-</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
@@ -116,7 +97,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-purple-600/15 -m-2 p-2">-</div>,
+		cell: () => <div className="text-center bg-purple-600/15 -my-2 py-2">-</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
@@ -135,7 +116,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-purple-600/15 -m-2 p-2">-</div>,
+		cell: () => <div className="text-center bg-purple-600/15 -my-2 py-2">-</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
@@ -155,7 +136,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 			</div>
 		),
 		cell: ({ row }) => (
-			<div className="text-center bg-blue-600/15 -m-2 p-2">
+			<div className="text-center bg-blue-600/15 -my-2 py-2">
 				{row.original.net_rating} <span className="text-xs text-neutral-400">{row.original.rank}</span>
 			</div>
 		),
@@ -178,7 +159,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 			</div>
 		),
 		cell: ({ row }) => (
-			<div className="text-center bg-blue-600/15 -m-2 p-2">
+			<div className="text-center bg-blue-600/15 -my-2 py-2">
 				{row.original.offensive_rating}{' '}
 				<span className="text-xs text-neutral-400">{row.original.offensive_rating_rank}</span>
 			</div>
@@ -202,7 +183,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 			</div>
 		),
 		cell: ({ row }) => (
-			<div className="text-center bg-blue-600/15 -m-2 p-2">
+			<div className="text-center bg-blue-600/15 -my-2 py-2">
 				{row.original.defensive_rating}{' '}
 				<span className="text-xs text-neutral-400">{row.original.defensive_rating_rank}</span>
 			</div>
@@ -227,7 +208,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 			</div>
 		),
 		cell: ({ row }) => (
-			<div className="text-center bg-green-600/15 -m-2 p-2">
+			<div className="text-center bg-green-600/15 -my-2 py-2">
 				{row.original.net_rating} <span className="text-xs text-neutral-400">{row.original.rank}</span>
 			</div>
 		),
@@ -251,7 +232,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 			</div>
 		),
 		cell: ({ row }) => (
-			<div className="text-center bg-green-600/15 -m-2 p-2">
+			<div className="text-center bg-green-600/15 -my-2 py-2">
 				{row.original.offensive_rating}{' '}
 				<span className="text-xs text-neutral-400">{row.original.offensive_rating_rank}</span>
 			</div>
@@ -276,7 +257,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 			</div>
 		),
 		cell: ({ row }) => (
-			<div className="text-center bg-green-600/15 -m-2 p-2">
+			<div className="text-center bg-green-600/15 -my-2 py-2">
 				{row.original.defensive_rating}{' '}
 				<span className="text-xs text-neutral-400">{row.original.defensive_rating_rank}</span>
 			</div>
@@ -301,7 +282,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 			</div>
 		),
 		cell: ({ row }) => (
-			<div className="text-center bg-yellow-600/15 -m-2 p-2">
+			<div className="text-center bg-yellow-600/15 -my-2 py-2">
 				{row.original.net_rating} <span className="text-xs text-neutral-400">{row.original.rank}</span>
 			</div>
 		),
@@ -325,7 +306,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 			</div>
 		),
 		cell: ({ row }) => (
-			<div className="text-center bg-yellow-600/15 -m-2 p-2">
+			<div className="text-center bg-yellow-600/15 -my-2 py-2">
 				{row.original.offensive_rating}{' '}
 				<span className="text-xs text-neutral-400">{row.original.offensive_rating_rank}</span>
 			</div>
@@ -350,7 +331,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 			</div>
 		),
 		cell: ({ row }) => (
-			<div className="text-center bg-yellow-600/15 -m-2 p-2">
+			<div className="text-center bg-yellow-600/15 -my-2 py-2">
 				{row.original.defensive_rating}{' '}
 				<span className="text-xs text-neutral-400">{row.original.defensive_rating_rank}</span>
 			</div>
@@ -373,7 +354,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-red-600/15 -m-2 p-2">-</div>,
+		cell: () => <div className="text-center bg-red-600/15 -my-2 py-2">-</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
@@ -392,7 +373,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-red-600/15 -m-2 p-2">-</div>,
+		cell: () => <div className="text-center bg-red-600/15 -my-2 py-2">-</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
@@ -411,7 +392,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-red-600/15 -m-2 p-2">-</div>,
+		cell: () => <div className="text-center bg-red-600/15 -my-2 py-2">-</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
@@ -430,7 +411,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-red-600/15 -m-2 p-2">-</div>,
+		cell: () => <div className="text-center bg-red-600/15 -my-2 py-2">-</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
@@ -449,7 +430,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-red-600/15 -m-2 p-2">-</div>,
+		cell: () => <div className="text-center bg-red-600/15 -my-2 py-2">-</div>,
 		enableSorting: true,
 		enableHiding: false
 	}
@@ -498,14 +479,18 @@ export default function TeamTable() {
 	return (
 		<>
 			{teamData.length ? (
-				<div className="overflow-auto rounded-md border m-8 max-h-[calc(100vh-4rem)]">
+				<div className="overflow-auto overscroll-none rounded-md border mx-2 md:mx-8 my-8 max-h-[calc(100vh-4rem)]">
 					<Table>
 						<TableHeader className="bg-neutral-800">
 							{table.getHeaderGroups().map(headerGroup => (
 								<TableRow key={headerGroup.id}>
-									{headerGroup.headers.map(header => {
+									{headerGroup.headers.map((header, index) => {
+										const isSticky = index === 0;
 										return (
-											<TableHead key={header.id}>
+											<TableHead
+												key={header.id}
+												className={`sticky top-0 bg-neutral-800 ${isSticky ? 'left-0 z-20' : 'z-10'}`}
+											>
 												{flexRender(header.column.columnDef.header, header.getContext())}
 											</TableHead>
 										);
@@ -517,11 +502,17 @@ export default function TeamTable() {
 							{table.getRowModel().rows?.length ? (
 								table.getRowModel().rows.map(row => (
 									<TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
-										{row.getVisibleCells().map(cell => (
-											<TableCell key={cell.id}>
-												{flexRender(cell.column.columnDef.cell, cell.getContext())}
-											</TableCell>
-										))}
+										{row.getVisibleCells().map((cell, index) => {
+											const isSticky = index === 0;
+											return (
+												<TableCell
+													key={cell.id}
+													className={isSticky ? 'sticky left-0 bg-neutral-900 z-10' : ''}
+												>
+													{flexRender(cell.column.columnDef.cell, cell.getContext())}
+												</TableCell>
+											);
+										})}
 									</TableRow>
 								))
 							) : (
