@@ -123,3 +123,31 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Force horizontal scrollbar to always show */
+.always-show-scrollbar {
+  overflow-x: scroll !important;
+  overflow-y: auto !important;
+}
+
+.always-show-scrollbar::-webkit-scrollbar {
+  height: 12px !important;
+  width: 0 !important;
+}
+
+.always-show-scrollbar::-webkit-scrollbar-track {
+  background: rgb(38 38 38) !important; /* neutral-800 */
+}
+
+.always-show-scrollbar::-webkit-scrollbar-thumb {
+  background: oklch(0.4 0 0) !important;
+  border-radius: 6px !important;
+}
+
+.always-show-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.5 0 0) !important;
+}
+
+.always-show-scrollbar::-webkit-scrollbar-corner {
+  background: rgb(38 38 38) !important; /* neutral-800 */
+}

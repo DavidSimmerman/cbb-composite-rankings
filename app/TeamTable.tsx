@@ -479,7 +479,7 @@ export default function TeamTable() {
 	return (
 		<>
 			{teamData.length ? (
-				<div className="overflow-auto overscroll-none rounded-md border mx-2 md:mx-8 my-8 max-h-[calc(100vh-4rem)]">
+				<div className="overflow-x-scroll overflow-y-auto overscroll-none rounded-md border mx-2 md:mx-8 my-8 max-h-[calc(100vh-4rem)] always-show-scrollbar">
 					<Table>
 						<TableHeader className="bg-neutral-800">
 							{table.getHeaderGroups().map(headerGroup => (
