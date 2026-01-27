@@ -142,8 +142,8 @@ export async function fetchBartTorvikRankings() {
 				} else if (i <= 4) {
 					teamData[columnName] = td.textContent;
 				} else {
-					teamData[columnName] = td.childNodes[0].textContent;
-					teamData[columnName + '_rank'] = td.childNodes[2].textContent;
+					teamData[columnName] = parseFloat(td.childNodes[0].textContent);
+					teamData[columnName + '_rank'] = parseInt(td.childNodes[2].textContent);
 				}
 			});
 

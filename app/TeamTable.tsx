@@ -64,7 +64,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		id: 'avg_rank',
+		accessorKey: 'avg_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -78,12 +78,12 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-purple-600/15 -my-2 py-2">-</div>,
+		cell: ({ row }) => <div className="text-center bg-purple-600/15 -my-2 py-2">{row.original.avg_rank}</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		id: 'avg_off_rank',
+		accessorKey: 'avg_offensive_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -97,12 +97,12 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-purple-600/15 -my-2 py-2">-</div>,
+		cell: ({ row }) => <div className="text-center bg-purple-600/15 -my-2 py-2">{row.original.avg_offensive_rank}</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		id: 'avg_def_rank',
+		accessorKey: 'avg_defensive_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -116,7 +116,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-purple-600/15 -my-2 py-2">-</div>,
+		cell: ({ row }) => <div className="text-center bg-purple-600/15 -my-2 py-2">{row.original.avg_defensive_rank}</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
@@ -448,7 +448,14 @@ export default function TeamTable() {
 		fetch('/api/rankings')
 			.then(r => r.json())
 			.then(d => {
-				setTeamData(Object.values(d));
+				const teams = Object.values(d);
+				teams.map(team => {
+					team.avg_rank = (team.kp_rating_rank + team.bt_rating_rank) / 2;
+					team.avg_offensive_rank = (team.kp_offensive_rating_rank + team.bt_offensive_rating_rank) / 2;
+					team.avg_defensive_rank = (team.kp_defensive_rating_rank + team.bt_defensive_rating_rank) / 2;
+				});
+
+				setTeamData(teams);
 			});
 	}, []);
 
