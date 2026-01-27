@@ -57,9 +57,9 @@ export type WinLossRecord = `${number}-${number}`;
 
 const columns: ColumnDef<KenpomTeam>[] = [
 	{
-		accessorKey: 'team',
+		accessorKey: 'team_name',
 		header: () => <div className="px-1">Team</div>,
-		cell: ({ row }) => <div className="px-4 truncate max-w-[18ch]">{row.original.team}</div>,
+		cell: ({ row }) => <div className="px-4 truncate max-w-[18ch]">{row.original.team_name}</div>,
 		enableSorting: false,
 		enableHiding: false
 	},
@@ -121,7 +121,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'net_rating',
+		accessorKey: 'kp_rating',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -137,14 +137,14 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="text-center bg-blue-600/15 -my-2 py-2">
-				{row.original.net_rating} <span className="text-xs text-neutral-400">{row.original.rank}</span>
+				{row.original.kp_rating} <span className="text-xs text-neutral-400">{row.original.kp_rating_rank}</span>
 			</div>
 		),
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		accessorKey: 'offensive_rating',
+		accessorKey: 'kp_offensive_rating',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -160,15 +160,15 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="text-center bg-blue-600/15 -my-2 py-2">
-				{row.original.offensive_rating}{' '}
-				<span className="text-xs text-neutral-400">{row.original.offensive_rating_rank}</span>
+				{row.original.kp_offensive_rating}{' '}
+				<span className="text-xs text-neutral-400">{row.original.kp_offensive_rating_rank}</span>
 			</div>
 		),
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		accessorKey: 'defensive_rating',
+		accessorKey: 'kp_defensive_rating',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -184,8 +184,8 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="text-center bg-blue-600/15 -my-2 py-2">
-				{row.original.defensive_rating}{' '}
-				<span className="text-xs text-neutral-400">{row.original.defensive_rating_rank}</span>
+				{row.original.kp_defensive_rating}{' '}
+				<span className="text-xs text-neutral-400">{row.original.kp_defensive_rating_rank}</span>
 			</div>
 		),
 		enableSorting: true,
@@ -266,8 +266,8 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'net_rating',
-		id: 'bt_net_rating',
+		accessorKey: 'bt_rating',
+		id: 'bt_rating',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -283,14 +283,14 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="text-center bg-yellow-600/15 -my-2 py-2">
-				{row.original.net_rating} <span className="text-xs text-neutral-400">{row.original.rank}</span>
+				{row.original.bt_rating} <span className="text-xs text-neutral-400">{row.original.bt_rating_rank}</span>
 			</div>
 		),
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		accessorKey: 'offensive_rating',
+		accessorKey: 'bt_offensive_rating',
 		id: 'bt_offensive_rating',
 		header: ({ column }) => (
 			<div className="flex">
@@ -307,15 +307,15 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="text-center bg-yellow-600/15 -my-2 py-2">
-				{row.original.offensive_rating}{' '}
-				<span className="text-xs text-neutral-400">{row.original.offensive_rating_rank}</span>
+				{row.original.bt_offensive_rating}{' '}
+				<span className="text-xs text-neutral-400">{row.original.bt_offensive_rating_rank}</span>
 			</div>
 		),
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		accessorKey: 'defensive_rating',
+		accessorKey: 'bt_defensive_rating',
 		id: 'bt_defensive_rating',
 		header: ({ column }) => (
 			<div className="flex">
@@ -332,8 +332,8 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="text-center bg-yellow-600/15 -my-2 py-2">
-				{row.original.defensive_rating}{' '}
-				<span className="text-xs text-neutral-400">{row.original.defensive_rating_rank}</span>
+				{row.original.bt_defensive_rating}{' '}
+				<span className="text-xs text-neutral-400">{row.original.bt_defensive_rating_rank}</span>
 			</div>
 		),
 		enableSorting: true,
