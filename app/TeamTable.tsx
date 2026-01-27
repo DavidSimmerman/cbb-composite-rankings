@@ -78,7 +78,11 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: ({ row }) => <div className="text-center bg-purple-600/15 -my-2 py-2">{row.original.avg_rank}</div>,
+		cell: ({ row }) => (
+			<div className="text-center bg-purple-600/15 -my-2 py-2">
+				{row.original.avg_rank} <span className="text-xs text-neutral-400">{row.original.avg_rank_order}</span>
+			</div>
+		),
 		enableSorting: true,
 		enableHiding: false
 	},
@@ -97,7 +101,12 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: ({ row }) => <div className="text-center bg-purple-600/15 -my-2 py-2">{row.original.avg_offensive_rank}</div>,
+		cell: ({ row }) => (
+			<div className="text-center bg-purple-600/15 -my-2 py-2">
+				{row.original.avg_offensive_rank}{' '}
+				<span className="text-xs text-neutral-400">{row.original.avg_offensive_rank_order}</span>
+			</div>
+		),
 		enableSorting: true,
 		enableHiding: false
 	},
@@ -116,7 +125,12 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: ({ row }) => <div className="text-center bg-purple-600/15 -my-2 py-2">{row.original.avg_defensive_rank}</div>,
+		cell: ({ row }) => (
+			<div className="text-center bg-purple-600/15 -my-2 py-2">
+				{row.original.avg_defensive_rank}{' '}
+				<span className="text-xs text-neutral-400">{row.original.avg_defensive_rank_order}</span>
+			</div>
+		),
 		enableSorting: true,
 		enableHiding: false
 	},
@@ -340,7 +354,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		id: 'net_rank',
+		accessorKey: 'net_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -354,12 +368,12 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-red-600/15 -my-2 py-2">-</div>,
+		cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_rank}</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		id: 'vs_q1',
+		accessorKey: 'net_q1_record',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -373,12 +387,12 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-red-600/15 -my-2 py-2">-</div>,
+		cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q1_record}</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		id: 'vs_q2',
+		accessorKey: 'net_q2_record',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -392,12 +406,12 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-red-600/15 -my-2 py-2">-</div>,
+		cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q2_record}</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		id: 'vs_q3',
+		accessorKey: 'net_q3_record',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -411,12 +425,12 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-red-600/15 -my-2 py-2">-</div>,
+		cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q3_record}</div>,
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		id: 'vs_q4',
+		accessorKey: 'net_q4_record',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -430,7 +444,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 				</Button>
 			</div>
 		),
-		cell: () => <div className="text-center bg-red-600/15 -my-2 py-2">-</div>,
+		cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q4_record}</div>,
 		enableSorting: true,
 		enableHiding: false
 	}
@@ -450,10 +464,20 @@ export default function TeamTable() {
 			.then(d => {
 				const teams = Object.values(d);
 				teams.map(team => {
-					team.avg_rank = (team.kp_rating_rank + team.bt_rating_rank) / 2;
-					team.avg_offensive_rank = (team.kp_offensive_rating_rank + team.bt_offensive_rating_rank) / 2;
-					team.avg_defensive_rank = (team.kp_defensive_rating_rank + team.bt_defensive_rating_rank) / 2;
+					team.avg_rank = Math.round(((team.kp_rating_rank + team.bt_rating_rank + team.net_rank) / 3) * 100) / 100;
+					team.avg_offensive_rank =
+						Math.round(((team.kp_offensive_rating_rank + team.bt_offensive_rating_rank) / 2) * 100) / 100;
+					team.avg_defensive_rank =
+						Math.round(((team.kp_defensive_rating_rank + team.bt_defensive_rating_rank) / 2) * 100) / 100;
 				});
+
+				[...teams].sort((a, b) => a.avg_rank - b.avg_rank).forEach((team, i) => (team.avg_rank_order = i + 1));
+				[...teams]
+					.sort((a, b) => a.avg_offensive_rank - b.avg_offensive_rank)
+					.forEach((team, i) => (team.avg_offensive_rank_order = i + 1));
+				[...teams]
+					.sort((a, b) => a.avg_defensive_rank - b.avg_defensive_rank)
+					.forEach((team, i) => (team.avg_defensive_rank_order = i + 1));
 
 				setTeamData(teams);
 			});
