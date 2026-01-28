@@ -276,13 +276,13 @@ async function fetchNetRankings(browser: Browser) {
 		waitUntil: 'networkidle'
 	});
 
-	const retries = 4;
+	const retries = 3;
 	let attempts = 0;
 
 	for (let i = 0; i < retries; i++) {
 		attempts++;
 		try {
-			await page.waitForSelector('tbody tr', { timeout: 5000 });
+			await page.waitForSelector('tbody tr', { timeout: 10000 });
 			break;
 		} catch (error) {
 			if (i === retries - 1) throw error;
