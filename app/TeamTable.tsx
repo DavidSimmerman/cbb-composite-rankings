@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
 	flexRender,
@@ -16,46 +16,13 @@ import {
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { type CompiledTeamData } from '@/lib/rankings';
 
-export interface KenpomTeam {
-	rank: number;
-	name: string;
-	team: string;
-	team_key: string;
-	conference: string;
-	win_loss: WinLossRecord;
-	net_rating: number;
-	offensive_rating: number;
-	offensive_rating_rank: number;
-	defensive_rating: number;
-	defensive_rating_rank: number;
-	adjusted_tempo: number;
-	adjusted_tempo_rank: number;
-	luck: number;
-	luck_rank: number;
-	sos_net_rating: number;
-	sos_net_rating_rank: number;
-	sos_offensive_rating: number;
-	sos_offensive_rating_rank: number;
-	sos_defensive_rating: number;
-	sos_defensive_rating_rank: number;
-	noncon_sos: number;
-	noncon_sos_rank: number;
-	price: number;
-	history: TeamHistoryEntry[];
-	trend?: 'up' | 'down' | undefined;
+interface TeamTableProps {
+	data: CompiledTeamData[];
 }
 
-export interface TeamHistoryEntry {
-	date: string;
-	net_rating: number;
-	price: number;
-	rank: number;
-}
-
-export type WinLossRecord = `${number}-${number}`;
-
-const columns: ColumnDef<KenpomTeam>[] = [
+const columns: ColumnDef<CompiledTeamData>[] = [
 	{
 		accessorKey: 'team_name',
 		header: () => <div className="px-1">Team</div>,
@@ -444,57 +411,14 @@ const columns: ColumnDef<KenpomTeam>[] = [
 	}
 ];
 
-export default function TeamTable() {
-	const [sorting, setSorting] = useState<SortingState>([{ id: 'avg_rank_order' }]);
+export default function TeamTable({ data }: TeamTableProps) {
+	const [sorting, setSorting] = useState<SortingState>([{ id: 'avg_rank_order', desc: false }]);
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 	const [rowSelection, setRowSelection] = useState({});
 
-	const [teamData, setTeamData] = useState([]);
-
-	useEffect(() => {
-		fetch('/api/rankings')
-			.then(r => r.json())
-			.then(d => {
-				const teams = Object.values(d);
-				teams.map(team => {
-					team.avg_rank =
-						Math.round(
-							((team.kp_rating_rank + team.em_rating_rank + team.bt_rating_rank + team.net_rank) / 4) * 100
-						) / 100;
-					team.avg_offensive_rank =
-						Math.round(
-							((team.kp_offensive_rating_rank + team.em_offensive_rating_rank + team.bt_offensive_rating_rank) /
-								3) *
-								100
-						) / 100;
-					team.avg_defensive_rank =
-						Math.round(
-							((team.kp_defensive_rating_rank + team.em_defensive_rating_rank + team.bt_defensive_rating_rank) /
-								3) *
-								100
-						) / 100;
-
-					team.net_q1_wins = parseInt(team.net_q1_record.split('-')[0]);
-					team.net_q2_wins = parseInt(team.net_q2_record.split('-')[0]);
-					team.net_q3_wins = parseInt(team.net_q3_record.split('-')[0]);
-					team.net_q4_wins = parseInt(team.net_q4_record.split('-')[0]);
-				});
-
-				[...teams].sort((a, b) => a.avg_rank - b.avg_rank).forEach((team, i) => (team.avg_rank_order = i + 1));
-				[...teams]
-					.sort((a, b) => a.avg_offensive_rank - b.avg_offensive_rank)
-					.forEach((team, i) => (team.avg_offensive_rank_order = i + 1));
-				[...teams]
-					.sort((a, b) => a.avg_defensive_rank - b.avg_defensive_rank)
-					.forEach((team, i) => (team.avg_defensive_rank_order = i + 1));
-
-				setTeamData(teams);
-			});
-	}, []);
-
 	const table = useReactTable({
-		data: teamData,
+		data,
 		columns,
 		onSortingChange: setSorting,
 		onColumnFiltersChange: setColumnFilters,
@@ -518,57 +442,51 @@ export default function TeamTable() {
 	});
 
 	return (
-		<>
-			{teamData.length ? (
-				<div className="overflow-x-scroll overflow-y-auto overscroll-none rounded-md border mx-2 md:mx-8 my-8 max-h-[calc(100vh-4rem)] always-show-scrollbar">
-					<Table>
-						<TableHeader className="bg-neutral-800">
-							{table.getHeaderGroups().map(headerGroup => (
-								<TableRow key={headerGroup.id}>
-									{headerGroup.headers.map((header, index) => {
-										const isSticky = index === 0;
-										return (
-											<TableHead
-												key={header.id}
-												className={`sticky top-0 bg-neutral-800 ${isSticky ? 'left-0 z-20' : 'z-10'}`}
-											>
-												{flexRender(header.column.columnDef.header, header.getContext())}
-											</TableHead>
-										);
-									})}
-								</TableRow>
-							))}
-						</TableHeader>
-						<TableBody>
-							{table.getRowModel().rows?.length ? (
-								table.getRowModel().rows.map(row => (
-									<TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
-										{row.getVisibleCells().map((cell, index) => {
-											const isSticky = index === 0;
-											return (
-												<TableCell
-													key={cell.id}
-													className={isSticky ? 'sticky left-0 bg-neutral-900 z-10' : ''}
-												>
-													{flexRender(cell.column.columnDef.cell, cell.getContext())}
-												</TableCell>
-											);
-										})}
-									</TableRow>
-								))
-							) : (
-								<TableRow>
-									<TableCell colSpan={columns.length} className="h-24 text-center">
-										No results.
-									</TableCell>
-								</TableRow>
-							)}
-						</TableBody>
-					</Table>
-				</div>
-			) : (
-				<div>loading...</div>
-			)}
-		</>
+		<div className="overflow-x-scroll overflow-y-auto overscroll-none rounded-md border mx-2 md:mx-8 my-8 max-h-[calc(100vh-4rem)] always-show-scrollbar">
+			<Table>
+				<TableHeader className="bg-neutral-800">
+					{table.getHeaderGroups().map(headerGroup => (
+						<TableRow key={headerGroup.id}>
+							{headerGroup.headers.map((header, index) => {
+								const isSticky = index === 0;
+								return (
+									<TableHead
+										key={header.id}
+										className={`sticky top-0 bg-neutral-800 ${isSticky ? 'left-0 z-20' : 'z-10'}`}
+									>
+										{flexRender(header.column.columnDef.header, header.getContext())}
+									</TableHead>
+								);
+							})}
+						</TableRow>
+					))}
+				</TableHeader>
+				<TableBody>
+					{table.getRowModel().rows?.length ? (
+						table.getRowModel().rows.map(row => (
+							<TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
+								{row.getVisibleCells().map((cell, index) => {
+									const isSticky = index === 0;
+									return (
+										<TableCell
+											key={cell.id}
+											className={isSticky ? 'sticky left-0 bg-neutral-900 z-10' : ''}
+										>
+											{flexRender(cell.column.columnDef.cell, cell.getContext())}
+										</TableCell>
+									);
+								})}
+							</TableRow>
+						))
+					) : (
+						<TableRow>
+							<TableCell colSpan={columns.length} className="h-24 text-center">
+								No results.
+							</TableCell>
+						</TableRow>
+					)}
+				</TableBody>
+			</Table>
+		</div>
 	);
 }

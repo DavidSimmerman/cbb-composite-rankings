@@ -1,9 +1,12 @@
+import { fetchRankings } from '@/lib/rankings';
 import TeamTable from './TeamTable';
 
-export default function Home() {
+export default async function Home() {
+	const rankings = await fetchRankings();
+
 	return (
 		<div className="">
-			<TeamTable />
+			<TeamTable data={rankings} />
 		</div>
 	);
 }
