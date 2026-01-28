@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
 	flexRender,
@@ -15,8 +15,10 @@ import {
 	type VisibilityState
 } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Search } from 'lucide-react';
 import { type CompiledTeamData } from '@/lib/rankings';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import Fuse from 'fuse.js';
 
 interface TeamTableProps {
 	data: CompiledTeamData[];
@@ -416,9 +418,24 @@ export default function TeamTable({ data }: TeamTableProps) {
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 	const [rowSelection, setRowSelection] = useState({});
+	const [searchQuery, setSearchQuery] = useState('');
+
+	const fuse = useMemo(
+		() =>
+			new Fuse(data, {
+				keys: ['team_name'],
+				threshold: 0.3
+			}),
+		[data]
+	);
+
+	const filteredData = useMemo(() => {
+		if (!searchQuery.trim()) return data;
+		return fuse.search(searchQuery).map(result => result.item);
+	}, [searchQuery, fuse, data]);
 
 	const table = useReactTable({
-		data,
+		data: filteredData,
 		columns,
 		onSortingChange: setSorting,
 		onColumnFiltersChange: setColumnFilters,
@@ -442,51 +459,61 @@ export default function TeamTable({ data }: TeamTableProps) {
 	});
 
 	return (
-		<div className="overflow-x-scroll overflow-y-auto overscroll-none rounded-md border mx-2 md:mx-8 my-8 max-h-[calc(100vh-4rem)] always-show-scrollbar">
-			<Table>
-				<TableHeader className="bg-neutral-800">
-					{table.getHeaderGroups().map(headerGroup => (
-						<TableRow key={headerGroup.id}>
-							{headerGroup.headers.map((header, index) => {
-								const isSticky = index === 0;
-								return (
-									<TableHead
-										key={header.id}
-										className={`sticky top-0 bg-neutral-800 ${isSticky ? 'left-0 z-20' : 'z-10'}`}
-									>
-										{flexRender(header.column.columnDef.header, header.getContext())}
-									</TableHead>
-								);
-							})}
-						</TableRow>
-					))}
-				</TableHeader>
-				<TableBody>
-					{table.getRowModel().rows?.length ? (
-						table.getRowModel().rows.map(row => (
-							<TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
-								{row.getVisibleCells().map((cell, index) => {
-									const isSticky = index === 0;
-									return (
-										<TableCell
-											key={cell.id}
-											className={isSticky ? 'sticky left-0 bg-neutral-900 z-10' : ''}
-										>
-											{flexRender(cell.column.columnDef.cell, cell.getContext())}
-										</TableCell>
-									);
-								})}
-							</TableRow>
-						))
-					) : (
-						<TableRow>
-							<TableCell colSpan={columns.length} className="h-24 text-center">
-								No results.
-							</TableCell>
-						</TableRow>
-					)}
-				</TableBody>
-			</Table>
+		<div className="mx-2 md:mx-8 my-8 ">
+			<div className="mb-4">
+				<InputGroup className="md:w-1/4">
+					<InputGroupInput
+						placeholder="Search teams..."
+						value={searchQuery}
+						onChange={e => setSearchQuery(e.target.value)}
+					/>
+					<InputGroupAddon>
+						<Search />
+					</InputGroupAddon>
+				</InputGroup>
+			</div>
+			<div className="overflow-x-scroll overflow-y-auto overscroll-none rounded-md border max-h-[calc(100vh-4rem)] always-show-scrollbar">
+				{table.getRowModel().rows?.length ? (
+					<Table>
+						<TableHeader className="bg-neutral-800">
+							{table.getHeaderGroups().map(headerGroup => (
+								<TableRow key={headerGroup.id}>
+									{headerGroup.headers.map((header, index) => {
+										const isSticky = index === 0;
+										return (
+											<TableHead
+												key={header.id}
+												className={`sticky top-0 bg-neutral-800 ${isSticky ? 'left-0 z-20' : 'z-10'}`}
+											>
+												{flexRender(header.column.columnDef.header, header.getContext())}
+											</TableHead>
+										);
+									})}
+								</TableRow>
+							))}
+						</TableHeader>
+						<TableBody>
+							{table.getRowModel().rows.map(row => (
+								<TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
+									{row.getVisibleCells().map((cell, index) => {
+										const isSticky = index === 0;
+										return (
+											<TableCell
+												key={cell.id}
+												className={isSticky ? 'sticky left-0 bg-neutral-900 z-10' : ''}
+											>
+												{flexRender(cell.column.columnDef.cell, cell.getContext())}
+											</TableCell>
+										);
+									})}
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				) : (
+					<div className="my-20 text-center">No results.</div>
+				)}
+			</div>
 		</div>
 	);
 }
