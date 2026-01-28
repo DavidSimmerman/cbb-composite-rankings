@@ -64,7 +64,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'avg_rank',
+		accessorKey: 'avg_rank_order',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -87,7 +87,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'avg_offensive_rank',
+		accessorKey: 'avg_offensive_rank_order',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -111,7 +111,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'avg_defensive_rank',
+		accessorKey: 'avg_defensive_rank_order',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -135,7 +135,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'kp_rating',
+		accessorKey: 'kp_rating_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -158,7 +158,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'kp_offensive_rating',
+		accessorKey: 'kp_offensive_rating_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -182,7 +182,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'kp_defensive_rating',
+		accessorKey: 'kp_defensive_rating_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -206,8 +206,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'net_rating',
-		id: 'em_net_rating',
+		accessorKey: 'em_rating_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -223,15 +222,14 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="text-center bg-green-600/15 -my-2 py-2">
-				{row.original.net_rating} <span className="text-xs text-neutral-400">{row.original.rank}</span>
+				{row.original.em_rating} <span className="text-xs text-neutral-400">{row.original.em_rating_rank}</span>
 			</div>
 		),
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		accessorKey: 'offensive_rating',
-		id: 'em_offensive_rating',
+		accessorKey: 'em_offensive_rating_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -247,16 +245,15 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="text-center bg-green-600/15 -my-2 py-2">
-				{row.original.offensive_rating}{' '}
-				<span className="text-xs text-neutral-400">{row.original.offensive_rating_rank}</span>
+				{row.original.em_offensive_rating}{' '}
+				<span className="text-xs text-neutral-400">{row.original.em_offensive_rating_rank}</span>
 			</div>
 		),
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		accessorKey: 'defensive_rating',
-		id: 'em_defensive_rating',
+		accessorKey: 'em_defensive_rating_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -272,16 +269,15 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="text-center bg-green-600/15 -my-2 py-2">
-				{row.original.defensive_rating}{' '}
-				<span className="text-xs text-neutral-400">{row.original.defensive_rating_rank}</span>
+				{row.original.em_defensive_rating}{' '}
+				<span className="text-xs text-neutral-400">{row.original.em_defensive_rating_rank}</span>
 			</div>
 		),
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		accessorKey: 'bt_rating',
-		id: 'bt_rating',
+		accessorKey: 'bt_rating_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -304,8 +300,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'bt_offensive_rating',
-		id: 'bt_offensive_rating',
+		accessorKey: 'bt_offensive_rating_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -329,8 +324,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'bt_defensive_rating',
-		id: 'bt_defensive_rating',
+		accessorKey: 'bt_defensive_rating_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -373,17 +367,17 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'net_q1_record',
+		accessorKey: 'net_q1_wins',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
 					className="m-auto cursor-pointer"
 					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+					onClick={() => column.toggleSorting(column.getIsSorted() !== 'desc')}
 				>
 					vs Q1
 					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+					{column.getIsSorted() && (column.getIsSorted() === 'desc' ? <ArrowUp /> : <ArrowDown />)}
 				</Button>
 			</div>
 		),
@@ -392,17 +386,17 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'net_q2_record',
+		accessorKey: 'net_q2_wins',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
 					className="m-auto cursor-pointer"
 					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+					onClick={() => column.toggleSorting(column.getIsSorted() !== 'desc')}
 				>
 					vs Q2
 					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+					{column.getIsSorted() && (column.getIsSorted() === 'desc' ? <ArrowUp /> : <ArrowDown />)}
 				</Button>
 			</div>
 		),
@@ -411,17 +405,17 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'net_q3_record',
+		accessorKey: 'net_q3_wins',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
 					className="m-auto cursor-pointer"
 					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+					onClick={() => column.toggleSorting(column.getIsSorted() !== 'desc')}
 				>
 					vs Q3
 					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+					{column.getIsSorted() && (column.getIsSorted() === 'desc' ? <ArrowUp /> : <ArrowDown />)}
 				</Button>
 			</div>
 		),
@@ -430,17 +424,17 @@ const columns: ColumnDef<KenpomTeam>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'net_q4_record',
+		accessorKey: 'net_q4_wins',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
 					className="m-auto cursor-pointer"
 					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+					onClick={() => column.toggleSorting(column.getIsSorted() !== 'desc')}
 				>
 					vs Q4
 					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+					{column.getIsSorted() && (column.getIsSorted() === 'desc' ? <ArrowUp /> : <ArrowDown />)}
 				</Button>
 			</div>
 		),
@@ -451,7 +445,7 @@ const columns: ColumnDef<KenpomTeam>[] = [
 ];
 
 export default function TeamTable() {
-	const [sorting, setSorting] = useState<SortingState>([]);
+	const [sorting, setSorting] = useState<SortingState>([{ id: 'avg_rank_order' }]);
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 	const [rowSelection, setRowSelection] = useState({});
@@ -464,11 +458,27 @@ export default function TeamTable() {
 			.then(d => {
 				const teams = Object.values(d);
 				teams.map(team => {
-					team.avg_rank = Math.round(((team.kp_rating_rank + team.bt_rating_rank + team.net_rank) / 3) * 100) / 100;
+					team.avg_rank =
+						Math.round(
+							((team.kp_rating_rank + team.em_rating_rank + team.bt_rating_rank + team.net_rank) / 4) * 100
+						) / 100;
 					team.avg_offensive_rank =
-						Math.round(((team.kp_offensive_rating_rank + team.bt_offensive_rating_rank) / 2) * 100) / 100;
+						Math.round(
+							((team.kp_offensive_rating_rank + team.em_offensive_rating_rank + team.bt_offensive_rating_rank) /
+								3) *
+								100
+						) / 100;
 					team.avg_defensive_rank =
-						Math.round(((team.kp_defensive_rating_rank + team.bt_defensive_rating_rank) / 2) * 100) / 100;
+						Math.round(
+							((team.kp_defensive_rating_rank + team.em_defensive_rating_rank + team.bt_defensive_rating_rank) /
+								3) *
+								100
+						) / 100;
+
+					team.net_q1_wins = parseInt(team.net_q1_record.split('-')[0]);
+					team.net_q2_wins = parseInt(team.net_q2_record.split('-')[0]);
+					team.net_q3_wins = parseInt(team.net_q3_record.split('-')[0]);
+					team.net_q4_wins = parseInt(team.net_q4_record.split('-')[0]);
 				});
 
 				[...teams].sort((a, b) => a.avg_rank - b.avg_rank).forEach((team, i) => (team.avg_rank_order = i + 1));

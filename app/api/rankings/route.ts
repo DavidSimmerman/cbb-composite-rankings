@@ -1,48 +1,72 @@
 import { NextResponse } from 'next/server';
 import * as cheerio from 'cheerio';
-import { chromium } from 'playwright';
+import { chromium, Browser } from 'playwright';
+
+let cache;
 
 export async function GET() {
 	const browser = await chromium.launch();
 
-	const [kenpomRankings, bartTorvikRankings, netRankings] = await Promise.all([
-		fetchKenpomRankings(),
-		fetchBartTorvikRankings(browser),
-		fetchNetRankings(browser)
-	]);
+	if (!cache) {
+		const [
+			{ kenpomRankings, took: kpTook },
+			{ evanMiyaRankings, took: emTook },
+			{ bartTorvikRankings, took: btTook },
+			{ netRankings, took: netTook, attempts: netAttempts }
+		] = await Promise.all([
+			fetchKenpomRankings(),
+			fetchEvanMiyaRankings(browser),
+			fetchBartTorvikRankings(browser),
+			fetchNetRankings(browser)
+		]);
 
-	await browser.close();
+		await browser.close();
 
-	const compiledData = {};
+		console.log(
+			`Data fetching times:\n  KenPom: ${kpTook}s\n  EvanMiya: ${emTook}s\n  BartTorvik: ${btTook}s\n  NET: ${netTook}s (${netAttempts} attempts)`
+		);
 
-	Object.entries(kenpomRankings).forEach(([teamKey, kpValues]) => {
-		const btValues = bartTorvikRankings[teamKey];
-		const netValues = netRankings[teamKey];
+		const compiledData = {};
 
-		compiledData[teamKey] = {
-			team_key: teamKey,
-			team_name: btValues.team,
-			kp_rating: kpValues.net_rating,
-			kp_rating_rank: kpValues.rank,
-			kp_offensive_rating: kpValues.offensive_rating,
-			kp_offensive_rating_rank: kpValues.offensive_rating_rank,
-			kp_defensive_rating: kpValues.defensive_rating,
-			kp_defensive_rating_rank: kpValues.defensive_rating_rank,
-			bt_rating: btValues.barthag,
-			bt_rating_rank: btValues.barthag_rank,
-			bt_offensive_rating: btValues.adjoe,
-			bt_offensive_rating_rank: btValues.adjoe_rank,
-			bt_defensive_rating: btValues.adjde,
-			bt_defensive_rating_rank: btValues.adjde_rank,
-			net_rank: netValues.rank,
-			net_q1_record: netValues.quad_1,
-			net_q2_record: netValues.quad_2,
-			net_q3_record: netValues.quad_3,
-			net_q4_record: netValues.quad_4
-		};
-	});
+		Object.entries(kenpomRankings).forEach(([teamKey, kpValues]) => {
+			const emValues = evanMiyaRankings[teamKey];
+			const btValues = bartTorvikRankings[teamKey];
+			const netValues = netRankings[teamKey];
 
-	return NextResponse.json(compiledData);
+			compiledData[teamKey] = {
+				team_key: teamKey,
+				team_name: emValues.team,
+				kp_rating: kpValues.net_rating,
+				kp_rating_rank: kpValues.rank,
+				kp_offensive_rating: kpValues.offensive_rating,
+				kp_offensive_rating_rank: kpValues.offensive_rating_rank,
+				kp_defensive_rating: kpValues.defensive_rating,
+				kp_defensive_rating_rank: kpValues.defensive_rating_rank,
+				em_rating: emValues.relative_rating,
+				em_rating_rank: emValues.relative_ranking,
+				em_offensive_rating: emValues.o_rate,
+				em_offensive_rating_rank: emValues.off_rank,
+				em_defensive_rating: emValues.d_rate,
+				em_defensive_rating_rank: emValues.def_rank,
+				bt_rating: btValues.barthag,
+				bt_rating_rank: btValues.barthag_rank,
+				bt_offensive_rating: btValues.adjoe,
+				bt_offensive_rating_rank: btValues.adjoe_rank,
+				bt_defensive_rating: btValues.adjde,
+				bt_defensive_rating_rank: btValues.adjde_rank,
+				net_rank: netValues.rank,
+				net_q1_record: netValues.quad_1,
+				net_q2_record: netValues.quad_2,
+				net_q3_record: netValues.quad_3,
+				net_q4_record: netValues.quad_4
+			};
+		});
+
+		cache = compiledData;
+		return NextResponse.json(compiledData);
+	} else {
+		return NextResponse.json(cache);
+	}
 }
 
 const HEADERS = [
@@ -78,6 +102,8 @@ type TeamData = {
 type KenpomData = Record<string, TeamData>;
 
 async function fetchKenpomRankings(): Promise<KenpomData> {
+	const startTime = new Date().getTime();
+
 	const response = await fetch('https://kenpom.com/index.php');
 	const data = await response.text();
 
@@ -113,10 +139,13 @@ async function fetchKenpomRankings(): Promise<KenpomData> {
 		return acc;
 	}, {});
 
-	return teams;
+	const took = Math.round((new Date().getTime() - startTime) / 10) / 100;
+	return { kenpomRankings: teams, took };
 }
 
-async function fetchBartTorvikRankings(browser: import('playwright').Browser) {
+async function fetchBartTorvikRankings(browser: Browser) {
+	const startTime = new Date().getTime();
+
 	const page = await browser.newPage();
 
 	await page.goto('https://barttorvik.com/#', { waitUntil: 'networkidle' });
@@ -166,17 +195,32 @@ async function fetchBartTorvikRankings(browser: import('playwright').Browser) {
 	});
 
 	await page.close();
-	return teamData;
+
+	const took = Math.round((new Date().getTime() - startTime) / 10) / 100;
+	return { bartTorvikRankings: teamData, took };
 }
 
-async function fetchNetRankings(browser: import('playwright').Browser) {
+async function fetchNetRankings(browser: Browser) {
+	const startTime = new Date().getTime();
+
 	const page = await browser.newPage();
 
 	await page.goto('https://www.ncaa.com/rankings/basketball-men/d1/ncaa-mens-basketball-net-rankings', {
 		waitUntil: 'networkidle'
 	});
 
-	await page.waitForSelector('tbody tr', { timeout: 5000 });
+	const retries = 4;
+	let attempts = 0;
+
+	for (let i = 0; i < retries; i++) {
+		attempts++;
+		try {
+			await page.waitForSelector('tbody tr', { timeout: 5000 });
+			break;
+		} catch (error) {
+			if (i === retries - 1) throw error;
+		}
+	}
 
 	const teamData = await page.evaluate(() => {
 		const TEAM_KEY_MAP = {
@@ -283,5 +327,123 @@ async function fetchNetRankings(browser: import('playwright').Browser) {
 	});
 
 	await page.close();
-	return teamData;
+
+	const took = Math.round((new Date().getTime() - startTime) / 10) / 100;
+	return { netRankings: teamData, attempts, took };
+}
+
+async function fetchEvanMiyaRankings(browser: Browser) {
+	const startTime = new Date().getTime();
+
+	const page = await browser.newPage();
+
+	await page.goto('https://evanmiya.com/?team_ratings', {
+		waitUntil: 'networkidle'
+	});
+
+	await page.waitForSelector('.rt-page-size-select');
+	await page.selectOption('.rt-page-size-select', { index: 5 });
+	await page.waitForSelector('#team_ratings_page-team_ratings .rt-tr-group:nth-of-type(365)');
+
+	const teamData = await page.evaluate(() => {
+		const TEAM_KEY_MAP = {
+			nc_st: 'nc_state',
+			miami_fla: 'miami_fl',
+			mcneese_st: 'mcneese',
+			ole_miss: 'mississippi',
+			illinoischicago: 'illinois_chicago',
+			st_thomas_mn: 'st_thomas',
+			california_baptist: 'cal_baptist',
+			saint_bonaventure: 'st_bonaventure',
+			college_of_charleston: 'charleston',
+			texasrio_grande_valley: 'ut_rio_grande_valley',
+			texas_amcorpus_christi: 'texas_am_corpus_chris',
+			florida_international: 'fiu',
+			tennesseemartin: 'tennessee_martin',
+			fort_wayne: 'purdue_fort_wayne',
+			long_island: 'liu',
+			cal_state_northridge: 'csun',
+			nicholls_st: 'nicholls',
+			southeast_missouri_st: 'southeast_missouri',
+			cal_state_fullerton: 'cal_st_fullerton',
+			bethunecookman: 'bethune_cookman',
+			siu_edwardsville: 'siue',
+			omaha: 'nebraska_omaha',
+			southern_mississippi: 'southern_miss',
+			arkansaslittle_rock: 'little_rock',
+			grambling: 'grambling_st',
+			detroit: 'detroit_mercy',
+			south_carolina_upstate: 'usc_upstate',
+			cal_state_bakersfield: 'cal_st_bakersfield',
+			loyola_maryland: 'loyola_md',
+			arkansaspine_bluff: 'arkansas_pine_bluff',
+			louisianalafayette: 'louisiana',
+			marylandeastern_shore: 'maryland_eastern_shore',
+			prairie_view: 'prairie_view_am',
+			saint_francis_pa: 'saint_francis',
+			missourikansas_city: 'kansas_city',
+			louisianamonroe: 'louisiana_monroe',
+			gardnerwebb: 'gardner_webb'
+		};
+
+		const TREND_MAP = {
+			'📈': 'played better recently',
+			'📉': 'played worse recently',
+			'🔥': 'hot streak',
+			'🥶': 'cold streak',
+			'🔒': 'consistent',
+			'💥': 'volatile',
+			'🤕': 'injuries',
+			'👠': 'cinderella'
+		};
+
+		const teamMap = {};
+
+		const columns = Array.from(document.querySelectorAll('#team_ratings_page-team_ratings .rt-th')).map(h =>
+			h
+				.querySelector('.rt-text-content:not(:has(span)), span')
+				?.textContent.toLocaleLowerCase()
+				.replaceAll(' ', '_')
+				.replaceAll('-', '_')
+		);
+
+		document.querySelectorAll('#team_ratings_page-team_ratings .rt-tr-group').forEach(row => {
+			const team = {};
+
+			row.querySelectorAll('.rt-td-inner').forEach((td, i) => {
+				const column = columns[i];
+				if (column === 'team') {
+					const teamName = td.querySelector('a').textContent.trim();
+					const teamKey = teamName
+						.toLowerCase()
+						.replaceAll(' ', '_')
+						.replaceAll(/[^a-z_]/g, '')
+						.replaceAll(/_state$/g, '_st');
+
+					team[column] = teamName;
+					team['team_key'] = TEAM_KEY_MAP[teamKey] ?? teamKey;
+					team['trends'] = Array.from(td.querySelectorAll('.tippy')).map(t => TREND_MAP[t.textContent.trim()]);
+				} else if (
+					column.endsWith('ranking') ||
+					column.endsWith('rank') ||
+					column.startsWith('total') ||
+					column.startsWith('d1')
+				) {
+					team[column] = parseInt(td.textContent.trim());
+				} else {
+					team[column] = parseFloat(td.textContent.trim());
+				}
+			});
+
+			teamMap[team.team_key] = team;
+		});
+
+		return teamMap;
+	});
+
+	await page.close();
+
+	const took = Math.round((new Date().getTime() - startTime) / 10) / 100;
+
+	return { evanMiyaRankings: teamData, took };
 }
