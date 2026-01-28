@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import {
 	flexRender,
@@ -431,6 +431,17 @@ export default function TeamTable({ data }: TeamTableProps) {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [conferenceFilter, setConferenceFilter] = useState<string[]>([]);
 
+	const allMetrics = ['Composite', 'KenPom', 'EvanMiya', 'BartTorvik', 'NET'] as const;
+	const [metricsFilter, setMetricsFilter] = useState<string[]>([...allMetrics]);
+
+	const metricColumns: Record<string, string[]> = {
+		Composite: ['avg_rank_order', 'avg_offensive_rank_order', 'avg_defensive_rank_order'],
+		KenPom: ['kp_rating_rank', 'kp_offensive_rating_rank', 'kp_defensive_rating_rank'],
+		EvanMiya: ['em_rating_rank', 'em_offensive_rating_rank', 'em_defensive_rating_rank'],
+		BartTorvik: ['bt_rating_rank', 'bt_offensive_rating_rank', 'bt_defensive_rating_rank'],
+		NET: ['net_rank', 'net_q1_wins', 'net_q2_wins', 'net_q3_wins', 'net_q4_wins']
+	};
+
 	const p5Conferences = ['B10', 'SEC', 'B12', 'ACC', 'BE'];
 
 	const midMajorConferences = useMemo(() => {
@@ -453,6 +464,36 @@ export default function TeamTable({ data }: TeamTableProps) {
 			setConferenceFilter([...p5Conferences, 'mid-major']);
 		}
 	}
+
+	function toggleMetricFilter(metric: string) {
+		if (metricsFilter.includes(metric)) {
+			setMetricsFilter(metricsFilter.filter(m => m !== metric));
+		} else {
+			setMetricsFilter([...metricsFilter, metric]);
+		}
+	}
+
+	function toggleAllMetrics() {
+		if (metricsFilter.length === allMetrics.length) {
+			setMetricsFilter([]);
+		} else {
+			setMetricsFilter([...allMetrics]);
+		}
+	}
+
+	useEffect(() => {
+		const visibility: VisibilityState = {};
+		const showAll = metricsFilter.length === 0 || metricsFilter.length === allMetrics.length;
+
+		for (const [metric, columns] of Object.entries(metricColumns)) {
+			const isVisible = showAll || metricsFilter.includes(metric);
+			for (const col of columns) {
+				visibility[col] = isVisible;
+			}
+		}
+
+		setColumnVisibility(visibility);
+	}, [metricsFilter]);
 
 	const fuse = useMemo(
 		() =>
@@ -520,7 +561,33 @@ export default function TeamTable({ data }: TeamTableProps) {
 					</InputGroupAddon>
 				</InputGroup>
 
-				<div>
+				<div className="flex gap-2">
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline">Metrics</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent className="w-30">
+							<DropdownMenuGroup>
+								{allMetrics.map(m => (
+									<DropdownMenuCheckboxItem
+										key={`metric_filter_${m}`}
+										checked={metricsFilter.includes(m)}
+										onCheckedChange={() => toggleMetricFilter(m)}
+										className="px-2 justify-center"
+									>
+										{m}
+									</DropdownMenuCheckboxItem>
+								))}
+							</DropdownMenuGroup>
+							<DropdownMenuSeparator />
+							<DropdownMenuGroup>
+								<DropdownMenuItem className="px-2 justify-center" onClick={toggleAllMetrics}>
+									Enable All
+								</DropdownMenuItem>
+							</DropdownMenuGroup>
+						</DropdownMenuContent>
+					</DropdownMenu>
+
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button variant="outline">Conferences</Button>
