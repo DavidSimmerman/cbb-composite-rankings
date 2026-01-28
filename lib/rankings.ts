@@ -4,6 +4,7 @@ import { chromium, Browser } from 'playwright';
 export type CompiledTeamData = {
 	team_key: string;
 	team_name: string;
+	conference: string;
 	kp_rating: number;
 	kp_rating_rank: number;
 	kp_offensive_rating: number;
@@ -76,6 +77,7 @@ export async function fetchRankings(): Promise<CompiledTeamData[]> {
 		compiledData[teamKey] = {
 			team_key: teamKey,
 			team_name: emValues.team,
+			conference: kpValues.conference,
 			kp_rating: kpValues.net_rating,
 			kp_rating_rank: kpValues.rank,
 			kp_offensive_rating: kpValues.offensive_rating,

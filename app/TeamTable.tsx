@@ -19,6 +19,16 @@ import { ArrowDown, ArrowUp, ArrowUpDown, Search } from 'lucide-react';
 import { type CompiledTeamData } from '@/lib/rankings';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import Fuse from 'fuse.js';
+import {
+	DropdownMenu,
+	DropdownMenuCheckboxItem,
+	DropdownMenuContent,
+	DropdownMenuGroup,
+	DropdownMenuLabel,
+	DropdownMenuTrigger,
+	DropdownMenuItem,
+	DropdownMenuSeparator
+} from '@/components/ui/dropdown-menu';
 
 interface TeamTableProps {
 	data: CompiledTeamData[];
@@ -419,6 +429,30 @@ export default function TeamTable({ data }: TeamTableProps) {
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 	const [rowSelection, setRowSelection] = useState({});
 	const [searchQuery, setSearchQuery] = useState('');
+	const [conferenceFilter, setConferenceFilter] = useState<string[]>([]);
+
+	const p5Conferences = ['B10', 'SEC', 'B12', 'ACC', 'BE'];
+
+	const midMajorConferences = useMemo(() => {
+		const conferences = Array.from(new Set(data.map(t => t.conference)));
+		return conferences.filter(c => !p5Conferences.includes(c)).sort();
+	}, [data]);
+
+	function toggleConferenceFilter(conference: string) {
+		if (conferenceFilter.includes(conference)) {
+			setConferenceFilter(conferenceFilter.filter(f => f != conference));
+		} else {
+			setConferenceFilter([...conferenceFilter, conference]);
+		}
+	}
+
+	function toggleAllConferences() {
+		if (conferenceFilter.length === 6) {
+			setConferenceFilter([]);
+		} else {
+			setConferenceFilter([...p5Conferences, 'mid-major']);
+		}
+	}
 
 	const fuse = useMemo(
 		() =>
@@ -430,9 +464,23 @@ export default function TeamTable({ data }: TeamTableProps) {
 	);
 
 	const filteredData = useMemo(() => {
-		if (!searchQuery.trim()) return data;
-		return fuse.search(searchQuery).map(result => result.item);
-	}, [searchQuery, fuse, data]);
+		let result = data;
+
+		if (conferenceFilter.length > 0) {
+			result = result.filter(
+				team =>
+					conferenceFilter.includes(team.conference) ||
+					(conferenceFilter.includes('mid-major') && midMajorConferences.includes(team.conference))
+			);
+		}
+
+		if (searchQuery.trim()) {
+			const searchResults = fuse.search(searchQuery).map(r => r.item);
+			result = result.filter(team => searchResults.includes(team));
+		}
+
+		return result;
+	}, [searchQuery, fuse, data, conferenceFilter]);
 
 	const table = useReactTable({
 		data: filteredData,
@@ -460,7 +508,7 @@ export default function TeamTable({ data }: TeamTableProps) {
 
 	return (
 		<div className="mx-2 md:mx-8 my-8 ">
-			<div className="mb-4">
+			<div className="mb-4 flex justify-between">
 				<InputGroup className="md:w-1/4">
 					<InputGroupInput
 						placeholder="Search teams..."
@@ -471,6 +519,42 @@ export default function TeamTable({ data }: TeamTableProps) {
 						<Search />
 					</InputGroupAddon>
 				</InputGroup>
+
+				<div>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="outline">Conferences</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent className="w-30">
+							<DropdownMenuGroup>
+								{p5Conferences.map(c => (
+									<DropdownMenuCheckboxItem
+										id={`conference_filter_${c}`}
+										checked={conferenceFilter.includes(c)}
+										onCheckedChange={() => toggleConferenceFilter(c)}
+										className="px-2 justify-center"
+									>
+										{c}
+									</DropdownMenuCheckboxItem>
+								))}
+
+								<DropdownMenuCheckboxItem
+									checked={conferenceFilter.includes('mid-major')}
+									onCheckedChange={() => toggleConferenceFilter('mid-major')}
+									className="px-2 justify-center"
+								>
+									Mid-Major
+								</DropdownMenuCheckboxItem>
+							</DropdownMenuGroup>
+							<DropdownMenuSeparator />
+							<DropdownMenuGroup>
+								<DropdownMenuItem className="px-2 justify-center" onClick={toggleAllConferences}>
+									Toggle All
+								</DropdownMenuItem>
+							</DropdownMenuGroup>
+						</DropdownMenuContent>
+					</DropdownMenu>
+				</div>
 			</div>
 			<div className="overflow-x-scroll overflow-y-auto overscroll-none rounded-md border max-h-[calc(100vh-4rem)] always-show-scrollbar">
 				{table.getRowModel().rows?.length ? (
