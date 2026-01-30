@@ -3,7 +3,7 @@
 import { type ColumnDef } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import { type CompiledTeamData } from '@/lib/rankings';
+import { type CompiledTeamData } from '@/lib/shared';
 
 export const columns: ColumnDef<CompiledTeamData>[] = [
 	{
@@ -395,9 +395,9 @@ export const columns: ColumnDef<CompiledTeamData>[] = [
 	}
 ];
 
-export const allMetrics = ['Composite', 'KenPom', 'EvanMiya', 'BartTorvik', 'NET'] as const;
+export const allSources = ['Composite', 'KenPom', 'EvanMiya', 'BartTorvik', 'NET'] as const;
 
-export const metricColumns: Record<string, string[]> = {
+export const sourceColumns: Record<string, string[]> = {
 	Composite: ['avg_rank_order', 'avg_offensive_rank_order', 'avg_defensive_rank_order'],
 	KenPom: ['kp_rating_rank', 'kp_offensive_rating_rank', 'kp_defensive_rating_rank'],
 	EvanMiya: ['em_rating_rank', 'em_offensive_rating_rank', 'em_defensive_rating_rank'],

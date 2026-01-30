@@ -1,56 +1,8 @@
 import { chromium, Browser } from 'playwright';
+import { type BaseTeamData, type CompiledTeamData, sourceSystems, computeAverageZScores } from './shared';
 
-type BaseTeamData = {
-	team_key: string;
-	team_name: string;
-	conference: string;
-	kp_rating: number;
-	kp_rating_rank: number;
-	kp_offensive_rating: number;
-	kp_offensive_rating_rank: number;
-	kp_defensive_rating: number;
-	kp_defensive_rating_rank: number;
-	em_rating: number;
-	em_rating_rank: number;
-	em_offensive_rating: number;
-	em_offensive_rating_rank: number;
-	em_defensive_rating: number;
-	em_defensive_rating_rank: number;
-	bt_rating: number;
-	bt_rating_rank: number;
-	bt_offensive_rating: number;
-	bt_offensive_rating_rank: number;
-	bt_defensive_rating: number;
-	bt_defensive_rating_rank: number;
-	net_rank: number;
-	net_q1_record: string;
-	net_q2_record: string;
-	net_q3_record: string;
-	net_q4_record: string;
-	kp_rating_zscore: number;
-	kp_offensive_rating_zscore: number;
-	kp_defensive_rating_zscore: number;
-	em_rating_zscore: number;
-	em_offensive_rating_zscore: number;
-	em_defensive_rating_zscore: number;
-	bt_rating_zscore: number;
-	bt_offensive_rating_zscore: number;
-	bt_defensive_rating_zscore: number;
-	net_rank_zscore: number;
-};
-
-export type CompiledTeamData = BaseTeamData & {
-	avg_zscore: number;
-	avg_zscore_rank: number;
-	avg_offensive_zscore: number;
-	avg_offensive_zscore_rank: number;
-	avg_defensive_zscore: number;
-	avg_defensive_zscore_rank: number;
-	net_q1_wins: number;
-	net_q2_wins: number;
-	net_q3_wins: number;
-	net_q4_wins: number;
-};
+export type { CompiledTeamData };
+export { sourceSystems, computeAverageZScores };
 
 function calculateZScores(teamMap: Record<string, Record<string, unknown>>, keys: { source: string; flip?: boolean }[]) {
 	const teams = Object.values(teamMap);
@@ -146,28 +98,11 @@ export async function fetchRankings(): Promise<CompiledTeamData[]> {
 	return result;
 }
 
-function loadAverageZScores(teams: CompiledTeamData[]) {
-	teams.forEach(team => {
-		team.avg_zscore = (team.kp_rating_zscore + team.em_rating_zscore + team.bt_rating_zscore + team.net_rank_zscore) / 4;
-		team.avg_offensive_zscore =
-			(team.kp_offensive_rating_zscore + team.em_offensive_rating_zscore + team.bt_offensive_rating_zscore) / 3;
-		team.avg_defensive_zscore =
-			(team.kp_defensive_rating_zscore + team.em_defensive_rating_zscore + team.bt_defensive_rating_zscore) / 3;
-	});
-
-	[...teams].sort((a, b) => b.avg_zscore - a.avg_zscore).forEach((team, i) => (team.avg_zscore_rank = i + 1));
-	[...teams]
-		.sort((a, b) => b.avg_offensive_zscore - a.avg_offensive_zscore)
-		.forEach((team, i) => (team.avg_offensive_zscore_rank = i + 1));
-	[...teams]
-		.sort((a, b) => b.avg_defensive_zscore - a.avg_defensive_zscore)
-		.forEach((team, i) => (team.avg_defensive_zscore_rank = i + 1));
-}
 
 function processTeamData(rawTeams: BaseTeamData[]): CompiledTeamData[] {
 	const teams = rawTeams as CompiledTeamData[];
 
-	loadAverageZScores(teams);
+	computeAverageZScores(teams, sourceSystems);
 
 	teams.forEach(team => {
 		team.net_q1_wins = parseInt(team.net_q1_record.split('-')[0]);

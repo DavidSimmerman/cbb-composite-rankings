@@ -10,45 +10,45 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { allMetrics } from './columns';
+import { allSources } from './columns';
 
-interface MetricsFilterProps {
-	metricsFilter: string[];
-	onChange: (metrics: string[]) => void;
+interface SourcesFilterProps {
+	sourcesFilter: string[];
+	onChange: (sources: string[]) => void;
 }
 
-export default function MetricsFilter({ metricsFilter, onChange }: MetricsFilterProps) {
-	function toggleMetric(metric: string) {
-		if (metricsFilter.includes(metric)) {
-			onChange(metricsFilter.filter(m => m !== metric));
+export default function SourcesFilter({ sourcesFilter, onChange }: SourcesFilterProps) {
+	function toggleSource(source: string) {
+		if (sourcesFilter.includes(source)) {
+			onChange(sourcesFilter.filter(s => s !== source));
 		} else {
-			onChange([...metricsFilter, metric]);
+			onChange([...sourcesFilter, source]);
 		}
 	}
 
 	function toggleAll() {
-		if (metricsFilter.length === allMetrics.length) {
+		if (sourcesFilter.length === allSources.length) {
 			onChange([]);
 		} else {
-			onChange([...allMetrics]);
+			onChange([...allSources]);
 		}
 	}
 
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline">Metrics</Button>
+				<Button variant="outline">Sources</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="w-30">
 				<DropdownMenuGroup>
-					{allMetrics.map(m => (
+					{allSources.map(s => (
 						<DropdownMenuCheckboxItem
-							key={`metric_filter_${m}`}
-							checked={metricsFilter.includes(m)}
-							onCheckedChange={() => toggleMetric(m)}
+							key={`source_filter_${s}`}
+							checked={sourcesFilter.includes(s)}
+							onCheckedChange={() => toggleSource(s)}
 							className="px-2 justify-center"
 						>
-							{m}
+							{s}
 						</DropdownMenuCheckboxItem>
 					))}
 				</DropdownMenuGroup>

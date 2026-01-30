@@ -14,11 +14,11 @@ import {
 	type VisibilityState
 } from '@tanstack/react-table';
 import { Search } from 'lucide-react';
-import { type CompiledTeamData } from '@/lib/rankings';
+import { type CompiledTeamData, computeAverageZScores, sourceSystems as allSources } from '@/lib/shared';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import Fuse from 'fuse.js';
-import { columns, allMetrics, metricColumns, p5Conferences } from './components/columns';
-import MetricsFilter from './components/MetricsFilter';
+import { columns, allSources as allSourceToggles, sourceColumns, p5Conferences } from './components/columns';
+import SourcesFilter from './components/SourcesFilter';
 import ConferenceFilter from './components/ConferenceFilter';
 
 interface TeamTableProps {
@@ -32,7 +32,17 @@ export default function TeamTable({ data }: TeamTableProps) {
 	const [rowSelection, setRowSelection] = useState({});
 	const [searchQuery, setSearchQuery] = useState('');
 	const [conferenceFilter, setConferenceFilter] = useState<string[]>([]);
-	const [metricsFilter, setMetricsFilter] = useState<string[]>([...allMetrics]);
+	const [sourcesFilter, setSourcesFilter] = useState<string[]>([...allSourceToggles]);
+
+	const activeSources = useMemo(() => allSources.filter(s => sourcesFilter.includes(s.key)), [sourcesFilter]);
+
+	const adjustedData = useMemo(() => {
+		if (activeSources.length === allSources.length || activeSources.length === 0) return data;
+
+		const teams = data.map(team => ({ ...team }));
+		computeAverageZScores(teams, activeSources);
+		return teams;
+	}, [data, activeSources]);
 
 	const midMajorConferences = useMemo(() => {
 		const conferences = Array.from(new Set(data.map(t => t.conference)));
@@ -41,29 +51,29 @@ export default function TeamTable({ data }: TeamTableProps) {
 
 	useEffect(() => {
 		const visibility: VisibilityState = {};
-		const showAll = metricsFilter.length === 0 || metricsFilter.length === allMetrics.length;
+		const showAll = sourcesFilter.length === 0 || sourcesFilter.length === allSourceToggles.length;
 
-		for (const [metric, cols] of Object.entries(metricColumns)) {
-			const isVisible = showAll || metricsFilter.includes(metric);
+		for (const [source, cols] of Object.entries(sourceColumns)) {
+			const isVisible = showAll || sourcesFilter.includes(source);
 			for (const col of cols) {
 				visibility[col] = isVisible;
 			}
 		}
 
 		setColumnVisibility(visibility);
-	}, [metricsFilter]);
+	}, [sourcesFilter]);
 
 	const fuse = useMemo(
 		() =>
-			new Fuse(data, {
+			new Fuse(adjustedData, {
 				keys: ['team_name'],
 				threshold: 0.3
 			}),
-		[data]
+		[adjustedData]
 	);
 
 	const filteredData = useMemo(() => {
-		let result = data;
+		let result = adjustedData;
 
 		if (conferenceFilter.length > 0) {
 			result = result.filter(
@@ -79,7 +89,7 @@ export default function TeamTable({ data }: TeamTableProps) {
 		}
 
 		return result;
-	}, [searchQuery, fuse, data, conferenceFilter, midMajorConferences]);
+	}, [searchQuery, fuse, adjustedData, conferenceFilter, midMajorConferences]);
 
 	const table = useReactTable({
 		data: filteredData,
@@ -120,7 +130,7 @@ export default function TeamTable({ data }: TeamTableProps) {
 				</InputGroup>
 
 				<div className="flex gap-2">
-					<MetricsFilter metricsFilter={metricsFilter} onChange={setMetricsFilter} />
+					<SourcesFilter sourcesFilter={sourcesFilter} onChange={setSourcesFilter} />
 					<ConferenceFilter conferenceFilter={conferenceFilter} onChange={setConferenceFilter} />
 				</div>
 			</div>
