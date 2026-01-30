@@ -27,9 +27,6 @@ type BaseTeamData = {
 	net_q2_record: string;
 	net_q3_record: string;
 	net_q4_record: string;
-};
-
-export type CompiledTeamData = BaseTeamData & {
 	kp_rating_zscore: number;
 	kp_offensive_rating_zscore: number;
 	kp_defensive_rating_zscore: number;
@@ -40,6 +37,9 @@ export type CompiledTeamData = BaseTeamData & {
 	bt_offensive_rating_zscore: number;
 	bt_defensive_rating_zscore: number;
 	net_rank_zscore: number;
+};
+
+export type CompiledTeamData = BaseTeamData & {
 	avg_zscore: number;
 	avg_zscore_rank: number;
 	avg_offensive_zscore: number;
@@ -51,6 +51,17 @@ export type CompiledTeamData = BaseTeamData & {
 	net_q3_wins: number;
 	net_q4_wins: number;
 };
+
+function calculateZScores(teamMap: Record<string, Record<string, unknown>>, keys: { source: string; flip?: boolean }[]) {
+	const teams = Object.values(teamMap);
+	for (const { source, flip } of keys) {
+		const mean = teams.reduce((sum, t) => sum + (t[source] as number), 0) / teams.length;
+		const stdDev = Math.sqrt(teams.reduce((sum, t) => sum + Math.pow((t[source] as number) - mean, 2), 0) / teams.length);
+		teams.forEach(t => {
+			t[`${source}_zscore`] = (((t[source] as number) - mean) / stdDev) * (flip ? -1 : 1);
+		});
+	}
+}
 
 let cache: CompiledTeamData[] | null = null;
 
@@ -90,29 +101,43 @@ export async function fetchRankings(): Promise<CompiledTeamData[]> {
 			team_key: teamKey,
 			team_name: emValues.team,
 			conference: kpValues.conference,
+
 			kp_rating: kpValues.net_rating,
 			kp_rating_rank: kpValues.rank,
 			kp_offensive_rating: kpValues.offensive_rating,
 			kp_offensive_rating_rank: kpValues.offensive_rating_rank,
 			kp_defensive_rating: kpValues.defensive_rating,
 			kp_defensive_rating_rank: kpValues.defensive_rating_rank,
+			kp_rating_zscore: kpValues.net_rating_zscore,
+			kp_offensive_rating_zscore: kpValues.offensive_rating_zscore,
+			kp_defensive_rating_zscore: kpValues.defensive_rating_zscore,
+
 			em_rating: emValues.relative_rating,
 			em_rating_rank: emValues.relative_ranking,
 			em_offensive_rating: emValues.o_rate,
 			em_offensive_rating_rank: emValues.off_rank,
 			em_defensive_rating: emValues.d_rate,
 			em_defensive_rating_rank: emValues.def_rank,
+			em_rating_zscore: emValues.relative_rating_zscore,
+			em_offensive_rating_zscore: emValues.o_rate_zscore,
+			em_defensive_rating_zscore: emValues.d_rate_zscore,
+
 			bt_rating: btValues.barthag,
 			bt_rating_rank: btValues.barthag_rank,
 			bt_offensive_rating: btValues.adjoe,
 			bt_offensive_rating_rank: btValues.adjoe_rank,
 			bt_defensive_rating: btValues.adjde,
 			bt_defensive_rating_rank: btValues.adjde_rank,
+			bt_rating_zscore: btValues.barthag_zscore,
+			bt_offensive_rating_zscore: btValues.adjoe_zscore,
+			bt_defensive_rating_zscore: btValues.adjde_zscore,
+
 			net_rank: netValues.rank,
 			net_q1_record: netValues.quad_1,
 			net_q2_record: netValues.quad_2,
 			net_q3_record: netValues.quad_3,
-			net_q4_record: netValues.quad_4
+			net_q4_record: netValues.quad_4,
+			net_rank_zscore: netValues.rank_zscore
 		} as BaseTeamData;
 	});
 
@@ -121,27 +146,7 @@ export async function fetchRankings(): Promise<CompiledTeamData[]> {
 	return result;
 }
 
-function loadZScores(teams: CompiledTeamData[]) {
-	function calculateZScore(prefix: string, suffix: string) {
-		const key = `${prefix}_${suffix}` as keyof CompiledTeamData;
-		const zscoreKey = `${prefix}_${suffix}_zscore` as keyof CompiledTeamData;
-
-		const ratingMean = teams.reduce((sum, t) => sum + (t[key] as number), 0) / teams.length;
-		const stdDev = Math.sqrt(teams.reduce((sum, t) => sum + Math.pow((t[key] as number) - ratingMean, 2), 0) / teams.length);
-		teams.forEach(
-			t =>
-				((t[zscoreKey] as number) =
-					(((t[key] as number) - ratingMean) / stdDev) * (suffix === 'defensive_rating' && prefix !== 'em' ? -1 : 1))
-		);
-	}
-
-	['kp', 'em', 'bt'].forEach(metricPrefix => {
-		['rating', 'offensive_rating', 'defensive_rating'].forEach(metricSuffix => {
-			calculateZScore(metricPrefix, metricSuffix);
-		});
-	});
-	calculateZScore('net', 'rank');
-
+function loadAverageZScores(teams: CompiledTeamData[]) {
 	teams.forEach(team => {
 		team.avg_zscore = (team.kp_rating_zscore + team.em_rating_zscore + team.bt_rating_zscore + team.net_rank_zscore) / 4;
 		team.avg_offensive_zscore =
@@ -162,7 +167,7 @@ function loadZScores(teams: CompiledTeamData[]) {
 function processTeamData(rawTeams: BaseTeamData[]): CompiledTeamData[] {
 	const teams = rawTeams as CompiledTeamData[];
 
-	loadZScores(teams);
+	loadAverageZScores(teams);
 
 	teams.forEach(team => {
 		team.net_q1_wins = parseInt(team.net_q1_record.split('-')[0]);
@@ -243,6 +248,12 @@ async function fetchKenpomRankings(browser: Browser) {
 
 	await page.close();
 
+	calculateZScores(teamData, [
+		{ source: 'net_rating' },
+		{ source: 'offensive_rating' },
+		{ source: 'defensive_rating', flip: true }
+	]);
+
 	const took = Math.round((new Date().getTime() - startTime) / 10) / 100;
 	return { kenpomRankings: teamData, took };
 }
@@ -299,6 +310,8 @@ async function fetchBartTorvikRankings(browser: Browser) {
 	});
 
 	await page.close();
+
+	calculateZScores(teamData, [{ source: 'barthag' }, { source: 'adjoe' }, { source: 'adjde', flip: true }]);
 
 	const took = Math.round((new Date().getTime() - startTime) / 10) / 100;
 	return { bartTorvikRankings: teamData, took };
@@ -432,6 +445,8 @@ async function fetchNetRankings(browser: Browser) {
 
 	await page.close();
 
+	calculateZScores(teamData, [{ source: 'rank', flip: true }]);
+
 	const took = Math.round((new Date().getTime() - startTime) / 10) / 100;
 	return { netRankings: teamData, attempts, took };
 }
@@ -546,6 +561,8 @@ async function fetchEvanMiyaRankings(browser: Browser) {
 	});
 
 	await page.close();
+
+	calculateZScores(teamData, [{ source: 'relative_rating' }, { source: 'o_rate' }, { source: 'd_rate' }]);
 
 	const took = Math.round((new Date().getTime() - startTime) / 10) / 100;
 
