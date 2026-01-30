@@ -26,7 +26,7 @@ interface TeamTableProps {
 }
 
 export default function TeamTable({ data }: TeamTableProps) {
-	const [sorting, setSorting] = useState<SortingState>([{ id: 'avg_rank_order', desc: false }]);
+	const [sorting, setSorting] = useState<SortingState>([{ id: 'avg_zscore_rank', desc: false }]);
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 	const [rowSelection, setRowSelection] = useState({});

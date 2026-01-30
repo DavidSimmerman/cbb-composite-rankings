@@ -14,7 +14,7 @@ export const columns: ColumnDef<CompiledTeamData>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'avg_rank_order',
+		accessorKey: 'avg_zscore_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -22,7 +22,7 @@ export const columns: ColumnDef<CompiledTeamData>[] = [
 					variant="ghost"
 					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
 				>
-					Avg Rank
+					Avg Z-Score
 					{!column.getIsSorted() && <ArrowUpDown />}
 					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
 				</Button>
@@ -30,14 +30,15 @@ export const columns: ColumnDef<CompiledTeamData>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="text-center bg-purple-600/15 -my-2 py-2">
-				{row.original.avg_rank} <span className="text-xs text-neutral-400">{row.original.avg_rank_order}</span>
+				{Math.round(row.original.avg_zscore * 100) / 100}{' '}
+				<span className="text-xs text-neutral-400">{row.original.avg_zscore_rank}</span>
 			</div>
 		),
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		accessorKey: 'avg_offensive_rank_order',
+		accessorKey: 'avg_offensive_zscore_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -45,7 +46,7 @@ export const columns: ColumnDef<CompiledTeamData>[] = [
 					variant="ghost"
 					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
 				>
-					Avg Off Rank
+					Avg Off Z-Score
 					{!column.getIsSorted() && <ArrowUpDown />}
 					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
 				</Button>
@@ -53,15 +54,15 @@ export const columns: ColumnDef<CompiledTeamData>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="text-center bg-purple-600/15 -my-2 py-2">
-				{row.original.avg_offensive_rank}{' '}
-				<span className="text-xs text-neutral-400">{row.original.avg_offensive_rank_order}</span>
+				{Math.round(row.original.avg_offensive_zscore * 100) / 100}{' '}
+				<span className="text-xs text-neutral-400">{row.original.avg_offensive_zscore_rank}</span>
 			</div>
 		),
 		enableSorting: true,
 		enableHiding: false
 	},
 	{
-		accessorKey: 'avg_defensive_rank_order',
+		accessorKey: 'avg_defensive_zscore_rank',
 		header: ({ column }) => (
 			<div className="flex">
 				<Button
@@ -69,7 +70,7 @@ export const columns: ColumnDef<CompiledTeamData>[] = [
 					variant="ghost"
 					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
 				>
-					Avg Def Rank
+					Avg Def Z-Score
 					{!column.getIsSorted() && <ArrowUpDown />}
 					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
 				</Button>
@@ -77,8 +78,8 @@ export const columns: ColumnDef<CompiledTeamData>[] = [
 		),
 		cell: ({ row }) => (
 			<div className="text-center bg-purple-600/15 -my-2 py-2">
-				{row.original.avg_defensive_rank}{' '}
-				<span className="text-xs text-neutral-400">{row.original.avg_defensive_rank_order}</span>
+				{Math.round(row.original.avg_defensive_zscore * 100) / 100}{' '}
+				<span className="text-xs text-neutral-400">{row.original.avg_defensive_zscore_rank}</span>
 			</div>
 		),
 		enableSorting: true,

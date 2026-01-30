@@ -1,7 +1,6 @@
-import * as cheerio from 'cheerio';
 import { chromium, Browser } from 'playwright';
 
-export type CompiledTeamData = {
+type BaseTeamData = {
 	team_key: string;
 	team_name: string;
 	conference: string;
@@ -28,23 +27,36 @@ export type CompiledTeamData = {
 	net_q2_record: string;
 	net_q3_record: string;
 	net_q4_record: string;
-	avg_rank?: number;
-	avg_rank_order?: number;
-	avg_offensive_rank?: number;
-	avg_offensive_rank_order?: number;
-	avg_defensive_rank?: number;
-	avg_defensive_rank_order?: number;
-	net_q1_wins?: number;
-	net_q2_wins?: number;
-	net_q3_wins?: number;
-	net_q4_wins?: number;
 };
 
-let cache: Record<string, CompiledTeamData> | null = null;
+export type CompiledTeamData = BaseTeamData & {
+	kp_rating_zscore: number;
+	kp_offensive_rating_zscore: number;
+	kp_defensive_rating_zscore: number;
+	em_rating_zscore: number;
+	em_offensive_rating_zscore: number;
+	em_defensive_rating_zscore: number;
+	bt_rating_zscore: number;
+	bt_offensive_rating_zscore: number;
+	bt_defensive_rating_zscore: number;
+	net_rank_zscore: number;
+	avg_zscore: number;
+	avg_zscore_rank: number;
+	avg_offensive_zscore: number;
+	avg_offensive_zscore_rank: number;
+	avg_defensive_zscore: number;
+	avg_defensive_zscore_rank: number;
+	net_q1_wins: number;
+	net_q2_wins: number;
+	net_q3_wins: number;
+	net_q4_wins: number;
+};
+
+let cache: CompiledTeamData[] | null = null;
 
 export async function fetchRankings(): Promise<CompiledTeamData[]> {
 	if (cache) {
-		return processTeamData(Object.values(cache));
+		return cache;
 	}
 
 	const browser = await chromium.launch();
@@ -55,7 +67,7 @@ export async function fetchRankings(): Promise<CompiledTeamData[]> {
 		{ bartTorvikRankings, took: btTook },
 		{ netRankings, took: netTook, attempts: netAttempts }
 	] = await Promise.all([
-		fetchKenpomRankings(),
+		fetchKenpomRankings(browser),
 		fetchEvanMiyaRankings(browser),
 		fetchBartTorvikRankings(browser),
 		fetchNetRankings(browser)
@@ -67,14 +79,14 @@ export async function fetchRankings(): Promise<CompiledTeamData[]> {
 		`Data fetching times:\n  KenPom: ${kpTook}s\n  EvanMiya: ${emTook}s\n  BartTorvik: ${btTook}s\n  NET: ${netTook}s (${netAttempts} attempts)`
 	);
 
-	const compiledData: Record<string, CompiledTeamData> = {};
+	const rawData: Record<string, BaseTeamData> = {};
 
-	Object.entries(kenpomRankings).forEach(([teamKey, kpValues]) => {
+	Object.entries(kenpomRankings).map(([teamKey, kpValues]) => {
 		const emValues = evanMiyaRankings[teamKey];
 		const btValues = bartTorvikRankings[teamKey];
 		const netValues = netRankings[teamKey];
 
-		compiledData[teamKey] = {
+		rawData[teamKey] = {
 			team_key: teamKey,
 			team_name: emValues.team,
 			conference: kpValues.conference,
@@ -101,39 +113,63 @@ export async function fetchRankings(): Promise<CompiledTeamData[]> {
 			net_q2_record: netValues.quad_2,
 			net_q3_record: netValues.quad_3,
 			net_q4_record: netValues.quad_4
-		};
+		} as BaseTeamData;
 	});
 
-	cache = compiledData;
-	return processTeamData(Object.values(compiledData));
+	const result = processTeamData(Object.values(rawData));
+	cache = result;
+	return result;
 }
 
-function processTeamData(teams: CompiledTeamData[]): CompiledTeamData[] {
-	teams.forEach(team => {
-		team.avg_rank =
-			Math.round(((team.kp_rating_rank + team.em_rating_rank + team.bt_rating_rank + team.net_rank) / 4) * 100) / 100;
-		team.avg_offensive_rank =
-			Math.round(
-				((team.kp_offensive_rating_rank + team.em_offensive_rating_rank + team.bt_offensive_rating_rank) / 3) * 100
-			) / 100;
-		team.avg_defensive_rank =
-			Math.round(
-				((team.kp_defensive_rating_rank + team.em_defensive_rating_rank + team.bt_defensive_rating_rank) / 3) * 100
-			) / 100;
+function loadZScores(teams: CompiledTeamData[]) {
+	function calculateZScore(prefix: string, suffix: string) {
+		const key = `${prefix}_${suffix}` as keyof CompiledTeamData;
+		const zscoreKey = `${prefix}_${suffix}_zscore` as keyof CompiledTeamData;
 
+		const ratingMean = teams.reduce((sum, t) => sum + (t[key] as number), 0) / teams.length;
+		const stdDev = Math.sqrt(teams.reduce((sum, t) => sum + Math.pow((t[key] as number) - ratingMean, 2), 0) / teams.length);
+		teams.forEach(
+			t =>
+				((t[zscoreKey] as number) =
+					(((t[key] as number) - ratingMean) / stdDev) * (suffix === 'defensive_rating' && prefix !== 'em' ? -1 : 1))
+		);
+	}
+
+	['kp', 'em', 'bt'].forEach(metricPrefix => {
+		['rating', 'offensive_rating', 'defensive_rating'].forEach(metricSuffix => {
+			calculateZScore(metricPrefix, metricSuffix);
+		});
+	});
+	calculateZScore('net', 'rank');
+
+	teams.forEach(team => {
+		team.avg_zscore = (team.kp_rating_zscore + team.em_rating_zscore + team.bt_rating_zscore + team.net_rank_zscore) / 4;
+		team.avg_offensive_zscore =
+			(team.kp_offensive_rating_zscore + team.em_offensive_rating_zscore + team.bt_offensive_rating_zscore) / 3;
+		team.avg_defensive_zscore =
+			(team.kp_defensive_rating_zscore + team.em_defensive_rating_zscore + team.bt_defensive_rating_zscore) / 3;
+	});
+
+	[...teams].sort((a, b) => b.avg_zscore - a.avg_zscore).forEach((team, i) => (team.avg_zscore_rank = i + 1));
+	[...teams]
+		.sort((a, b) => b.avg_offensive_zscore - a.avg_offensive_zscore)
+		.forEach((team, i) => (team.avg_offensive_zscore_rank = i + 1));
+	[...teams]
+		.sort((a, b) => b.avg_defensive_zscore - a.avg_defensive_zscore)
+		.forEach((team, i) => (team.avg_defensive_zscore_rank = i + 1));
+}
+
+function processTeamData(rawTeams: BaseTeamData[]): CompiledTeamData[] {
+	const teams = rawTeams as CompiledTeamData[];
+
+	loadZScores(teams);
+
+	teams.forEach(team => {
 		team.net_q1_wins = parseInt(team.net_q1_record.split('-')[0]);
 		team.net_q2_wins = parseInt(team.net_q2_record.split('-')[0]);
 		team.net_q3_wins = parseInt(team.net_q3_record.split('-')[0]);
 		team.net_q4_wins = parseInt(team.net_q4_record.split('-')[0]);
 	});
-
-	[...teams].sort((a, b) => a.avg_rank! - b.avg_rank!).forEach((team, i) => (team.avg_rank_order = i + 1));
-	[...teams]
-		.sort((a, b) => a.avg_offensive_rank! - b.avg_offensive_rank!)
-		.forEach((team, i) => (team.avg_offensive_rank_order = i + 1));
-	[...teams]
-		.sort((a, b) => a.avg_defensive_rank! - b.avg_defensive_rank!)
-		.forEach((team, i) => (team.avg_defensive_rank_order = i + 1));
 
 	return teams;
 }
@@ -162,54 +198,53 @@ const HEADERS = [
 	'noncon_sos_rank'
 ] as const;
 
-type Header = (typeof HEADERS)[number];
-
-type TeamData = {
-	[K in Header]: K extends 'team' | 'conference' | 'win_loss' ? string : number;
-} & { team_key: string };
-
-type KenpomData = Record<string, TeamData>;
-
-async function fetchKenpomRankings(): Promise<{ kenpomRankings: KenpomData; took: number }> {
+async function fetchKenpomRankings(browser: Browser) {
 	const startTime = new Date().getTime();
 
-	const response = await fetch('https://kenpom.com/index.php');
-	const data = await response.text();
+	const page = await browser.newPage();
 
-	const $ = cheerio.load(data);
+	await page.goto('https://kenpom.com/index.php', { waitUntil: 'networkidle' });
 
-	const rows = $('#ratings-table tbody tr');
+	await page.waitForSelector('#ratings-table tbody tr', { timeout: 3000 });
 
-	const teams: KenpomData = Array.from(rows).reduce<KenpomData>((acc, tr) => {
-		const teamInfo = {} as TeamData;
+	const teamData = await page.evaluate(
+		headers => {
+			const teamMap: Record<string, Record<string, unknown>> = {};
 
-		$(tr)
-			.children()
-			.each((i, td) => {
-				const tdContent = $(td).text().trim();
-				const header = HEADERS[i] as Header;
+			document.querySelectorAll('#ratings-table tbody tr').forEach(tr => {
+				const teamInfo: Record<string, unknown> = {};
 
-				if (header === 'team' || header === 'conference' || header === 'win_loss') {
-					teamInfo[header] = tdContent;
-				} else if (header.endsWith('rank')) {
-					teamInfo[header] = parseInt(tdContent);
-				} else if (!isNaN(Number(tdContent))) {
-					teamInfo[header] = parseFloat(tdContent);
-				}
+				tr.querySelectorAll('td').forEach((td, i) => {
+					const tdContent = td.textContent?.trim() ?? '';
+					const header = headers[i];
+
+					if (header === 'team' || header === 'conference' || header === 'win_loss') {
+						teamInfo[header] = tdContent;
+					} else if (header.endsWith('rank')) {
+						teamInfo[header] = parseInt(tdContent);
+					} else if (!isNaN(Number(tdContent))) {
+						teamInfo[header] = parseFloat(tdContent);
+					}
+				});
+
+				const teamKey = (teamInfo.team as string)
+					.toLowerCase()
+					.replaceAll(' ', '_')
+					.replaceAll(/[^a-z_]/g, '');
+
+				teamInfo['team_key'] = teamKey;
+				teamMap[teamKey] = teamInfo;
 			});
 
-		teamInfo['team_key'] = teamInfo.team
-			.toLowerCase()
-			.replaceAll(' ', '_')
-			.replaceAll(/[^a-z_]/g, '');
+			return teamMap;
+		},
+		[...HEADERS]
+	);
 
-		acc[teamInfo.team_key] = teamInfo;
-
-		return acc;
-	}, {});
+	await page.close();
 
 	const took = Math.round((new Date().getTime() - startTime) / 10) / 100;
-	return { kenpomRankings: teams, took };
+	return { kenpomRankings: teamData, took };
 }
 
 async function fetchBartTorvikRankings(browser: Browser) {
