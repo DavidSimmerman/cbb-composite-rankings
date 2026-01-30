@@ -117,8 +117,8 @@ export default function TeamTable({ data }: TeamTableProps) {
 
 	return (
 		<div className="mx-2 md:mx-8 my-8 ">
-			<div className="mb-4 flex justify-between">
-				<InputGroup className="md:w-1/4">
+			<div className="mb-4 flex gap-2 justify-between">
+				<InputGroup className="md:w-1/3">
 					<InputGroupInput
 						placeholder="Search teams..."
 						value={searchQuery}

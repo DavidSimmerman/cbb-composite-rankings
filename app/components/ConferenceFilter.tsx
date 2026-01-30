@@ -11,6 +11,7 @@ import {
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { p5Conferences } from './columns';
+import { HiMiniUserGroup } from 'react-icons/hi2';
 
 interface ConferenceFilterProps {
 	conferenceFilter: string[];
@@ -37,7 +38,9 @@ export default function ConferenceFilter({ conferenceFilter, onChange }: Confere
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline">Conferences</Button>
+				<Button variant="outline">
+					<HiMiniUserGroup /> <span className="hidden md:block">Conferences</span>
+				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="w-30">
 				<DropdownMenuGroup>

@@ -11,6 +11,7 @@ import {
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { allSources } from './columns';
+import { PiColumnsPlusRightFill } from 'react-icons/pi';
 
 interface SourcesFilterProps {
 	sourcesFilter: string[];
@@ -37,7 +38,9 @@ export default function SourcesFilter({ sourcesFilter, onChange }: SourcesFilter
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Button variant="outline">Sources</Button>
+				<Button variant="outline">
+					<PiColumnsPlusRightFill /> <span className="hidden md:block">Sources</span>
+				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="w-30">
 				<DropdownMenuGroup>
