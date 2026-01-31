@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { type CompiledTeamData } from '@/lib/shared';
 
-export const columns: ColumnDef<CompiledTeamData>[] = [
+export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 	{
 		accessorKey: 'team_name',
 		header: () => <div className="px-1">Team</div>,
@@ -14,384 +14,414 @@ export const columns: ColumnDef<CompiledTeamData>[] = [
 		enableHiding: false
 	},
 	{
-		accessorKey: 'avg_zscore_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					Avg Z-Score
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => (
-			<div className="text-center bg-purple-600/15 -my-2 py-2">
-				{Math.round(row.original.avg_zscore * 100) / 100}{' '}
-				<span className="text-xs text-neutral-400">{row.original.avg_zscore_rank}</span>
-			</div>
-		),
-		enableSorting: true,
-		enableHiding: false
+		id: 'composite_group',
+		header: () => <div className="text-center font-bold">Composite Average</div>,
+		columns: [
+			{
+				accessorKey: 'avg_zscore_rank',
+				header: ({ column }) => (
+					<div className="flex pt-0">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Z-Score
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => (
+					<div className="text-center bg-purple-600/15 -my-2 py-2">
+						{Math.round(row.original.avg_zscore * 100) / 100}{' '}
+						<span className="text-xs text-neutral-400">{row.original.avg_zscore_rank}</span>
+					</div>
+				),
+				enableSorting: true,
+				enableHiding: false
+			},
+			{
+				accessorKey: 'avg_offensive_zscore_rank',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Off Z-Score
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => (
+					<div className="text-center bg-purple-600/15 -my-2 py-2">
+						{Math.round(row.original.avg_offensive_zscore * 100) / 100}{' '}
+						<span className="text-xs text-neutral-400">{row.original.avg_offensive_zscore_rank}</span>
+					</div>
+				),
+				enableSorting: true,
+				enableHiding: false
+			},
+			{
+				accessorKey: 'avg_defensive_zscore_rank',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Def Z-Score
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => (
+					<div className="text-center bg-purple-600/15 -my-2 py-2">
+						{Math.round(row.original.avg_defensive_zscore * 100) / 100}{' '}
+						<span className="text-xs text-neutral-400">{row.original.avg_defensive_zscore_rank}</span>
+					</div>
+				),
+				enableSorting: true,
+				enableHiding: false
+			}
+		]
 	},
 	{
-		accessorKey: 'avg_offensive_zscore_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					Avg Off Z-Score
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => (
-			<div className="text-center bg-purple-600/15 -my-2 py-2">
-				{Math.round(row.original.avg_offensive_zscore * 100) / 100}{' '}
-				<span className="text-xs text-neutral-400">{row.original.avg_offensive_zscore_rank}</span>
-			</div>
-		),
-		enableSorting: true,
-		enableHiding: false
+		id: 'kenpom_group',
+		header: () => <div className="text-center font-bold">KenPom</div>,
+		columns: [
+			{
+				accessorKey: 'kp_rating_rank',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Rating
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => (
+					<div className="text-center bg-blue-600/15 -my-2 py-2">
+						{row.original.kp_rating} <span className="text-xs text-neutral-400">{row.original.kp_rating_rank}</span>
+					</div>
+				),
+				enableSorting: true,
+				enableHiding: false
+			},
+			{
+				accessorKey: 'kp_offensive_rating_rank',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Off Rating
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => (
+					<div className="text-center bg-blue-600/15 -my-2 py-2">
+						{row.original.kp_offensive_rating}{' '}
+						<span className="text-xs text-neutral-400">{row.original.kp_offensive_rating_rank}</span>
+					</div>
+				),
+				enableSorting: true,
+				enableHiding: false
+			},
+			{
+				accessorKey: 'kp_defensive_rating_rank',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Def Rating
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => (
+					<div className="text-center bg-blue-600/15 -my-2 py-2">
+						{row.original.kp_defensive_rating}{' '}
+						<span className="text-xs text-neutral-400">{row.original.kp_defensive_rating_rank}</span>
+					</div>
+				),
+				enableSorting: true,
+				enableHiding: false
+			}
+		]
 	},
 	{
-		accessorKey: 'avg_defensive_zscore_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					Avg Def Z-Score
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => (
-			<div className="text-center bg-purple-600/15 -my-2 py-2">
-				{Math.round(row.original.avg_defensive_zscore * 100) / 100}{' '}
-				<span className="text-xs text-neutral-400">{row.original.avg_defensive_zscore_rank}</span>
-			</div>
-		),
-		enableSorting: true,
-		enableHiding: false
+		id: 'evanmiya_group',
+		header: () => <div className="text-center font-bold">EvanMiya</div>,
+		columns: [
+			{
+				accessorKey: 'em_rating_rank',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Rating
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => (
+					<div className="text-center bg-green-600/15 -my-2 py-2">
+						{row.original.em_rating} <span className="text-xs text-neutral-400">{row.original.em_rating_rank}</span>
+					</div>
+				),
+				enableSorting: true,
+				enableHiding: false
+			},
+			{
+				accessorKey: 'em_offensive_rating_rank',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Off Rating
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => (
+					<div className="text-center bg-green-600/15 -my-2 py-2">
+						{row.original.em_offensive_rating}{' '}
+						<span className="text-xs text-neutral-400">{row.original.em_offensive_rating_rank}</span>
+					</div>
+				),
+				enableSorting: true,
+				enableHiding: false
+			},
+			{
+				accessorKey: 'em_defensive_rating_rank',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Def Rating
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => (
+					<div className="text-center bg-green-600/15 -my-2 py-2">
+						{row.original.em_defensive_rating}{' '}
+						<span className="text-xs text-neutral-400">{row.original.em_defensive_rating_rank}</span>
+					</div>
+				),
+				enableSorting: true,
+				enableHiding: false
+			}
+		]
 	},
 	{
-		accessorKey: 'kp_rating_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					KP Rating
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => (
-			<div className="text-center bg-blue-600/15 -my-2 py-2">
-				{row.original.kp_rating} <span className="text-xs text-neutral-400">{row.original.kp_rating_rank}</span>
-			</div>
-		),
-		enableSorting: true,
-		enableHiding: false
+		id: 'barttorvik_group',
+		header: () => <div className="text-center font-bold">BartTorvik</div>,
+		columns: [
+			{
+				accessorKey: 'bt_rating_rank',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Rating
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => (
+					<div className="text-center bg-yellow-600/15 -my-2 py-2">
+						{row.original.bt_rating} <span className="text-xs text-neutral-400">{row.original.bt_rating_rank}</span>
+					</div>
+				),
+				enableSorting: true,
+				enableHiding: false
+			},
+			{
+				accessorKey: 'bt_offensive_rating_rank',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Off Rating
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => (
+					<div className="text-center bg-yellow-600/15 -my-2 py-2">
+						{row.original.bt_offensive_rating}{' '}
+						<span className="text-xs text-neutral-400">{row.original.bt_offensive_rating_rank}</span>
+					</div>
+				),
+				enableSorting: true,
+				enableHiding: false
+			},
+			{
+				accessorKey: 'bt_defensive_rating_rank',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Def Rating
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => (
+					<div className="text-center bg-yellow-600/15 -my-2 py-2">
+						{row.original.bt_defensive_rating}{' '}
+						<span className="text-xs text-neutral-400">{row.original.bt_defensive_rating_rank}</span>
+					</div>
+				),
+				enableSorting: true,
+				enableHiding: false
+			}
+		]
 	},
 	{
-		accessorKey: 'kp_offensive_rating_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					KP Off Rating
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => (
-			<div className="text-center bg-blue-600/15 -my-2 py-2">
-				{row.original.kp_offensive_rating}{' '}
-				<span className="text-xs text-neutral-400">{row.original.kp_offensive_rating_rank}</span>
-			</div>
-		),
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
-		accessorKey: 'kp_defensive_rating_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					KP Def Rating
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => (
-			<div className="text-center bg-blue-600/15 -my-2 py-2">
-				{row.original.kp_defensive_rating}{' '}
-				<span className="text-xs text-neutral-400">{row.original.kp_defensive_rating_rank}</span>
-			</div>
-		),
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
-		accessorKey: 'em_rating_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					EM Rating
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => (
-			<div className="text-center bg-green-600/15 -my-2 py-2">
-				{row.original.em_rating} <span className="text-xs text-neutral-400">{row.original.em_rating_rank}</span>
-			</div>
-		),
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
-		accessorKey: 'em_offensive_rating_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					EM Off Rating
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => (
-			<div className="text-center bg-green-600/15 -my-2 py-2">
-				{row.original.em_offensive_rating}{' '}
-				<span className="text-xs text-neutral-400">{row.original.em_offensive_rating_rank}</span>
-			</div>
-		),
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
-		accessorKey: 'em_defensive_rating_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					EM Def Rating
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => (
-			<div className="text-center bg-green-600/15 -my-2 py-2">
-				{row.original.em_defensive_rating}{' '}
-				<span className="text-xs text-neutral-400">{row.original.em_defensive_rating_rank}</span>
-			</div>
-		),
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
-		accessorKey: 'bt_rating_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					BT Rating
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => (
-			<div className="text-center bg-yellow-600/15 -my-2 py-2">
-				{row.original.bt_rating} <span className="text-xs text-neutral-400">{row.original.bt_rating_rank}</span>
-			</div>
-		),
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
-		accessorKey: 'bt_offensive_rating_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					BT Off Rating
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => (
-			<div className="text-center bg-yellow-600/15 -my-2 py-2">
-				{row.original.bt_offensive_rating}{' '}
-				<span className="text-xs text-neutral-400">{row.original.bt_offensive_rating_rank}</span>
-			</div>
-		),
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
-		accessorKey: 'bt_defensive_rating_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					BT Def Rating
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => (
-			<div className="text-center bg-yellow-600/15 -my-2 py-2">
-				{row.original.bt_defensive_rating}{' '}
-				<span className="text-xs text-neutral-400">{row.original.bt_defensive_rating_rank}</span>
-			</div>
-		),
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
-		accessorKey: 'net_rank',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-				>
-					NET Rank
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_rank}</div>,
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
-		accessorKey: 'net_q1_wins',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() !== 'desc')}
-				>
-					vs Q1
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'desc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q1_record}</div>,
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
-		accessorKey: 'net_q2_wins',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() !== 'desc')}
-				>
-					vs Q2
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'desc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q2_record}</div>,
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
-		accessorKey: 'net_q3_wins',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() !== 'desc')}
-				>
-					vs Q3
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'desc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q3_record}</div>,
-		enableSorting: true,
-		enableHiding: false
-	},
-	{
-		accessorKey: 'net_q4_wins',
-		header: ({ column }) => (
-			<div className="flex">
-				<Button
-					className="m-auto cursor-pointer"
-					variant="ghost"
-					onClick={() => column.toggleSorting(column.getIsSorted() !== 'desc')}
-				>
-					vs Q4
-					{!column.getIsSorted() && <ArrowUpDown />}
-					{column.getIsSorted() && (column.getIsSorted() === 'desc' ? <ArrowUp /> : <ArrowDown />)}
-				</Button>
-			</div>
-		),
-		cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q4_record}</div>,
-		enableSorting: true,
-		enableHiding: false
+		id: 'net_group',
+		header: () => <div className="text-center font-bold">NET</div>,
+		columns: [
+			{
+				accessorKey: 'net_rank',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+						>
+							Rank
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_rank}</div>,
+				enableSorting: true,
+				enableHiding: false
+			},
+			{
+				accessorKey: 'net_q1_wins',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() !== 'desc')}
+						>
+							vs Q1
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'desc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q1_record}</div>,
+				enableSorting: true,
+				enableHiding: false
+			},
+			{
+				accessorKey: 'net_q2_wins',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() !== 'desc')}
+						>
+							vs Q2
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'desc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q2_record}</div>,
+				enableSorting: true,
+				enableHiding: false
+			},
+			{
+				accessorKey: 'net_q3_wins',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() !== 'desc')}
+						>
+							vs Q3
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'desc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q3_record}</div>,
+				enableSorting: true,
+				enableHiding: false
+			},
+			{
+				accessorKey: 'net_q4_wins',
+				header: ({ column }) => (
+					<div className="flex">
+						<Button
+							className="m-auto cursor-pointer"
+							variant="ghost"
+							onClick={() => column.toggleSorting(column.getIsSorted() !== 'desc')}
+						>
+							vs Q4
+							{!column.getIsSorted() && <ArrowUpDown />}
+							{column.getIsSorted() && (column.getIsSorted() === 'desc' ? <ArrowUp /> : <ArrowDown />)}
+						</Button>
+					</div>
+				),
+				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q4_record}</div>,
+				enableSorting: true,
+				enableHiding: false
+			}
+		]
 	}
 ];
 

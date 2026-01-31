@@ -146,16 +146,19 @@ export default function TeamTable({ data }: TeamTableProps) {
 				{table.getRowModel().rows?.length ? (
 					<Table>
 						<TableHeader className="bg-neutral-800">
-							{table.getHeaderGroups().map(headerGroup => (
-								<TableRow key={headerGroup.id}>
+							{table.getHeaderGroups().map((headerGroup, groupIndex) => (
+								<TableRow key={headerGroup.id} className={groupIndex === 0 ? '!border-b-0' : ''}>
 									{headerGroup.headers.map((header, index) => {
 										const isSticky = index === 0;
 										return (
 											<TableHead
 												key={header.id}
-												className={`sticky top-0 bg-neutral-800 ${isSticky ? 'left-0 z-20' : 'z-10'}`}
+												colSpan={header.colSpan}
+												className={`sticky align-bottom bg-neutral-800 ${groupIndex === 0 ? 'top-0 h-8' : 'top-8'} ${isSticky ? 'left-0 z-20' : 'z-10'}`}
 											>
-												{flexRender(header.column.columnDef.header, header.getContext())}
+												{header.isPlaceholder
+													? null
+													: flexRender(header.column.columnDef.header, header.getContext())}
 											</TableHead>
 										);
 									})}
