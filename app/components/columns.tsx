@@ -426,9 +426,10 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 ];
 
 export const allSources = ['Composite', 'KenPom', 'EvanMiya', 'BartTorvik', 'NET'] as const;
+export const allMetrics = ['rating', 'offense', 'defense', 'quad record'];
 
 export const sourceColumns: Record<string, string[]> = {
-	Composite: ['avg_rank_order', 'avg_offensive_rank_order', 'avg_defensive_rank_order'],
+	Composite: ['avg_zscore_rank', 'avg_offensive_zscore_rank', 'avg_defensive_zscore_rank'],
 	KenPom: ['kp_rating_rank', 'kp_offensive_rating_rank', 'kp_defensive_rating_rank'],
 	EvanMiya: ['em_rating_rank', 'em_offensive_rating_rank', 'em_defensive_rating_rank'],
 	BartTorvik: ['bt_rating_rank', 'bt_offensive_rating_rank', 'bt_defensive_rating_rank'],
