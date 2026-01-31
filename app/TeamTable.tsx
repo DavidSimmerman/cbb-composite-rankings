@@ -14,7 +14,7 @@ import {
 	type VisibilityState
 } from '@tanstack/react-table';
 import { Search } from 'lucide-react';
-import { type CompiledTeamData, computeAverageZScores, sourceSystems as allSources } from '@/lib/shared';
+import { type CompiledTeamData, computeAverageZScores, sourceSystems as allSources, rerankColumns } from '@/lib/shared';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import Fuse from 'fuse.js';
 import { columns, allSources as allSourceToggles, sourceColumns, p5Conferences } from './components/columns';
@@ -33,15 +33,13 @@ export default function TeamTable({ data }: TeamTableProps) {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [conferenceFilter, setConferenceFilter] = useState<string[]>([]);
 	const [sourcesFilter, setSourcesFilter] = useState<string[]>([...allSourceToggles]);
+	const [relativeRankings, setOnRelativeRankings] = useState<boolean>(true);
 
 	const activeSources = useMemo(() => allSources.filter(s => sourcesFilter.includes(s.key)), [sourcesFilter]);
 
 	const adjustedData = useMemo(() => {
 		if (activeSources.length === allSources.length || activeSources.length === 0) return data;
-
-		const teams = data.map(team => ({ ...team }));
-		computeAverageZScores(teams, activeSources);
-		return teams;
+		return computeAverageZScores(data, activeSources);
 	}, [data, activeSources]);
 
 	const midMajorConferences = useMemo(() => {
@@ -75,7 +73,7 @@ export default function TeamTable({ data }: TeamTableProps) {
 	const filteredData = useMemo(() => {
 		let result = adjustedData;
 
-		if (conferenceFilter.length > 0) {
+		if (conferenceFilter.length > 0 && conferenceFilter.length !== 6) {
 			result = result.filter(
 				team =>
 					conferenceFilter.includes(team.conference) ||
@@ -91,8 +89,13 @@ export default function TeamTable({ data }: TeamTableProps) {
 		return result;
 	}, [searchQuery, fuse, adjustedData, conferenceFilter, midMajorConferences]);
 
+	const rerankedData = useMemo(() => {
+		if (conferenceFilter.length === 6 || conferenceFilter.length === 0 || !relativeRankings) return filteredData;
+		return rerankColumns(filteredData);
+	}, [filteredData, relativeRankings]);
+
 	const table = useReactTable({
-		data: filteredData,
+		data: rerankedData,
 		columns,
 		onSortingChange: setSorting,
 		onColumnFiltersChange: setColumnFilters,
@@ -125,13 +128,18 @@ export default function TeamTable({ data }: TeamTableProps) {
 						onChange={e => setSearchQuery(e.target.value)}
 					/>
 					<InputGroupAddon>
-						<Search />
+						<Search className="text-white" />
 					</InputGroupAddon>
 				</InputGroup>
 
 				<div className="flex gap-2">
 					<SourcesFilter sourcesFilter={sourcesFilter} onChange={setSourcesFilter} />
-					<ConferenceFilter conferenceFilter={conferenceFilter} onChange={setConferenceFilter} />
+					<ConferenceFilter
+						conferenceFilter={conferenceFilter}
+						onChange={setConferenceFilter}
+						relativeRankings={relativeRankings}
+						onRelRankChange={setOnRelativeRankings}
+					/>
 				</div>
 			</div>
 			<div className="overflow-x-scroll overflow-y-auto overscroll-none rounded-md border max-h-[calc(100vh-4rem)] always-show-scrollbar">

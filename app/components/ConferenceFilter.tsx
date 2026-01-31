@@ -16,9 +16,16 @@ import { HiMiniUserGroup } from 'react-icons/hi2';
 interface ConferenceFilterProps {
 	conferenceFilter: string[];
 	onChange: (conferences: string[]) => void;
+	relativeRankings: boolean;
+	onRelRankChange: (arg0: boolean) => void;
 }
 
-export default function ConferenceFilter({ conferenceFilter, onChange }: ConferenceFilterProps) {
+export default function ConferenceFilter({
+	conferenceFilter,
+	onChange,
+	relativeRankings,
+	onRelRankChange
+}: ConferenceFilterProps) {
 	function toggleConference(conference: string) {
 		if (conferenceFilter.includes(conference)) {
 			onChange(conferenceFilter.filter(f => f !== conference));
@@ -49,7 +56,7 @@ export default function ConferenceFilter({ conferenceFilter, onChange }: Confere
 							key={`conference_filter_${c}`}
 							checked={conferenceFilter.includes(c)}
 							onCheckedChange={() => toggleConference(c)}
-							className="px-2 justify-center"
+							className="px-2 justify-center cursor-pointer"
 						>
 							{c}
 						</DropdownMenuCheckboxItem>
@@ -58,16 +65,27 @@ export default function ConferenceFilter({ conferenceFilter, onChange }: Confere
 					<DropdownMenuCheckboxItem
 						checked={conferenceFilter.includes('mid-major')}
 						onCheckedChange={() => toggleConference('mid-major')}
-						className="px-2 justify-center"
+						className="px-2 justify-center cursor-pointer"
 					>
 						Mid-Major
 					</DropdownMenuCheckboxItem>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
-					<DropdownMenuItem className="px-2 justify-center" onClick={toggleAll}>
+					<DropdownMenuItem className="px-2 justify-center cursor-pointer" onClick={toggleAll}>
 						Toggle All
 					</DropdownMenuItem>
+				</DropdownMenuGroup>
+				<DropdownMenuSeparator />
+				<DropdownMenuGroup>
+					<DropdownMenuCheckboxItem
+						checked={relativeRankings}
+						onCheckedChange={() => onRelRankChange(!relativeRankings)}
+						className="px-2 justify-center cursor-pointer flex flex-col"
+					>
+						<span>Relative</span>
+						<span>Rankings</span>
+					</DropdownMenuCheckboxItem>
 				</DropdownMenuGroup>
 			</DropdownMenuContent>
 		</DropdownMenu>

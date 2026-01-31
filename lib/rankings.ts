@@ -98,11 +98,10 @@ export async function fetchRankings(): Promise<CompiledTeamData[]> {
 	return result;
 }
 
-
 function processTeamData(rawTeams: BaseTeamData[]): CompiledTeamData[] {
-	const teams = rawTeams as CompiledTeamData[];
+	let teams = rawTeams as CompiledTeamData[];
 
-	computeAverageZScores(teams, sourceSystems);
+	teams = computeAverageZScores(teams, sourceSystems);
 
 	teams.forEach(team => {
 		team.net_q1_wins = parseInt(team.net_q1_record.split('-')[0]);

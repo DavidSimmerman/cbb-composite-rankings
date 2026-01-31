@@ -49,7 +49,7 @@ export default function SourcesFilter({ sourcesFilter, onChange }: SourcesFilter
 							key={`source_filter_${s}`}
 							checked={sourcesFilter.includes(s)}
 							onCheckedChange={() => toggleSource(s)}
-							className="px-2 justify-center"
+							className="px-2 justify-center cursor-pointer"
 						>
 							{s}
 						</DropdownMenuCheckboxItem>
@@ -57,7 +57,7 @@ export default function SourcesFilter({ sourcesFilter, onChange }: SourcesFilter
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
-					<DropdownMenuItem className="px-2 justify-center" onClick={toggleAll}>
+					<DropdownMenuItem className="px-2 justify-center cursor-pointer" onClick={toggleAll}>
 						Enable All
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
