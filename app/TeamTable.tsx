@@ -154,7 +154,7 @@ export default function TeamTable({ data }: TeamTableProps) {
 											<TableHead
 												key={header.id}
 												colSpan={header.colSpan}
-												className={`sticky align-bottom bg-neutral-800 ${groupIndex === 0 ? 'top-0 h-8' : 'top-8'} ${isSticky ? 'left-0 z-20' : 'z-10'}`}
+												className={`sticky bg-neutral-800 ${groupIndex === 0 ? 'top-0 h-8 align-bottom ' : 'top-8'} ${isSticky ? 'left-0 z-20' : 'z-10'}`}
 											>
 												{header.isPlaceholder
 													? null
