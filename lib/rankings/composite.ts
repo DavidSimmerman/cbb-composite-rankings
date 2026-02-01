@@ -12,12 +12,12 @@ export interface CompositeRankings {
 	id: string;
 	date: string;
 	team_key: string;
-	rating_zscore: number;
-	rating_zscore_rank: number;
-	offensive_zscore: number;
-	offensive_zscore_rank: number;
-	defensive_zscore: number;
-	defensive_zscore_rank: number;
+	avg_zscore: number;
+	avg_zscore_rank: number;
+	avg_offensive_zscore: number;
+	avg_offensive_zscore_rank: number;
+	avg_defensive_zscore: number;
+	avg_defensive_zscore_rank: number;
 	created_at: string;
 	updated_at: string;
 }
@@ -50,9 +50,9 @@ export async function updateComposite() {
 	const COMP_QUERY = `
 		INSERT INTO composite_rankings (
 			team_key,
-			rating_zscore, rating_zscore_rank,
-			offensive_zscore, offensive_zscore_rank,
-			defensive_zscore, defensive_zscore_rank
+			avg_zscore, avg_zscore_rank,
+			avg_offensive_zscore, avg_offensive_zscore_rank,
+			avg_defensive_zscore, avg_defensive_zscore_rank
 		) VALUES (
 			$1,
 			$2, $3,
@@ -60,9 +60,9 @@ export async function updateComposite() {
 			$6, $7
 		)
 		ON CONFLICT (team_key, date) DO UPDATE SET
-			rating_zscore = EXCLUDED.rating_zscore, rating_zscore_rank = EXCLUDED.rating_zscore_rank,
-			offensive_zscore = EXCLUDED.offensive_zscore, offensive_zscore_rank = EXCLUDED.offensive_zscore_rank,
-			defensive_zscore = EXCLUDED.defensive_zscore, defensive_zscore_rank = EXCLUDED.defensive_zscore_rank
+			avg_zscore = EXCLUDED.avg_zscore, avg_zscore_rank = EXCLUDED.avg_zscore_rank,
+			avg_offensive_zscore = EXCLUDED.avg_offensive_zscore, avg_offensive_zscore_rank = EXCLUDED.avg_offensive_zscore_rank,
+			avg_defensive_zscore = EXCLUDED.avg_defensive_zscore, avg_defensive_zscore_rank = EXCLUDED.avg_defensive_zscore_rank
 	`;
 
 	await db.transaction(
