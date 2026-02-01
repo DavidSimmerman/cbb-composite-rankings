@@ -153,9 +153,6 @@
   background: rgb(38 38 38) !important; /* neutral-800 */
 }
 
-/* Bracket draw/erase animation
-   Uses stroke-dasharray: 1 1 (period=2) so offset 2 ≡ offset 0 visually.
-   Draw: offset 1→0 (start to end). Erase: offset 2→1 (same direction, all positive for Safari). */
 .bracket-line {
   stroke-dasharray: 1 1;
   stroke-dashoffset: 1;

@@ -1,8 +1,8 @@
-import { fetchRankings } from '@/lib/rankings';
+import { getRankings } from '@/lib/rankings/rankings';
 import TeamTable from './TeamTable';
 
 export default async function Home() {
-	const rankings = await fetchRankings();
+	const rankings = await getRankings();
 
 	return (
 		<div className="h-dvh flex flex-col overflow-hidden">

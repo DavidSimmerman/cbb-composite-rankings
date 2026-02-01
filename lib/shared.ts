@@ -25,6 +25,10 @@ export type BaseTeamData = {
 	net_q2_record: string;
 	net_q3_record: string;
 	net_q4_record: string;
+	net_q1_wins: number;
+	net_q2_wins: number;
+	net_q3_wins: number;
+	net_q4_wins: number;
 	kp_rating_zscore: number;
 	kp_offensive_rating_zscore: number;
 	kp_defensive_rating_zscore: number;
@@ -44,10 +48,6 @@ export type CompiledTeamData = BaseTeamData & {
 	avg_offensive_zscore_rank: number;
 	avg_defensive_zscore: number;
 	avg_defensive_zscore_rank: number;
-	net_q1_wins: number;
-	net_q2_wins: number;
-	net_q3_wins: number;
-	net_q4_wins: number;
 };
 
 export const sourceSystems = [
@@ -74,8 +74,11 @@ export const sourceSystems = [
 
 export type SourceSystem = (typeof sourceSystems)[number];
 
-export function computeAverageZScores(teams: CompiledTeamData[], sources: readonly SourceSystem[]): CompiledTeamData[] {
-	teams = structuredClone(teams);
+export function computeAverageZScores(
+	baseTeams: BaseTeamData[],
+	sources: readonly SourceSystem[] = sourceSystems
+): CompiledTeamData[] {
+	const teams = structuredClone(baseTeams) as CompiledTeamData[];
 
 	const overallKeys = sources.map(s => s.overall);
 	const offensiveKeys = sources.map(s => s.offensive).filter(k => k !== null);
@@ -115,7 +118,9 @@ export function rerankColumns(teams: CompiledTeamData[]): CompiledTeamData[] {
 		const metricCol = rankCol.replace(/_rank$/, '') as keyof CompiledTeamData;
 		teams
 			.toSorted(
-				(a, b) => ((b[metricCol] as number) - (a[metricCol] as number)) * (FLIPPED_COLUMNS.includes(metricCol as string) ? -1 : 1)
+				(a, b) =>
+					((b[metricCol] as number) - (a[metricCol] as number)) *
+					(FLIPPED_COLUMNS.includes(metricCol as string) ? -1 : 1)
 			)
 			.forEach((t, i) => ((t as Record<string, unknown>)[rankCol] = i + 1));
 	});

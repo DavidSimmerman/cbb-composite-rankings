@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { fetchRankings } from '@/lib/rankings';
+import { getRankings } from '@/lib/rankings/rankings';
 
 export async function GET() {
-	const rankings = await fetchRankings();
+	const rankings = await getRankings();
 	return NextResponse.json(rankings);
 }
