@@ -1,7 +1,29 @@
 export default function Loading() {
 	return (
-		<div className="flex min-h-screen items-center justify-center">
-			<div className="relative flex h-36 w-36 items-center justify-center">
+		<div className="flex min-h-screen items-center justify-center gap-2">
+			<svg
+				viewBox="0 0 339 124"
+				className="w-24 h-12 text-white -skew-x-12"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="3.5"
+			>
+				<line x1="0" y1="2" x2="105" y2="2" pathLength="1" className="bracket-line bracket-d0" />
+				<line x1="0" y1="42" x2="105" y2="42" pathLength="1" className="bracket-line bracket-d0" />
+				<line x1="105" y1="2" x2="105" y2="22" pathLength="1" className="bracket-line bracket-d1" />
+				<line x1="105" y1="42" x2="105" y2="22" pathLength="1" className="bracket-line bracket-d1" />
+				<line x1="105" y1="22" x2="210" y2="22" pathLength="1" className="bracket-line bracket-d2" />
+				<line x1="0" y1="82" x2="105" y2="82" pathLength="1" className="bracket-line bracket-d0" />
+				<line x1="0" y1="122" x2="105" y2="122" pathLength="1" className="bracket-line bracket-d0" />
+				<line x1="105" y1="82" x2="105" y2="102" pathLength="1" className="bracket-line bracket-d1" />
+				<line x1="105" y1="122" x2="105" y2="102" pathLength="1" className="bracket-line bracket-d1" />
+				<line x1="105" y1="102" x2="210" y2="102" pathLength="1" className="bracket-line bracket-d2" />
+				<line x1="210" y1="22" x2="210" y2="62" pathLength="1" className="bracket-line bracket-d3" />
+				<line x1="210" y1="102" x2="210" y2="62" pathLength="1" className="bracket-line bracket-d3" />
+				<line x1="210" y1="62" x2="337" y2="62" pathLength="1" className="bracket-line bracket-d4" />
+			</svg>
+
+			<div className="relative flex h-36 w-36 items-center justify-center shrink-0">
 				<div className="absolute inset-6.5 animate-spin rounded-full border-2 border-transparent border-t-white border-r-white border-b-white" />
 
 				<svg viewBox="0 0 794 632" className="h-28 w-28" fill="white" preserveAspectRatio="xMidYMid meet">
@@ -10,6 +32,28 @@ export default function Loading() {
 					</g>
 				</svg>
 			</div>
+
+			<svg
+				viewBox="21 0 339 124"
+				className="w-24 h-12 text-white -skew-x-12"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="3.5"
+			>
+				<line x1="360" y1="2" x2="255" y2="2" pathLength="1" className="bracket-line bracket-d0" />
+				<line x1="360" y1="42" x2="255" y2="42" pathLength="1" className="bracket-line bracket-d0" />
+				<line x1="255" y1="2" x2="255" y2="22" pathLength="1" className="bracket-line bracket-d1" />
+				<line x1="255" y1="42" x2="255" y2="22" pathLength="1" className="bracket-line bracket-d1" />
+				<line x1="255" y1="22" x2="150" y2="22" pathLength="1" className="bracket-line bracket-d2" />
+				<line x1="360" y1="82" x2="255" y2="82" pathLength="1" className="bracket-line bracket-d0" />
+				<line x1="360" y1="122" x2="255" y2="122" pathLength="1" className="bracket-line bracket-d0" />
+				<line x1="255" y1="82" x2="255" y2="102" pathLength="1" className="bracket-line bracket-d1" />
+				<line x1="255" y1="122" x2="255" y2="102" pathLength="1" className="bracket-line bracket-d1" />
+				<line x1="255" y1="102" x2="150" y2="102" pathLength="1" className="bracket-line bracket-d2" />
+				<line x1="150" y1="22" x2="150" y2="62" pathLength="1" className="bracket-line bracket-d3" />
+				<line x1="150" y1="102" x2="150" y2="62" pathLength="1" className="bracket-line bracket-d3" />
+				<line x1="150" y1="62" x2="23" y2="62" pathLength="1" className="bracket-line bracket-d4" />
+			</svg>
 		</div>
 	);
 }

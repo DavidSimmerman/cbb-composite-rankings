@@ -152,3 +152,62 @@
 .always-show-scrollbar::-webkit-scrollbar-corner {
   background: rgb(38 38 38) !important; /* neutral-800 */
 }
+
+/* Bracket draw/erase animation
+   Uses stroke-dasharray: 1 1 (period=2) so offset 2 ≡ offset 0 visually.
+   Draw: offset 1→0 (start to end). Erase: offset 2→1 (same direction, all positive for Safari). */
+.bracket-line {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+}
+
+.bracket-d0 { animation: bd0 2s linear infinite; }
+.bracket-d1 { animation: bd1 2s linear infinite; }
+.bracket-d2 { animation: bd2 2s linear infinite; }
+.bracket-d3 { animation: bd3 2s linear infinite; }
+.bracket-d4 { animation: bd4 2s linear infinite; }
+
+@keyframes bd0 {
+  0% { stroke-dashoffset: 1; }
+  8% { stroke-dashoffset: 0; }
+  49.9% { stroke-dashoffset: 0; }
+  50% { stroke-dashoffset: 2; }
+  58% { stroke-dashoffset: 1; }
+  100% { stroke-dashoffset: 1; }
+}
+
+@keyframes bd1 {
+  0%, 8% { stroke-dashoffset: 1; }
+  16% { stroke-dashoffset: 0; }
+  57.9% { stroke-dashoffset: 0; }
+  58% { stroke-dashoffset: 2; }
+  66% { stroke-dashoffset: 1; }
+  100% { stroke-dashoffset: 1; }
+}
+
+@keyframes bd2 {
+  0%, 16% { stroke-dashoffset: 1; }
+  24% { stroke-dashoffset: 0; }
+  65.9% { stroke-dashoffset: 0; }
+  66% { stroke-dashoffset: 2; }
+  74% { stroke-dashoffset: 1; }
+  100% { stroke-dashoffset: 1; }
+}
+
+@keyframes bd3 {
+  0%, 24% { stroke-dashoffset: 1; }
+  32% { stroke-dashoffset: 0; }
+  73.9% { stroke-dashoffset: 0; }
+  74% { stroke-dashoffset: 2; }
+  82% { stroke-dashoffset: 1; }
+  100% { stroke-dashoffset: 1; }
+}
+
+@keyframes bd4 {
+  0%, 32% { stroke-dashoffset: 1; }
+  40% { stroke-dashoffset: 0; }
+  81.9% { stroke-dashoffset: 0; }
+  82% { stroke-dashoffset: 2; }
+  90% { stroke-dashoffset: 1; }
+  100% { stroke-dashoffset: 1; }
+}
