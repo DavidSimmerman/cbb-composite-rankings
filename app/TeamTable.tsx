@@ -135,7 +135,7 @@ export default function TeamTable({ data }: TeamTableProps) {
 	});
 
 	return (
-		<div className="mx-2 md:mx-8 my-8 ">
+		<div className="mx-2 md:mx-8 mt-8 md:mb-8 flex flex-col flex-1 min-h-0">
 			<div className="mb-4 flex gap-2 justify-between">
 				<InputGroup className="md:w-1/3">
 					<InputGroupInput
@@ -159,7 +159,7 @@ export default function TeamTable({ data }: TeamTableProps) {
 					/>
 				</div>
 			</div>
-			<div className="overflow-x-scroll overflow-y-auto overscroll-none rounded-md border max-h-[calc(100vh-4rem)] always-show-scrollbar">
+			<div className="overflow-x-scroll overflow-y-auto overscroll-none rounded-md border flex-1 min-h-0 always-show-scrollbar">
 				{table.getRowModel().rows?.length ? (
 					<Table>
 						<TableHeader className="bg-neutral-800">
