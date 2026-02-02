@@ -184,7 +184,7 @@ export default function TeamTable({ data }: TeamTableProps) {
 						</TableHeader>
 						<TableBody>
 							{table.getRowModel().rows.map(row => (
-								<TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
+								<TableRow key={row.id} data-state={row.getIsSelected() && 'selected'} className="cursor-pointer">
 									{row.getVisibleCells().map((cell, index) => {
 										const isSticky = index === 0;
 										return (
