@@ -37,13 +37,29 @@ export async function proxy(request: NextRequest) {
 		} catch {}
 	}
 
+	let sessionId = request.cookies.get('session_id')?.value;
+	const isNewSession = !sessionId;
+	if (!sessionId) {
+		sessionId = crypto.randomUUID();
+	}
+
+	response.cookies.set('session_id', sessionId, {
+		httpOnly: true,
+		secure: process.env.NODE_ENV === 'production',
+		sameSite: 'lax',
+		maxAge: 60 * 20,
+		path: '/'
+	});
+
 	const trackingPayload = JSON.stringify({
 		visitorId,
+		sessionId,
 		pageUrl,
 		queryString,
 		referrer,
 		geoCity,
-		geoState
+		geoState,
+		isNewSession
 	});
 
 	response.cookies.set('__tracking', trackingPayload, {

@@ -1,8 +1,13 @@
+import { cookies } from 'next/headers';
 import { getRankings } from '@/lib/rankings/rankings';
 import TeamTable from './TeamTable';
 
 export default async function Home() {
-	const rankings = await getRankings();
+	const cookieStore = await cookies();
+	const trackingCookie = cookieStore.get('__tracking')?.value;
+	const isNewSession = trackingCookie ? JSON.parse(trackingCookie).isNewSession : false;
+
+	const [rankings] = await Promise.all([getRankings(), ...(isNewSession ? [new Promise(res => setTimeout(res, 3000))] : [])]);
 
 	return (
 		<div className="h-dvh flex flex-col overflow-hidden">

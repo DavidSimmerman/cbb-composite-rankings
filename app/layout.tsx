@@ -59,6 +59,7 @@ export default async function RootLayout({
 				{trackingData && (
 					<TrackingBeacon
 						visitorId={trackingData.visitorId}
+						sessionId={trackingData.sessionId}
 						pageUrl={trackingData.pageUrl}
 						queryString={trackingData.queryString}
 						referrer={trackingData.referrer}
