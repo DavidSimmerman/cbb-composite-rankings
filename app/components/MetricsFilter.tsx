@@ -58,7 +58,7 @@ export default function MetricsFilter({ metricsFilter, onChange }: MetricsFilter
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
 					<DropdownMenuItem className="px-2 justify-center cursor-pointer" onClick={toggleAll}>
-						Enable All
+						Toggle All
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 			</DropdownMenuContent>

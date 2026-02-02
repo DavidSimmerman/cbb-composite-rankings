@@ -68,7 +68,7 @@ export default function SourcesFilter({ sourcesFilter, onChange }: SourcesFilter
 				<DropdownMenuSeparator />
 				<DropdownMenuGroup>
 					<DropdownMenuItem className="px-2 justify-center cursor-pointer" onClick={toggleAll}>
-						Enable All
+						Toggle All
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 			</DropdownMenuContent>
