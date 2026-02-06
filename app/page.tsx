@@ -7,7 +7,8 @@ export default async function Home() {
 	const trackingCookie = cookieStore.get('__tracking')?.value;
 	const isNewSession = trackingCookie ? JSON.parse(trackingCookie).isNewSession : false;
 
-	const [rankings] = await Promise.all([getRankings(), ...(isNewSession ? [new Promise(res => setTimeout(res, 3000))] : [])]);
+	// This timeout is just to show off the loading animation cuz I think it looks really cool :)
+	const [rankings] = await Promise.all([getRankings(), ...(isNewSession ? [new Promise(res => setTimeout(res, 1500))] : [])]);
 
 	return (
 		<div className="h-dvh flex flex-col overflow-hidden">
