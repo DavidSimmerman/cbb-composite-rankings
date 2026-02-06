@@ -97,7 +97,7 @@ function ChartCard({ chartData, metric }: { chartData: Record<string, any>[]; me
 							<ChartTooltipContent
 								className="w-[180px]"
 								formatter={(value, name, item, index) => {
-									let key;
+									let key = '';
 
 									if (name === 'composite') {
 										key = `avg_${metric.replace('rating', 'zscore')}`;
