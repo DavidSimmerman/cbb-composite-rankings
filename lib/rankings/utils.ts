@@ -24,6 +24,19 @@ export async function waitForSelectorRetries(page: Page, selector: string): Prom
 	return attempts;
 }
 
+export function validateRankings(teams: Record<string, unknown>[], source: string): void {
+	for (const team of teams) {
+		const teamName = (team.team_key ?? team.team ?? team.school ?? 'unknown') as string;
+		for (const [key, value] of Object.entries(team)) {
+			if (value === null || value === undefined || (typeof value === 'number' && isNaN(value))) {
+				throw new Error(
+					`${source} validation failed: team "${teamName}" has invalid value for "${key}": ${value}`
+				);
+			}
+		}
+	}
+}
+
 export function calculateZScores<T extends Record<string, any>>(teams: T[], keys: { source: string; flip?: boolean }[]): T[] {
 	const newTeams: Record<string, any>[] = structuredClone(teams);
 

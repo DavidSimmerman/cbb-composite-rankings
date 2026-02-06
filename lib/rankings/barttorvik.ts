@@ -1,5 +1,5 @@
 import { Browser } from 'playwright';
-import { waitForSelectorRetries, calculateZScores } from './utils';
+import { waitForSelectorRetries, calculateZScores, validateRankings } from './utils';
 import { PostgresService } from '../database';
 
 const db = PostgresService.getInstance();
@@ -108,6 +108,8 @@ export async function updateBartTorvik(browser: Browser) {
 	`;
 
 	const teams = await fetchBartTorvikRankings(browser);
+
+	validateRankings(teams, 'BartTorvik');
 
 	await db.transaction(
 		teams.map(team => ({

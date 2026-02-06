@@ -1,5 +1,5 @@
 import { Browser } from 'playwright';
-import { waitForSelectorRetries, calculateZScores } from './utils';
+import { waitForSelectorRetries, calculateZScores, validateRankings } from './utils';
 import { PostgresService } from '../database';
 
 const db = PostgresService.getInstance();
@@ -55,6 +55,8 @@ export async function updateNet(browser: Browser) {
 	`;
 
 	const teams = await fetchNetRankings(browser);
+
+	validateRankings(teams, 'NET');
 
 	await db.transaction(
 		teams.map(team => ({

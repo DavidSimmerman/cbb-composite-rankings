@@ -1,5 +1,5 @@
 import { Browser } from 'playwright';
-import { waitForSelectorRetries, calculateZScores } from './utils';
+import { waitForSelectorRetries, calculateZScores, validateRankings } from './utils';
 import { PostgresService } from '../database';
 
 const db = PostgresService.getInstance();
@@ -73,6 +73,8 @@ export async function updateKenPom(browser: Browser) {
 	`;
 
 	const kenpomRankings = await fetchKenpomRankings(browser);
+
+	validateRankings(kenpomRankings, 'KenPom');
 
 	await db.transaction(
 		Object.values(kenpomRankings).map(team => ({
