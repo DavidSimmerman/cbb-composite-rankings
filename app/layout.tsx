@@ -55,7 +55,7 @@ export default async function RootLayout({
 	return (
 		<html lang="en" className="dark">
 			<body className={`${geistSans.variable} ${geistMono.variable} ${kanit.variable} antialiased`}>
-				{children}
+				<div className="mx-2 md:mx-8 ">{children}</div>
 				{trackingData && (
 					<TrackingBeacon
 						visitorId={trackingData.visitorId}

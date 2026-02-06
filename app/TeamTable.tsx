@@ -43,7 +43,7 @@ export default function TeamTable({ data }: TeamTableProps) {
 	const [sourcesFilter, setSourcesFilter] = useState<string[]>([...allSourceToggles]);
 	const [metricsFilter, setMetricsFilter] = useState<string[]>([...allMetricToggles]);
 	const [relativeRankings, setOnRelativeRankings] = useState<boolean>(true);
-	
+
 	const router = useRouter();
 
 	const activeSources = useMemo(() => allSources.filter(s => sourcesFilter.includes(s.key)), [sourcesFilter]);
@@ -138,7 +138,7 @@ export default function TeamTable({ data }: TeamTableProps) {
 	});
 
 	return (
-		<div className="mx-2 md:mx-8 mt-8 md:mb-8 flex flex-col flex-1 min-h-0">
+		<div className="mt-8 md:mb-8 flex flex-col flex-1 min-h-0">
 			<div className="mb-4 flex gap-2 justify-between">
 				<InputGroup className="md:w-1/3">
 					<InputGroupInput
@@ -187,7 +187,12 @@ export default function TeamTable({ data }: TeamTableProps) {
 						</TableHeader>
 						<TableBody>
 							{table.getRowModel().rows.map(row => (
-								<TableRow key={row.id} data-state={row.getIsSelected() && 'selected'} className="cursor-pointer" onClick={() => router.push(`/${row.original.team_key}`)}>
+								<TableRow
+									key={row.id}
+									data-state={row.getIsSelected() && 'selected'}
+									className="cursor-pointer"
+									onClick={() => router.push(`/${row.original.team_key}`)}
+								>
 									{row.getVisibleCells().map((cell, index) => {
 										const isSticky = index === 0;
 										return (

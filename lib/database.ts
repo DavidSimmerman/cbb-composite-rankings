@@ -1,6 +1,7 @@
 import { Pool, QueryResultRow, types } from 'pg';
 
 types.setTypeParser(20, (val: string) => parseInt(val));
+types.setTypeParser(1082, (val: string) => val);
 types.setTypeParser(1700, (val: string) => parseFloat(val));
 
 type QueryConfig = {

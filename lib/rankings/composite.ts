@@ -8,7 +8,7 @@ import { computeAverageZScores, sourceSystems } from '../shared';
 
 const db = PostgresService.getInstance();
 
-export interface CompositeRankings {
+export interface CompositeRanking {
 	id: string;
 	date: string;
 	team_key: string;
