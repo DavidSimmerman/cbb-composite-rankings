@@ -27,6 +27,7 @@ import {
 import SourcesFilter from './components/SourcesFilter';
 import ConferenceFilter from './components/ConferenceFilter';
 import MetricsFilter from './components/MetricsFilter';
+import { useRouter } from 'next/navigation';
 
 interface TeamTableProps {
 	data: CompiledTeamData[];
@@ -42,6 +43,8 @@ export default function TeamTable({ data }: TeamTableProps) {
 	const [sourcesFilter, setSourcesFilter] = useState<string[]>([...allSourceToggles]);
 	const [metricsFilter, setMetricsFilter] = useState<string[]>([...allMetricToggles]);
 	const [relativeRankings, setOnRelativeRankings] = useState<boolean>(true);
+	
+	const router = useRouter();
 
 	const activeSources = useMemo(() => allSources.filter(s => sourcesFilter.includes(s.key)), [sourcesFilter]);
 
@@ -184,7 +187,7 @@ export default function TeamTable({ data }: TeamTableProps) {
 						</TableHeader>
 						<TableBody>
 							{table.getRowModel().rows.map(row => (
-								<TableRow key={row.id} data-state={row.getIsSelected() && 'selected'} className="cursor-pointer">
+								<TableRow key={row.id} data-state={row.getIsSelected() && 'selected'} className="cursor-pointer" onClick={() => router.push(`/${row.original.team_key}`)}>
 									{row.getVisibleCells().map((cell, index) => {
 										const isSticky = index === 0;
 										return (
