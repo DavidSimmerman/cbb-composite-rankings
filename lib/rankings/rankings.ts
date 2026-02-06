@@ -127,10 +127,12 @@ interface CompositeProfileRow extends TeamProfileRow {
 
 type TeamProfileData = KenPomProfileRow & EvanMiyaProfileRow & BartTorvikProfileRow & NetProfileRow & CompositeProfileRow;
 
-interface TeamProfile {
+export type ProfileRatingsHistory = Record<string, TeamProfileData>;
+
+export interface TeamProfile {
 	team_key: string;
 	team_name: string;
-	ratings_history: Record<string, TeamProfileData>;
+	ratings_history: ProfileRatingsHistory;
 }
 
 export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {

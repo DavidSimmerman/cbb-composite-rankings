@@ -2,9 +2,10 @@
 
 import { Card } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { ProfileRatingsHistory } from '@/lib/rankings/rankings';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
-export default function TeamCharts({ history }) {
+export default function TeamCharts({ history }: { history: ProfileRatingsHistory }) {
 	console.log(history);
 
 	const ratingData = Object.values(history).map(h => ({
@@ -53,7 +54,7 @@ export default function TeamCharts({ history }) {
 	);
 }
 
-function ChartCard({ chartData, metric }) {
+function ChartCard({ chartData, metric }: { chartData: Record<string, any>[]; metric: string }) {
 	const chartConfig = {
 		composite: {
 			label: 'Composite',
