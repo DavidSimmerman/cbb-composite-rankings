@@ -23,17 +23,28 @@ export async function updateRankings(rankings: Ranking[]) {
 	console.log(`RANKINGS FETCH: Starting fetching rankings for ${rankings.join(',')}.`);
 
 	const browser = await chromium.launch();
+	const context = await browser.newContext({
+		userAgent:
+			'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+	});
+	await context.addInitScript(() => {
+		Object.defineProperty(navigator, 'webdriver', { get: () => false });
+		Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+		Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+		(window as any).chrome = { runtime: {} };
+	});
 
 	await Promise.all(
 		rankings.map(async r => {
 			try {
-				await rankingsMap[r](browser);
+				await rankingsMap[r](context);
 			} catch (e: any) {
 				console.log(`RANKINGS FETCH: Error fetching ${r} rankings: ${e.toString()}`);
 			}
 		})
 	);
 
+	await context.close();
 	await browser.close();
 
 	await updateComposite();

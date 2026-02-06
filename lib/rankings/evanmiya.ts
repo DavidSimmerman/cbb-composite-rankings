@@ -1,4 +1,4 @@
-import { Browser } from 'playwright';
+import { BrowserContext } from 'playwright';
 import { waitForSelectorRetries, calculateZScores, validateRankings } from './utils';
 import { PostgresService } from '../database';
 
@@ -37,7 +37,7 @@ export interface EvanMiyaRanking {
 	updated_at: string;
 }
 
-export async function updateEvanMiya(browser: Browser) {
+export async function updateEvanMiya(browser: BrowserContext) {
 	const EM_QUERY = `
 		INSERT INTO evanmiya_rankings (
 			team_key, team, relative_ranking, trends,
@@ -118,7 +118,7 @@ export async function updateEvanMiya(browser: Browser) {
 	console.log(`RANKINGS FETCH: EvanMiya rankings successfully updated.`);
 }
 
-export async function fetchEvanMiyaRankings(browser: Browser) {
+export async function fetchEvanMiyaRankings(browser: BrowserContext) {
 	const startTime = new Date().getTime();
 
 	const page = await browser.newPage();

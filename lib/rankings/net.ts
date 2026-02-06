@@ -1,4 +1,4 @@
-import { Browser } from 'playwright';
+import { BrowserContext } from 'playwright';
 import { waitForSelectorRetries, calculateZScores, validateRankings } from './utils';
 import { PostgresService } from '../database';
 
@@ -30,7 +30,7 @@ export interface NetRanking {
 	updated_at: string;
 }
 
-export async function updateNet(browser: Browser) {
+export async function updateNet(browser: BrowserContext) {
 	const NET_QUERY = `
 		INSERT INTO net_rankings (
 			team_key, school, rank, record, conf,
@@ -88,7 +88,7 @@ export async function updateNet(browser: Browser) {
 	console.log(`RANKINGS FETCH: NET rankings successfully updated.`);
 }
 
-export async function fetchNetRankings(browser: Browser) {
+export async function fetchNetRankings(browser: BrowserContext) {
 	const startTime = new Date().getTime();
 
 	const page = await browser.newPage();

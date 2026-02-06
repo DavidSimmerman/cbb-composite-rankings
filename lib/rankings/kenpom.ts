@@ -1,4 +1,4 @@
-import { Browser } from 'playwright';
+import { BrowserContext } from 'playwright';
 import { waitForSelectorRetries, calculateZScores, validateRankings } from './utils';
 import { PostgresService } from '../database';
 
@@ -36,7 +36,7 @@ export interface KenPomRanking {
 	updated_at: string;
 }
 
-export async function updateKenPom(browser: Browser) {
+export async function updateKenPom(browser: BrowserContext) {
 	const KP_QUERY = `
 		INSERT INTO kenpom_rankings (
 			team_key, team, rank, conference, win_loss, net_rating,
@@ -136,7 +136,7 @@ const HEADERS = [
 	'noncon_sos_rank'
 ] as const;
 
-async function fetchKenpomRankings(browser: Browser) {
+async function fetchKenpomRankings(browser: BrowserContext) {
 	const startTime = new Date().getTime();
 
 	const page = await browser.newPage();

@@ -1,4 +1,4 @@
-import { Browser } from 'playwright';
+import { BrowserContext } from 'playwright';
 import { waitForSelectorRetries, calculateZScores, validateRankings } from './utils';
 import { PostgresService } from '../database';
 
@@ -58,7 +58,7 @@ export interface BartTorvikRanking {
 	'updated_at': string;
 }
 
-export async function updateBartTorvik(browser: Browser) {
+export async function updateBartTorvik(browser: BrowserContext) {
 	const BT_QUERY = `
 		INSERT INTO barttorvik_rankings (
 			team_key, team, rk, conf, g, rec,
@@ -169,7 +169,7 @@ export async function updateBartTorvik(browser: Browser) {
 	console.log(`RANKINGS FETCH: BartTorvik rankings successfully updated.`);
 }
 
-export async function fetchBartTorvikRankings(browser: Browser) {
+export async function fetchBartTorvikRankings(browser: BrowserContext) {
 	const startTime = new Date().getTime();
 
 	const page = await browser.newPage();
