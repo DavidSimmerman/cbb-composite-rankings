@@ -123,9 +123,7 @@ export async function fetchEvanMiyaRankings(browser: Browser) {
 
 	const page = await browser.newPage();
 
-	await page.goto('https://evanmiya.com/?team_ratings', {
-		waitUntil: 'networkidle'
-	});
+	await page.goto('https://evanmiya.com/?team_ratings');
 
 	const attempts = await waitForSelectorRetries(page, '.rt-page-size-select');
 

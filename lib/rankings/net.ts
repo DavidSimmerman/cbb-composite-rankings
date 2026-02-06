@@ -93,9 +93,7 @@ export async function fetchNetRankings(browser: Browser) {
 
 	const page = await browser.newPage();
 
-	await page.goto('https://www.ncaa.com/rankings/basketball-men/d1/ncaa-mens-basketball-net-rankings', {
-		waitUntil: 'networkidle'
-	});
+	await page.goto('https://www.ncaa.com/rankings/basketball-men/d1/ncaa-mens-basketball-net-rankings');
 
 	const attempts = await waitForSelectorRetries(page, 'tbody tr');
 

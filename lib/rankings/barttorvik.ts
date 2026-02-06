@@ -174,7 +174,7 @@ export async function fetchBartTorvikRankings(browser: Browser) {
 
 	const page = await browser.newPage();
 
-	await page.goto('https://barttorvik.com/#', { waitUntil: 'networkidle' });
+	await page.goto('https://barttorvik.com/#');
 
 	const attempts = await waitForSelectorRetries(page, '.seedrow');
 

@@ -26,8 +26,7 @@ export async function updateComposite() {
 	function getQuery(table: string) {
 		return `
 			SELECT * FROM ${table}
-			WHERE date = (SELECT MAX(date) FROM ${table})
-			ORDER BY rank;
+			WHERE date = (SELECT MAX(date) FROM ${table});
 		`;
 	}
 

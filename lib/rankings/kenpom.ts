@@ -141,7 +141,7 @@ async function fetchKenpomRankings(browser: Browser) {
 
 	const page = await browser.newPage();
 
-	await page.goto('https://kenpom.com/index.php', { waitUntil: 'networkidle' });
+	await page.goto('https://kenpom.com/index.php');
 
 	const attempts = await waitForSelectorRetries(page, '#ratings-table tbody tr');
 
