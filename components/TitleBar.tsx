@@ -21,7 +21,7 @@ export default function TitleBar({ title }: { title: string }) {
 				<line x1="210" y1="22" x2="210" y2="102" />
 				<line x1="210" y1="62" x2="337" y2="62" />
 			</svg>
-			<div className="font-kanit text-center font-medium italic text-2xl md:text-5xl">{title}</div>
+			<div className="font-kanit text-center font-medium italic text-2xl md:text-5xl mx-2">{title}</div>
 			<svg
 				viewBox="21 0 339 124"
 				className="w-20 h-10 sm:w-40 sm:h-14 md:w-60 md:h-14 text-neutral-400 -skew-x-12 shrink-0"
