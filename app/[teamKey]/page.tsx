@@ -14,7 +14,7 @@ export default async function TeamPage({ params }: { params: Promise<{ teamKey: 
 		<div>
 			<div className="relative flex items-center justify-center">
 				<Link href="/" className="absolute left-4 mt-10 cursor-pointer group">
-					< className="transition-transform duration-200 group-hover:-translate-x-1 size-6 text-neutral-400 hover:text-white" />
+					<ArrowLeft className="transition-transform duration-200 group-hover:-translate-x-1 size-6 text-neutral-400 hover:text-white" />
 				</Link>
 				<TitleBar title={profile.team_name} />
 			</div>
