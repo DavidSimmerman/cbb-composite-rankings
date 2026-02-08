@@ -47,7 +47,11 @@ export async function updateRankings(rankings: Ranking[]) {
 	await context.close();
 	await browser.close();
 
-	await updateComposite();
+	try {
+		await updateComposite();
+	} catch (e: any) {
+		console.log(`RANKINGS FETCH: Error updating composite rankings: ${e.toString()}`);
+	}
 
 	console.log(`RANKINGS FETCH: Finished fetching rankings.`);
 }
@@ -134,9 +138,14 @@ interface CompositeProfileRow extends TeamProfileRow {
 	avg_offensive_zscore_rank: number;
 	avg_defensive_zscore: number;
 	avg_defensive_zscore_rank: number;
+	sources: string;
 }
 
-type TeamProfileData = KenPomProfileRow & EvanMiyaProfileRow & BartTorvikProfileRow & NetProfileRow & CompositeProfileRow;
+type TeamProfileData = KenPomProfileRow &
+	EvanMiyaProfileRow &
+	BartTorvikProfileRow &
+	NetProfileRow &
+	CompositeProfileRow & { compositeCombos: Record<string, CompositeProfileRow> };
 
 export type ProfileRatingsHistory = Record<string, TeamProfileData>;
 
@@ -165,7 +174,7 @@ export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
 					.join(',\n')}
 			FROM ${table}
 			WHERE team_key = $1
-				AND date >= NOW() - INTERVAL '14 days'
+				AND date >= NOW() - INTERVAL '30 days'
 				AND team_key = $1
 			ORDER BY date ASC
 		`;
@@ -237,7 +246,8 @@ export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
 				avg_offensive_zscore: 'avg_offensive_zscore',
 				avg_offensive_zscore_rank: 'avg_offensive_zscore_rank',
 				avg_defensive_zscore: 'avg_defensive_zscore',
-				avg_defensive_zscore_rank: 'avg_defensive_zscore_rank'
+				avg_defensive_zscore_rank: 'avg_defensive_zscore_rank',
+				sources: 'sources'
 			}),
 			[teamKey]
 		)
@@ -249,12 +259,23 @@ export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
 	const ratings_history = kenpomRankings.reduce<Record<string, TeamProfileData>>((map, kp) => {
 		const date = kp.date;
 
+		const compositeMap: Record<string, CompositeProfileRow> = {};
+
+		compositeRankings.forEach(r => {
+			if (r.date !== date) {
+				return;
+			}
+
+			compositeMap[r.sources] = r;
+		});
+
 		map[date] = {
 			...kp,
 			...evanMiyaRankings.find(r => r.date === date),
 			...bartTorvikRankings.find(r => r.date === date),
 			...netRankings.find(r => r.date === date),
-			...compositeRankings.find(r => r.date === date)
+			...compositeMap['kp,em,bt,net'],
+			compositeCombos: compositeMap
 		} as TeamProfileData;
 		return map;
 	}, {});
