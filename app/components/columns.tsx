@@ -4,6 +4,7 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { type CompiledTeamData } from '@/lib/shared';
 import { ESPN_TEAM_IDS } from '@/lib/schedule/espn-team-ids';
+import TeamLogo from '@/components/TeamLogo';
 
 const headerBtn =
 	'inline-flex items-center justify-center gap-1 m-auto cursor-pointer rounded-md px-0 py-1 text-xs md:text-sm font-medium hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 [&_svg]:size-3 [&_svg]:md:size-4 [&_svg]:shrink-0';
@@ -14,10 +15,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 		header: () => <div className="px-1">Team</div>,
 		cell: ({ row }) => (
 			<div className="px-1 flex items-center gap-1">
-				<img
-					className="h-lh"
-					src={`https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500/${ESPN_TEAM_IDS[row.original.team_key]}.png&h=200&w=200`}
-				/>
+				<TeamLogo teamKey={row.original.team_key} className="h-lh" size={50} />
 				<span className="truncate max-w-[12ch]">{row.original.team_name}</span>
 			</div>
 		),

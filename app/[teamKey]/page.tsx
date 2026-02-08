@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { ESPN_TEAM_IDS } from '@/lib/schedule/espn-team-ids';
+import TeamLogo from '@/components/TeamLogo';
 
 export default async function TeamPage({ params }: { params: Promise<{ teamKey: string }> }) {
 	const { teamKey } = await params;
@@ -22,10 +23,7 @@ export default async function TeamPage({ params }: { params: Promise<{ teamKey: 
 					className="mt-8"
 					title={
 						<div className="flex items-center gap-3">
-							<img
-								className="h-[1.5lh]"
-								src={`https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500/${ESPN_TEAM_IDS[teamKey]}.png&h=200&w=200`}
-							/>
+							<TeamLogo teamKey={teamKey} className="h-[1.5lh]" />
 							{profile.team_name}
 						</div>
 					}
