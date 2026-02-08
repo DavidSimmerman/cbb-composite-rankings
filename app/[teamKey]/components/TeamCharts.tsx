@@ -86,7 +86,7 @@ export default function TeamCharts({ history }: { history: ProfileRatingsHistory
 		<div className="flex flex-col w-full gap-4 border border-neutral-800 rounded-lg p-4">
 			<div className="ml-auto mr-0 flex gap-2 z-1">
 				<Toggle
-					className="cursor-pointer [&_svg]:transition-transform [&_svg]:duration-200 hover:[&_svg]:scale-125"
+					className={`cursor-pointer [&_svg]:transition-transform [&_svg]:duration-200 ${zoom ? 'hover:[&_svg]:scale-75' : 'hover:[&_svg]:scale-125'}`}
 					pressed={zoom}
 					onPressedChange={setZoom}
 				>
