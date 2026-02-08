@@ -1,8 +1,9 @@
 import Link from 'next/link';
+import { twMerge } from 'tailwind-merge';
 
-export default function TitleBar({ title }: { title: string }) {
+export default function TitleBar({ className, title }: { className: string; title: string | React.ReactNode }) {
 	return (
-		<Link className="flex items-center justify-center mt-10 gap-0 mx-4 cursor-pointer" href="/">
+		<Link className={twMerge('flex items-center justify-center mt-10 gap-0 mx-4 cursor-pointer', className)} href="/">
 			<svg
 				viewBox="0 0 339 124"
 				className="w-20 h-10 sm:w-40 sm:h-14 md:w-60 md:h-14 text-neutral-400 -skew-x-12 shrink-0"

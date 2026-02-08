@@ -4,6 +4,7 @@ import TeamCharts from './components/TeamCharts';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { ESPN_TEAM_IDS } from '@/lib/schedule/espn-team-ids';
 
 export default async function TeamPage({ params }: { params: Promise<{ teamKey: string }> }) {
 	const { teamKey } = await params;
@@ -16,9 +17,21 @@ export default async function TeamPage({ params }: { params: Promise<{ teamKey: 
 				<Link href="/" className="absolute left-4 mt-10 cursor-pointer group">
 					<ArrowLeft className="transition-transform duration-200 group-hover:-translate-x-1 size-6 text-neutral-400 hover:text-white" />
 				</Link>
-				<TitleBar title={profile.team_name} />
+				<img />
+				<TitleBar
+					className="mt-8"
+					title={
+						<div className="flex items-center gap-3">
+							<img
+								className="h-[1.5lh]"
+								src={`https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/500/${ESPN_TEAM_IDS[teamKey]}.png&h=200&w=200`}
+							/>
+							{profile.team_name}
+						</div>
+					}
+				/>
 			</div>
-			<div className="w-full mt-12">
+			<div className="w-full mt-8">
 				<TeamCharts history={profile.ratings_history} />
 			</div>
 		</div>

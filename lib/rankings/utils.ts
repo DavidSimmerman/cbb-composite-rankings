@@ -29,9 +29,7 @@ export function validateRankings(teams: Record<string, unknown>[], source: strin
 		const teamName = (team.team_key ?? team.team ?? team.school ?? 'unknown') as string;
 		for (const [key, value] of Object.entries(team)) {
 			if (value === null || value === undefined || (typeof value === 'number' && isNaN(value))) {
-				throw new Error(
-					`${source} validation failed: team "${teamName}" has invalid value for "${key}": ${value}`
-				);
+				throw new Error(`${source} validation failed: team "${teamName}" has invalid value for "${key}": ${value}`);
 			}
 		}
 	}
@@ -67,7 +65,7 @@ export function mapBaseTeams(
 
 		return {
 			team_key: teamKey,
-			team_name: emValues.team,
+			team_name: kpValues.team,
 			conference: kpValues.conference,
 
 			kp_rating: kpValues.net_rating,
