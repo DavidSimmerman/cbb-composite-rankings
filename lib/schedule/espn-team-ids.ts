@@ -1,4 +1,4 @@
-export const ESPN_TEAM_IDS = {
+export const ESPN_TEAM_IDS: Record<string, string> = {
 	abilene_christian: '2000',
 	air_force: '2005',
 	akron: '2006',
@@ -364,4 +364,9 @@ export const ESPN_TEAM_IDS = {
 	xavier: '2752',
 	yale: '43',
 	youngstown_st: '2754'
-};
+} as const;
+
+export const ESPN_TO_TEAM_KEY: Record<string, string> = Object.entries(ESPN_TEAM_IDS).reduce(
+	(map, [teamKey, espnId]) => ({ ...map, [espnId]: teamKey }),
+	{}
+);
