@@ -28,12 +28,9 @@ import SourcesFilter from './components/SourcesFilter';
 import ConferenceFilter from './components/ConferenceFilter';
 import MetricsFilter from './components/MetricsFilter';
 import { useRouter } from 'next/navigation';
+import { useRankings } from './context/RankingsContext';
 
-interface TeamTableProps {
-	data: CompiledTeamData[];
-}
-
-export default function TeamTable({ data }: TeamTableProps) {
+export default function TeamTable() {
 	const [sorting, setSorting] = useState<SortingState>([{ id: 'avg_zscore_rank', desc: false }]);
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -43,6 +40,8 @@ export default function TeamTable({ data }: TeamTableProps) {
 	const [sourcesFilter, setSourcesFilter] = useState<string[]>([...allSourceToggles]);
 	const [metricsFilter, setMetricsFilter] = useState<string[]>([...allMetricToggles]);
 	const [relativeRankings, setOnRelativeRankings] = useState<boolean>(true);
+
+	const data = useRankings();
 
 	const router = useRouter();
 

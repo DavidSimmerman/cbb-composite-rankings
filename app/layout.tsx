@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import localFont from 'next/font/local';
 import { cookies } from 'next/headers';
+import { getRankings } from '@/lib/rankings/rankings';
+import { RankingsProvider } from './context/RankingsContext';
 import TrackingBeacon from './components/TrackingBeacon';
 import './globals.css';
 
@@ -52,10 +54,17 @@ export default async function RootLayout({
 		} catch {}
 	}
 
+	const isNewSession = trackingCookie ? JSON.parse(trackingCookie).isNewSession : false;
+
+	// This timeout is just to show off the loading animation cuz I think it looks really cool :)
+	const [rankings] = await Promise.all([getRankings(), ...(isNewSession ? [new Promise(res => setTimeout(res, 1500))] : [])]);
+
 	return (
 		<html lang="en" className="dark">
 			<body className={`${geistSans.variable} ${geistMono.variable} ${kanit.variable} antialiased`}>
-				<div className="mx-2 md:mx-8 ">{children}</div>
+				<RankingsProvider rankings={rankings}>
+					<div className="mx-2 md:mx-8 ">{children}</div>
+				</RankingsProvider>
 				{trackingData && (
 					<TrackingBeacon
 						visitorId={trackingData.visitorId}
