@@ -18,8 +18,9 @@ import { useMemo, useState } from 'react';
 import { PiChartLineBold } from 'react-icons/pi';
 import { RiCollapseVerticalLine, RiExpandVerticalLine, RiZoomInFill, RiZoomInLine } from 'react-icons/ri';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+import { twMerge } from 'tailwind-merge';
 
-export default function TeamCharts({ history }: { history: ProfileRatingsHistory }) {
+export default function TeamCharts({ history, className }: { history: ProfileRatingsHistory; className: string }) {
 	const [zoom, setZoom] = useState<boolean>(false);
 	const [dashedLines, setDashedLines] = useState<boolean>(false);
 	const [rank, setRank] = useState<boolean>(false);
@@ -83,7 +84,7 @@ export default function TeamCharts({ history }: { history: ProfileRatingsHistory
 	}, [zoom, rank]);
 
 	return (
-		<div className="flex flex-col w-full gap-4 border border-neutral-800 rounded-lg p-4">
+		<div className={twMerge(`flex flex-col w-full gap-4 border border-neutral-800 rounded-lg p-4`, className)}>
 			<div className="ml-auto mr-0 flex gap-2 z-1">
 				<Toggle
 					className={`cursor-pointer [&_svg]:transition-transform [&_svg]:duration-200 ${zoom ? 'hover:[&_svg]:scale-75' : 'hover:[&_svg]:scale-125'}`}
@@ -92,21 +93,32 @@ export default function TeamCharts({ history }: { history: ProfileRatingsHistory
 				>
 					{zoom ? <RiCollapseVerticalLine /> : <RiExpandVerticalLine />}
 				</Toggle>
-				<Toggle
-					className="cursor-pointer group/dash"
-					pressed={dashedLines}
-					onPressedChange={setDashedLines}
-				>
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" className="size-4">
+				<Toggle className="cursor-pointer group/dash" pressed={dashedLines} onPressedChange={setDashedLines}>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth={2.5}
+						strokeLinecap="round"
+						className="size-4"
+					>
 						<path
 							d="M3 8 C8 4, 14 14, 21 6"
 							strokeDasharray={dashedLines ? '3 3' : '100'}
-							className={dashedLines ? 'group-hover/dash:[stroke-dasharray:100]' : 'group-hover/dash:[stroke-dasharray:3_3]'}
+							className={
+								dashedLines
+									? 'group-hover/dash:[stroke-dasharray:100]'
+									: 'group-hover/dash:[stroke-dasharray:3_3]'
+							}
 						/>
 						<path
 							d="M3 18 C8 12, 14 20, 21 14"
 							strokeDasharray={dashedLines ? '3 3' : '100'}
-							className={dashedLines ? 'group-hover/dash:[stroke-dasharray:100]' : 'group-hover/dash:[stroke-dasharray:3_3]'}
+							className={
+								dashedLines
+									? 'group-hover/dash:[stroke-dasharray:100]'
+									: 'group-hover/dash:[stroke-dasharray:3_3]'
+							}
 						/>
 					</svg>
 				</Toggle>
