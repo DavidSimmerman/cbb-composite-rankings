@@ -47,9 +47,9 @@ export default function useScheduleColumns() {
 						id: 'opp',
 						header: () => <div>Opponent</div>,
 						cell: ({ row }) => (
-							<Link href={row.original.opp.team_key} className="flex gap-1 items-center pr-1">
-								<TeamLogo teamKey={row.original.opp.team_key} className="h-lh" />
-								<span className="truncate">{row.original.opp.team_name}</span>
+							<Link href={row.original.opp.team_key ?? '/'} className="flex gap-1 items-center pr-1">
+								{row.original.opp.team_key && <TeamLogo teamKey={row.original.opp.team_key} className="h-lh" />}
+								<span className="truncate">{row.original.opp.team_name ?? row.original.espn_id}</span>
 							</Link>
 						)
 					}
@@ -256,6 +256,11 @@ function RatingCell({
 	let displayValue: React.ReactNode | number = Math.round((game.opp[ratingKey] as any) * 100) / 100;
 	let displayRank: React.ReactNode | number = game.opp[(ratingKey + '_rank') as keyof CompiledTeamData];
 
+	if (isNaN(displayValue)) {
+		displayValue = '-';
+		displayRank = '';
+	}
+
 	if (viewMode === 'game_delta') {
 		const { prev, next } = getSurroundDays(game.date);
 
@@ -278,7 +283,10 @@ function RatingCell({
 				displayRank = '';
 			}
 		} else {
-			const ratingDelta = Math.round(((afterRatings as any)[ratingKey] - (beforeRatings as any)[ratingKey]) * 100) / 100;
+			let ratingDelta = Math.round(((afterRatings as any)[ratingKey] - (beforeRatings as any)[ratingKey]) * 100) / 100;
+			if (['kp_defensive_rating', 'bt_defensive_rating'].includes(ratingKey)) {
+				ratingDelta *= -1;
+			}
 			const rankDelta = (beforeRatings as any)[ratingKey + '_rank'] - (afterRatings as any)[ratingKey + '_rank'];
 
 			let ratingColor, rankColor;
