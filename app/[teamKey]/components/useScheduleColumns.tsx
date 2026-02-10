@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ParsedEspnGame } from '@/lib/schedule/schedule';
 import { CompiledTeamData } from '@/lib/shared';
 import { ColumnDef } from '@tanstack/react-table';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { GoDotFill } from 'react-icons/go';
 import { PiQuestion } from 'react-icons/pi';
@@ -46,10 +47,10 @@ export default function useScheduleColumns() {
 						id: 'opp',
 						header: () => <div>Opponent</div>,
 						cell: ({ row }) => (
-							<div className="flex gap-1 items-center pr-1">
+							<Link href={row.original.opp.team_key} className="flex gap-1 items-center pr-1">
 								<TeamLogo teamKey={row.original.opp.team_key} className="h-lh" />
 								<span className="truncate">{row.original.opp.team_name}</span>
-							</div>
+							</Link>
 						)
 					}
 				]
@@ -259,7 +260,7 @@ function RatingCell({
 		const { prev, next } = getSurroundDays(game.date);
 
 		const beforeRatings = history[prev];
-		const afterRatings = history[next] || history;
+		const afterRatings = history[next] || history[game.date];
 
 		if (!beforeRatings || !afterRatings) {
 			if (!game.time && !beforeRatings && ratingType === 'offensiveRating') {
@@ -278,14 +279,18 @@ function RatingCell({
 			}
 		} else {
 			const ratingDelta = Math.round(((afterRatings as any)[ratingKey] - (beforeRatings as any)[ratingKey]) * 100) / 100;
-			const rankDelta = (afterRatings as any)[ratingKey + '_rank'] - (beforeRatings as any)[ratingKey + '_rank'];
+			const rankDelta = (beforeRatings as any)[ratingKey + '_rank'] - (afterRatings as any)[ratingKey + '_rank'];
 
 			let ratingColor, rankColor;
 			if (ratingDelta > 0) {
 				ratingColor = 'text-green-500';
-				rankColor = 'text-green-500/80';
 			} else if (ratingDelta < 0) {
 				ratingColor = 'text-red-500';
+			}
+
+			if (rankDelta > 0) {
+				rankColor = 'text-green-500/80';
+			} else if (rankDelta < 0) {
 				rankColor = 'text-red-500/80';
 			}
 
