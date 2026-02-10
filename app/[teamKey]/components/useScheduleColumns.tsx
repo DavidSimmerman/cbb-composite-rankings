@@ -4,11 +4,13 @@ import { useTeamProfile } from '@/app/context/TeamProfileContext';
 import TeamLogo from '@/components/TeamLogo';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ParsedEspnGame } from '@/lib/schedule/schedule';
 import { CompiledTeamData } from '@/lib/shared';
 import { ColumnDef } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
 import { GoDotFill } from 'react-icons/go';
+import { PiQuestion } from 'react-icons/pi';
 
 export default function useScheduleColumns() {
 	const [ratingSource, setRatingSource] = useState('composite');
@@ -260,8 +262,20 @@ function RatingCell({
 		const afterRatings = history[next] || history;
 
 		if (!beforeRatings || !afterRatings) {
-			displayValue = '-';
-			displayRank = '';
+			if (!game.time && !beforeRatings && ratingType === 'offensiveRating') {
+				displayValue = (
+					<Tooltip>
+						<TooltipTrigger>
+							<PiQuestion />
+						</TooltipTrigger>
+						<TooltipContent>Data tracking began on 2/1. Previous history not included.</TooltipContent>
+					</Tooltip>
+				);
+				displayRank = '';
+			} else {
+				displayValue = '-';
+				displayRank = '';
+			}
 		} else {
 			const ratingDelta = Math.round(((afterRatings as any)[ratingKey] - (beforeRatings as any)[ratingKey]) * 100) / 100;
 			const rankDelta = (afterRatings as any)[ratingKey + '_rank'] - (beforeRatings as any)[ratingKey + '_rank'];

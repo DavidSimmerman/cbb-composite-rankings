@@ -1,10 +1,11 @@
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { getRankings } from '@/lib/rankings/rankings';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import localFont from 'next/font/local';
 import { cookies } from 'next/headers';
-import { getRankings } from '@/lib/rankings/rankings';
-import { RankingsProvider } from './context/RankingsContext';
 import TrackingBeacon from './components/TrackingBeacon';
+import { RankingsProvider } from './context/RankingsContext';
 import './globals.css';
 
 const geistSans = Geist({
@@ -63,7 +64,9 @@ export default async function RootLayout({
 		<html lang="en" className="dark">
 			<body className={`${geistSans.variable} ${geistMono.variable} ${kanit.variable} antialiased`}>
 				<RankingsProvider rankings={rankings}>
-					<div className="mx-2 md:mx-8 ">{children}</div>
+					<TooltipProvider>
+						<div className="mx-2 md:mx-8 ">{children}</div>
+					</TooltipProvider>
 				</RankingsProvider>
 				{trackingData && (
 					<TrackingBeacon
