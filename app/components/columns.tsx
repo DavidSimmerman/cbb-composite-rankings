@@ -3,7 +3,6 @@
 import { type ColumnDef } from '@tanstack/react-table';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { type CompiledTeamData } from '@/lib/shared';
-import { ESPN_TEAM_IDS } from '@/lib/schedule/espn-team-ids';
 import TeamLogo from '@/components/TeamLogo';
 
 const headerBtn =
