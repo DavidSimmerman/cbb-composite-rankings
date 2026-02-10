@@ -2,9 +2,11 @@
 
 import { allSources } from '@/app/components/columns';
 import SourcesFilter from '@/app/components/SourcesFilter';
+import { useTeamProfile } from '@/app/context/TeamProfileContext';
+import TeamLogo from '@/components/TeamLogo';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
@@ -13,18 +15,19 @@ import {
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Toggle } from '@/components/ui/toggle';
-import { ProfileRatingsHistory } from '@/lib/rankings/rankings';
 import { useMemo, useState } from 'react';
 import { PiChartLineBold } from 'react-icons/pi';
-import { RiCollapseVerticalLine, RiExpandVerticalLine, RiZoomInFill, RiZoomInLine } from 'react-icons/ri';
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
+import { RiCollapseVerticalLine, RiExpandVerticalLine } from 'react-icons/ri';
+import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { twMerge } from 'tailwind-merge';
 
-export default function TeamCharts({ history, className }: { history: ProfileRatingsHistory; className: string }) {
+export default function TeamCharts({ className }: { className: string }) {
 	const [zoom, setZoom] = useState<boolean>(false);
 	const [dashedLines, setDashedLines] = useState<boolean>(false);
 	const [rank, setRank] = useState<boolean>(false);
 	const [sourcesFilter, setSourcesFilter] = useState<string[]>([...allSources]);
+
+	const { ratings_history: history } = useTeamProfile();
 
 	const sourceOrder = ['kp', 'em', 'bt', 'net'];
 	const sourcesKey = useMemo(() => {
@@ -38,8 +41,6 @@ export default function TeamCharts({ history, className }: { history: ProfileRat
 			return sourceOrder.join(',');
 		}
 	}, [sourcesFilter]);
-
-	console.log(sourcesKey, history);
 
 	const ratingData = Object.values(history).map(h => ({
 		date: h.date,
@@ -233,6 +234,10 @@ function ChartCard({
 		net: 'NET'
 	};
 
+	const { schedule } = useTeamProfile();
+	const chartDates = new Set(chartData.map(d => d.date));
+	const gameLines = schedule.filter(g => g.score && chartDates.has(g.date));
+
 	const show = (source: string) => sources.includes(source) || sources.length === 0;
 
 	return (
@@ -240,6 +245,14 @@ function ChartCard({
 			<ChartContainer config={chartConfig}>
 				<LineChart data={chartData} margin={{ left: 12, right: 12 }}>
 					<CartesianGrid vertical={false} />
+					{gameLines.map(g => (
+						<ReferenceLine
+							key={g.date}
+							x={g.date}
+							stroke={g.won ? 'var(--color-green-500)' : 'var(--color-red-500)'}
+							strokeOpacity={0.9}
+						/>
+					))}
 					<XAxis
 						dataKey="date"
 						tickLine={false}
@@ -259,10 +272,37 @@ function ChartCard({
 
 							if (!visible.length) return null;
 
+							const game = schedule.find(g => g.date === label);
+
+							let homeAway;
+							if (game?.homeAway === 'home') {
+								homeAway = 'vs.';
+							} else if (game?.homeAway === 'away') {
+								homeAway = '@';
+							} else if (game?.homeAway) {
+								homeAway = 'n.';
+							}
+
 							return (
 								<div className="border-border/50 bg-background grid min-w-[8rem] items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
 									<div className="font-medium">{label}</div>
 									<div className="grid gap-1.5">
+										{game && (
+											<div className="flex w-full mb-2">
+												<div className="text-right text-xs text-white/70 pr-1">{homeAway}</div>
+												<TeamLogo teamKey={game.opp.team_key} className="h-lh" />
+												<span className="truncate ">{game.opp.team_name}</span>
+												<span className="mx-1">
+													{game.won ? (
+														<span className="font-bold text-green-500">W</span>
+													) : (
+														<span className="font-bold text-red-500">L</span>
+													)}
+												</span>
+												<span className="w-fit">{game.score}</span>
+											</div>
+										)}
+
 										{visible.map(item => {
 											const name = item.dataKey as string;
 											let key = '';
