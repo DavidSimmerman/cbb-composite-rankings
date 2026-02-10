@@ -24,6 +24,7 @@ import { twMerge } from 'tailwind-merge';
 export default function TeamCharts({ className }: { className: string }) {
 	const [zoom, setZoom] = useState<boolean>(false);
 	const [dashedLines, setDashedLines] = useState<boolean>(false);
+	const [gameLines, setGameLines] = useState<boolean>(true);
 	const [rank, setRank] = useState<boolean>(false);
 	const [sourcesFilter, setSourcesFilter] = useState<string[]>([...allSources]);
 
@@ -123,6 +124,20 @@ export default function TeamCharts({ className }: { className: string }) {
 						/>
 					</svg>
 				</Toggle>
+				<Toggle className="cursor-pointer group/wl" pressed={gameLines} onPressedChange={setGameLines}>
+					<svg
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+						className="size-4"
+					>
+						<line x1="6" y1="4" x2="6" y2="20" className="stroke-white group-hover/wl:stroke-green-500 transition-colors" />
+						<line x1="12" y1="4" x2="12" y2="20" className="stroke-white group-hover/wl:stroke-red-500 transition-colors" />
+						<line x1="18" y1="4" x2="18" y2="20" className="stroke-white group-hover/wl:stroke-green-500 transition-colors" />
+					</svg>
+				</Toggle>
 
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
@@ -163,6 +178,7 @@ export default function TeamCharts({ className }: { className: string }) {
 						range={range}
 						sources={sourcesFilter}
 						dashed={dashedLines}
+						gameLines={gameLines}
 					/>
 				</div>
 				<div className="w-full flex flex-col gap-1">
@@ -173,6 +189,7 @@ export default function TeamCharts({ className }: { className: string }) {
 						range={range}
 						sources={sourcesFilter}
 						dashed={dashedLines}
+						gameLines={gameLines}
 					/>
 				</div>
 				<div className="w-full flex flex-col gap-1">
@@ -183,6 +200,7 @@ export default function TeamCharts({ className }: { className: string }) {
 						range={range}
 						sources={sourcesFilter}
 						dashed={dashedLines}
+						gameLines={gameLines}
 					/>
 				</div>
 			</div>
@@ -195,13 +213,15 @@ function ChartCard({
 	metric,
 	range,
 	sources,
-	dashed
+	dashed,
+	gameLines: showGameLines
 }: {
 	chartData: Record<string, any>[];
 	metric: string;
 	range: any[2];
 	sources: string[];
 	dashed: boolean;
+	gameLines: boolean;
 }) {
 	const chartConfig = {
 		composite: {
@@ -236,7 +256,7 @@ function ChartCard({
 
 	const { schedule } = useTeamProfile();
 	const chartDates = new Set(chartData.map(d => d.date));
-	const gameLines = schedule.filter(g => g.score && chartDates.has(g.date));
+	const games = schedule.filter(g => g.score && chartDates.has(g.date));
 
 	const show = (source: string) => sources.includes(source) || sources.length === 0;
 
@@ -245,14 +265,15 @@ function ChartCard({
 			<ChartContainer config={chartConfig}>
 				<LineChart data={chartData} margin={{ left: 12, right: 12 }}>
 					<CartesianGrid vertical={false} />
-					{gameLines.map(g => (
-						<ReferenceLine
-							key={g.date}
-							x={g.date}
-							stroke={g.won ? 'var(--color-green-500)' : 'var(--color-red-500)'}
-							strokeOpacity={0.9}
-						/>
-					))}
+					{showGameLines &&
+						games.map(g => (
+							<ReferenceLine
+								key={g.date}
+								x={g.date}
+								stroke={g.won ? 'var(--color-green-500)' : 'var(--color-red-500)'}
+								strokeOpacity={0.9}
+							/>
+						))}
 					<XAxis
 						dataKey="date"
 						tickLine={false}
