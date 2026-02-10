@@ -1,4 +1,5 @@
 import { ESPN_TEAM_IDS, ESPN_TO_TEAM_KEY } from './espn-team-ids';
+import { CompiledTeamData } from '../shared';
 import * as cheerio from 'cheerio';
 
 export interface EspnGame {
@@ -11,6 +12,8 @@ export interface EspnGame {
 	time: string | undefined;
 	is_live: boolean;
 }
+
+export type ParsedEspnGame = Omit<EspnGame, 'opp'> & { opp: CompiledTeamData; espn_id: string };
 
 export async function getSchedule(teamKey: string) {
 	const teamId = ESPN_TEAM_IDS[teamKey];

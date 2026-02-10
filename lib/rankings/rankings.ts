@@ -7,6 +7,7 @@ import { NetRanking, updateNet } from './net';
 import { PostgresService } from '../database';
 import { mapBaseTeams } from './utils';
 import { computeAverageZScores } from '../shared';
+import { EspnGame, ParsedEspnGame, getSchedule } from '../schedule/schedule';
 
 const db = PostgresService.getInstance();
 
@@ -153,7 +154,10 @@ export interface TeamProfile {
 	team_key: string;
 	team_name: string;
 	ratings_history: ProfileRatingsHistory;
+	schedule: EspnGame[];
 }
+
+export type ParsedTeamProfile = Omit<TeamProfile, 'schedule'> & { schedule: ParsedEspnGame[] };
 
 export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
 	function getQuery(
@@ -182,12 +186,13 @@ export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
 		return query;
 	}
 
-	const [kenpomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings]: [
+	const [kenpomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings, schedule]: [
 		KenPomProfileRow[],
 		EvanMiyaProfileRow[],
 		BartTorvikProfileRow[],
 		NetProfileRow[],
-		CompositeProfileRow[]
+		CompositeProfileRow[],
+		EspnGame[]
 	] = await Promise.all([
 		db.query<KenPomProfileRow>(
 			getQuery('kenpom_rankings', {
@@ -250,7 +255,8 @@ export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
 				sources: 'sources'
 			}),
 			[teamKey]
-		)
+		),
+		getSchedule(teamKey)
 	]);
 
 	const teamName = evanMiyaRankings[0].team_name!;
@@ -280,5 +286,5 @@ export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
 		return map;
 	}, {});
 
-	return { team_key: teamKey, team_name: teamName, ratings_history };
+	return { team_key: teamKey, team_name: teamName, ratings_history, schedule };
 }
