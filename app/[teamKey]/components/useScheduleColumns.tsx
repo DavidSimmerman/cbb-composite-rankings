@@ -260,7 +260,7 @@ function RatingCell({
 		const { prev, next } = getSurroundDays(game.date);
 
 		const beforeRatings = history[prev];
-		const afterRatings = history[next] || history[game.date];
+		const afterRatings = history[next];
 
 		if (!beforeRatings || !afterRatings) {
 			if (!game.time && !beforeRatings && ratingType === 'offensiveRating') {
