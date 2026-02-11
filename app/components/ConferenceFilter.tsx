@@ -10,8 +10,8 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { p5Conferences } from './columns';
 import { HiMiniUserGroup } from 'react-icons/hi2';
+import { p5Conferences } from './columns';
 
 interface ConferenceFilterProps {
 	conferenceFilter: string[];
@@ -44,7 +44,7 @@ export default function ConferenceFilter({
 
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
+			<DropdownMenuTrigger asChild className="cursor-pointer">
 				<Button variant="outline">
 					<HiMiniUserGroup /> <span className="hidden md:block">Conferences</span>
 				</Button>

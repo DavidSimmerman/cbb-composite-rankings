@@ -10,9 +10,9 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { allSources } from './columns';
-import { PiColumnsPlusRightFill } from 'react-icons/pi';
 import { GoDotFill } from 'react-icons/go';
+import { PiColumnsPlusRightFill } from 'react-icons/pi';
+import { allSources } from './columns';
 
 interface SourcesFilterProps {
 	sourcesFilter: string[];
@@ -46,7 +46,7 @@ export default function SourcesFilter({ sourcesFilter, onChange }: SourcesFilter
 
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
+			<DropdownMenuTrigger asChild className="cursor-pointer">
 				<Button variant="outline">
 					<PiColumnsPlusRightFill /> <span className="hidden md:block">Sources</span>
 				</Button>

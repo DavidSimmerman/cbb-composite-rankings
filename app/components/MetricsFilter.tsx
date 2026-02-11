@@ -10,8 +10,8 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { allMetrics } from './columns';
 import { RiBarChart2Fill } from 'react-icons/ri';
+import { allMetrics } from './columns';
 
 interface MetricsFilterProps {
 	metricsFilter: string[];
@@ -37,7 +37,7 @@ export default function MetricsFilter({ metricsFilter, onChange }: MetricsFilter
 
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger asChild>
+			<DropdownMenuTrigger asChild className="cursor-pointer">
 				<Button variant="outline">
 					<RiBarChart2Fill /> <span className="hidden md:block">Metrics</span>
 				</Button>
