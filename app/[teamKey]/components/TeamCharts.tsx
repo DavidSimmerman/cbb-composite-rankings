@@ -15,7 +15,7 @@ import {
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Toggle } from '@/components/ui/toggle';
-import useLocalStorage from '@/lib/hooks/useLocalStorage';
+import { useLocalStorage } from 'usehooks-ts';
 import { useMemo } from 'react';
 import { PiChartLineBold } from 'react-icons/pi';
 import { RiCollapseVerticalLine, RiExpandVerticalLine } from 'react-icons/ri';
