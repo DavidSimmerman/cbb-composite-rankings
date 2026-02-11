@@ -22,19 +22,38 @@ export async function proxy(request: NextRequest) {
 	const host = request.headers.get('host') || '';
 	const referrer = referer && !referer.includes(host) ? referer : '';
 
-	const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || '';
+	const ip =
+		request.headers.get('cf-connecting-ip') ||
+		request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+		request.headers.get('x-real-ip') ||
+		'';
 
-	let geoCity = '';
-	let geoState = '';
-	if (ip && ip !== '127.0.0.1' && ip !== '::1') {
-		try {
-			const geoRes = await fetch(`http://ip-api.com/json/${ip}?fields=city,regionName`);
-			if (geoRes.ok) {
-				const geoData = await geoRes.json();
-				geoCity = geoData.city || '';
-				geoState = geoData.regionName || '';
-			}
-		} catch {}
+	let geoCity = request.headers.get('cf-ipcity') || '';
+	let geoState = request.headers.get('cf-region') || '';
+
+	if (!geoCity && ip) {
+		const rawIp = ip.replace(/^::ffff:/, '');
+		const isPrivateIp =
+			rawIp === '127.0.0.1' ||
+			rawIp === '::1' ||
+			rawIp.startsWith('192.168.') ||
+			rawIp.startsWith('10.') ||
+			rawIp.startsWith('172.');
+		if (!isPrivateIp) {
+			try {
+				const controller = new AbortController();
+				const timeout = setTimeout(() => controller.abort(), 350);
+				const geoRes = await fetch(`http://ip-api.com/json/${rawIp}?fields=city,regionName`, {
+					signal: controller.signal
+				});
+				clearTimeout(timeout);
+				if (geoRes.ok) {
+					const geoData = await geoRes.json();
+					geoCity = geoData.city || '';
+					geoState = geoData.regionName || '';
+				}
+			} catch {}
+		}
 	}
 
 	let sessionId = request.cookies.get('session_id')?.value;
