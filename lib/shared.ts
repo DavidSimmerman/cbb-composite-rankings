@@ -1,3 +1,5 @@
+import { CompositeRanking } from './rankings/composite';
+
 export type BaseTeamData = {
 	team_key: string;
 	team_name: string;
@@ -48,6 +50,7 @@ export type CompiledTeamData = BaseTeamData & {
 	avg_offensive_zscore_rank: number;
 	avg_defensive_zscore: number;
 	avg_defensive_zscore_rank: number;
+	composite_combos: Record<string, CompositeRanking>;
 };
 
 export const sourceSystems = [

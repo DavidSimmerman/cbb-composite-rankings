@@ -15,18 +15,19 @@ import {
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Toggle } from '@/components/ui/toggle';
-import { useMemo, useState } from 'react';
+import useLocalStorage from '@/lib/hooks/useLocalStorage';
+import { useMemo } from 'react';
 import { PiChartLineBold } from 'react-icons/pi';
 import { RiCollapseVerticalLine, RiExpandVerticalLine } from 'react-icons/ri';
 import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { twMerge } from 'tailwind-merge';
 
 export default function TeamCharts({ className }: { className: string }) {
-	const [zoom, setZoom] = useState<boolean>(false);
-	const [dashedLines, setDashedLines] = useState<boolean>(false);
-	const [gameLines, setGameLines] = useState<boolean>(true);
-	const [rank, setRank] = useState<boolean>(false);
-	const [sourcesFilter, setSourcesFilter] = useState<string[]>([...allSources]);
+	const [zoom, setZoom] = useLocalStorage<boolean>('chart_zoom', false);
+	const [dashedLines, setDashedLines] = useLocalStorage<boolean>('dashed_lines', false);
+	const [gameLines, setGameLines] = useLocalStorage<boolean>('chart_game_lines', true);
+	const [rank, setRank] = useLocalStorage<boolean>('rank_view', false);
+	const [sourcesFilter, setSourcesFilter] = useLocalStorage<string[]>('sources_filter', [...allSources]);
 
 	const { ratings_history: history } = useTeamProfile();
 
@@ -45,7 +46,7 @@ export default function TeamCharts({ className }: { className: string }) {
 
 	const ratingData = Object.values(history).map(h => ({
 		date: h.date,
-		composite: rank ? -h.compositeCombos[sourcesKey]?.avg_zscore_rank : h.compositeCombos[sourcesKey]?.avg_zscore,
+		composite: rank ? -h.composite_combos[sourcesKey]?.avg_zscore_rank : h.composite_combos[sourcesKey]?.avg_zscore,
 		kenpom: rank ? -h.kp_rating_rank : h.kp_rating_zscore,
 		evanmiya: rank ? -h.em_rating_rank : h.em_rating_zscore,
 		barttorvik: rank ? -h.bt_rating_rank : h.bt_rating_zscore,
@@ -56,8 +57,8 @@ export default function TeamCharts({ className }: { className: string }) {
 	const offensiveData = Object.values(history).map(h => ({
 		date: h.date,
 		composite: rank
-			? -h.compositeCombos[sourcesKey]?.avg_offensive_zscore_rank
-			: h.compositeCombos[sourcesKey]?.avg_offensive_zscore,
+			? -h.composite_combos[sourcesKey]?.avg_offensive_zscore_rank
+			: h.composite_combos[sourcesKey]?.avg_offensive_zscore,
 		kenpom: rank ? -h.kp_offensive_rating_rank : h.kp_offensive_zscore,
 		evanmiya: rank ? -h.em_offensive_rating_rank : h.em_offensive_zscore,
 		barttorvik: rank ? -h.bt_offensive_rating_rank : h.bt_offensive_zscore,
@@ -67,8 +68,8 @@ export default function TeamCharts({ className }: { className: string }) {
 	const defensiveData = Object.values(history).map(h => ({
 		date: h.date,
 		composite: rank
-			? -h.compositeCombos[sourcesKey]?.avg_defensive_zscore_rank
-			: h.compositeCombos[sourcesKey]?.avg_defensive_zscore,
+			? -h.composite_combos[sourcesKey]?.avg_defensive_zscore_rank
+			: h.composite_combos[sourcesKey]?.avg_defensive_zscore,
 		kenpom: rank ? -h.kp_defensive_rating_rank : h.kp_defensive_zscore,
 		evanmiya: rank ? -h.em_defensive_rating_rank : h.em_defensive_zscore,
 		barttorvik: rank ? -h.bt_defensive_rating_rank : h.bt_defensive_zscore,
@@ -133,9 +134,27 @@ export default function TeamCharts({ className }: { className: string }) {
 						strokeLinecap="round"
 						className="size-4"
 					>
-						<line x1="6" y1="4" x2="6" y2="20" className="stroke-white group-hover/wl:stroke-green-500 transition-colors" />
-						<line x1="12" y1="4" x2="12" y2="20" className="stroke-white group-hover/wl:stroke-red-500 transition-colors" />
-						<line x1="18" y1="4" x2="18" y2="20" className="stroke-white group-hover/wl:stroke-green-500 transition-colors" />
+						<line
+							x1="6"
+							y1="4"
+							x2="6"
+							y2="20"
+							className="stroke-white group-hover/wl:stroke-green-500 transition-colors"
+						/>
+						<line
+							x1="12"
+							y1="4"
+							x2="12"
+							y2="20"
+							className="stroke-white group-hover/wl:stroke-red-500 transition-colors"
+						/>
+						<line
+							x1="18"
+							y1="4"
+							x2="18"
+							y2="20"
+							className="stroke-white group-hover/wl:stroke-green-500 transition-colors"
+						/>
 					</svg>
 				</Toggle>
 

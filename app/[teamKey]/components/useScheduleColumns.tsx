@@ -5,17 +5,19 @@ import TeamLogo from '@/components/TeamLogo';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import useLocalStorage from '@/lib/hooks/useLocalStorage';
+import { CompositeRanking } from '@/lib/rankings/composite';
 import { ParsedEspnGame } from '@/lib/schedule/schedule';
 import { CompiledTeamData } from '@/lib/shared';
 import { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { GoDotFill } from 'react-icons/go';
 import { PiQuestion } from 'react-icons/pi';
 
 export default function useScheduleColumns() {
-	const [ratingSource, setRatingSource] = useState('composite');
-	const [viewMode, setViewMode] = useState('opponent');
+	const [ratingSource, setRatingSource] = useLocalStorage<string>('schedule_rating_source', 'composite');
+	const [viewMode, setViewMode] = useLocalStorage<string>('schedule_view_mode', 'opponent');
 
 	const columns = useMemo<ColumnDef<ParsedEspnGame, unknown>[]>(
 		() => [
@@ -222,6 +224,13 @@ function RatingCell({
 	ratingSource: string;
 }) {
 	const { ratings_history: history } = useTeamProfile();
+	const [compositeSources] = useLocalStorage<string[]>('sources_filter', []);
+
+	const compositeKey = useMemo(() => {
+		const sourceOrder = ['kp', 'em', 'bt', 'net'];
+		const selectedFilters = compositeSources.map(s => s.replaceAll(/[a-z]+/g, '').toLowerCase());
+		return selectedFilters.length ? sourceOrder.filter(s => selectedFilters.includes(s)).join(',') : sourceOrder.join(',');
+	}, [compositeSources]);
 
 	const ratingBgColors: Record<string, string> = {
 		composite: 'bg-purple-600/15',
@@ -251,12 +260,18 @@ function RatingCell({
 		}
 	};
 
-	const ratingKey = keyMap[ratingType][ratingSource];
+	const ratingKey: keyof CompiledTeamData = keyMap[ratingType][ratingSource];
 
 	let displayValue: React.ReactNode | number = Math.round((game.opp[ratingKey] as any) * 100) / 100;
-	let displayRank: React.ReactNode | number = game.opp[(ratingKey + '_rank') as keyof CompiledTeamData];
+	let displayRank: React.ReactNode | number = game.opp[(ratingKey + '_rank') as keyof CompiledTeamData] as number;
 
-	if (isNaN(displayValue)) {
+	if (ratingKey.startsWith('avg')) {
+		const combo = game.opp.composite_combos[compositeKey];
+		displayValue = Math.round((combo[ratingKey as keyof CompositeRanking] as number) * 100) / 100;
+		displayRank = combo[(ratingKey + '_rank') as keyof CompositeRanking] as number;
+	}
+
+	if (isNaN(displayValue as number)) {
 		displayValue = '-';
 		displayRank = '';
 	}
@@ -283,11 +298,29 @@ function RatingCell({
 				displayRank = '';
 			}
 		} else {
-			let ratingDelta = Math.round(((afterRatings as any)[ratingKey] - (beforeRatings as any)[ratingKey]) * 100) / 100;
+			let ratingDelta, rankDelta, beforeValue, afterValue, beforeRank, afterRank;
+
+			if (ratingKey.startsWith('avg')) {
+				const beforeCombo = beforeRatings.composite_combos[compositeKey] as unknown as Record<string, number>;
+				const afterCombo = afterRatings.composite_combos[compositeKey] as unknown as Record<string, number>;
+				beforeValue = beforeCombo[ratingKey];
+				beforeRank = beforeCombo[ratingKey + '_rank'];
+				afterValue = afterCombo[ratingKey];
+				afterRank = afterCombo[ratingKey + '_rank'];
+			} else {
+				const before = beforeRatings as unknown as Record<string, number>;
+				const after = afterRatings as unknown as Record<string, number>;
+				beforeValue = before[ratingKey];
+				beforeRank = before[ratingKey + '_rank'];
+				afterValue = after[ratingKey];
+				afterRank = after[ratingKey + '_rank'];
+			}
+
+			ratingDelta = Math.round((afterValue - beforeValue) * 100) / 100;
 			if (['kp_defensive_rating', 'bt_defensive_rating'].includes(ratingKey)) {
 				ratingDelta *= -1;
 			}
-			const rankDelta = (beforeRatings as any)[ratingKey + '_rank'] - (afterRatings as any)[ratingKey + '_rank'];
+			rankDelta = beforeRank - afterRank;
 
 			let ratingColor, rankColor;
 			if (ratingDelta > 0) {

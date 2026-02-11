@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import useLocalStorage from '@/lib/hooks/useLocalStorage';
+import { sourceSystems as allSources, rerankColumns } from '@/lib/shared';
 import {
 	flexRender,
 	getCoreRowModel,
@@ -13,22 +15,15 @@ import {
 	type SortingState,
 	type VisibilityState
 } from '@tanstack/react-table';
-import { Search } from 'lucide-react';
-import { type CompiledTeamData, computeAverageZScores, sourceSystems as allSources, rerankColumns } from '@/lib/shared';
-import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import Fuse from 'fuse.js';
-import {
-	columns,
-	allSources as allSourceToggles,
-	sourceColumns,
-	p5Conferences,
-	allMetrics as allMetricToggles
-} from './components/columns';
-import SourcesFilter from './components/SourcesFilter';
-import ConferenceFilter from './components/ConferenceFilter';
-import MetricsFilter from './components/MetricsFilter';
+import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useRankings } from './context/RankingsContext';
+import { useEffect, useMemo, useState } from 'react';
+import { useRankings } from '../context/RankingsContext';
+import { allMetrics as allMetricToggles, allSources as allSourceToggles, columns, p5Conferences, sourceColumns } from './columns';
+import ConferenceFilter from './ConferenceFilter';
+import MetricsFilter from './MetricsFilter';
+import SourcesFilter from './SourcesFilter';
 
 export default function TeamTable() {
 	const [sorting, setSorting] = useState<SortingState>([{ id: 'avg_zscore_rank', desc: false }]);
@@ -36,10 +31,10 @@ export default function TeamTable() {
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 	const [rowSelection, setRowSelection] = useState({});
 	const [searchQuery, setSearchQuery] = useState('');
-	const [conferenceFilter, setConferenceFilter] = useState<string[]>([]);
-	const [sourcesFilter, setSourcesFilter] = useState<string[]>([...allSourceToggles]);
-	const [metricsFilter, setMetricsFilter] = useState<string[]>([...allMetricToggles]);
-	const [relativeRankings, setOnRelativeRankings] = useState<boolean>(true);
+	const [conferenceFilter, setConferenceFilter] = useLocalStorage<string[]>('conference_filter', []);
+	const [sourcesFilter, setSourcesFilter] = useLocalStorage<string[]>('sources_filter', [...allSourceToggles]);
+	const [metricsFilter, setMetricsFilter] = useLocalStorage<string[]>('metrics_filter', [...allMetricToggles]);
+	const [relativeRankings, setOnRelativeRankings] = useLocalStorage<boolean>('relative_rankings', true);
 
 	const data = useRankings();
 
@@ -48,8 +43,24 @@ export default function TeamTable() {
 	const activeSources = useMemo(() => allSources.filter(s => sourcesFilter.includes(s.key)), [sourcesFilter]);
 
 	const adjustedData = useMemo(() => {
-		if (activeSources.length === allSources.length || activeSources.length === 0) return data;
-		return computeAverageZScores(data, activeSources);
+		const sourceOrder = ['kp', 'em', 'bt', 'net'];
+		const selectedFilters = activeSources.map(s => s.key.replaceAll(/[a-z]+/g, '').toLowerCase());
+		const compositeKey = selectedFilters.length
+			? sourceOrder.filter(s => selectedFilters.includes(s)).join(',')
+			: sourceOrder.join(',');
+
+		return data.map(t => {
+			const compositeRanking = t.composite_combos[compositeKey];
+			return {
+				...t,
+				avg_zscore: compositeRanking.avg_zscore,
+				avg_zscore_rank: compositeRanking.avg_zscore_rank,
+				avg_offensive_zscore: compositeRanking.avg_offensive_zscore,
+				avg_offensive_zscore_rank: compositeRanking.avg_offensive_zscore_rank,
+				avg_defensive_zscore: compositeRanking.avg_defensive_zscore,
+				avg_defensive_zscore_rank: compositeRanking.avg_defensive_zscore_rank
+			};
+		});
 	}, [data, activeSources]);
 
 	const midMajorConferences = useMemo(() => {

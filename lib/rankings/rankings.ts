@@ -1,13 +1,13 @@
 import { chromium } from 'playwright';
+import { PostgresService } from '../database';
+import { EspnGame, ParsedEspnGame, getSchedule } from '../schedule/schedule';
+import { CompiledTeamData, computeAverageZScores } from '../shared';
 import { BartTorvikRanking, updateBartTorvik } from './barttorvik';
 import { CompositeRanking, updateComposite } from './composite';
 import { EvanMiyaRanking, updateEvanMiya } from './evanmiya';
 import { KenPomRanking, updateKenPom } from './kenpom';
 import { NetRanking, updateNet } from './net';
-import { PostgresService } from '../database';
 import { mapBaseTeams } from './utils';
-import { computeAverageZScores } from '../shared';
-import { EspnGame, ParsedEspnGame, getSchedule } from '../schedule/schedule';
 
 const db = PostgresService.getInstance();
 
@@ -57,7 +57,7 @@ export async function updateRankings(rankings: Ranking[]) {
 	console.log(`RANKINGS FETCH: Finished fetching rankings.`);
 }
 
-export async function getRankings() {
+export async function getRankings(): Promise<CompiledTeamData[]> {
 	function getQuery(table: string) {
 		return `
 			SELECT * FROM ${table}
@@ -66,21 +66,33 @@ export async function getRankings() {
 		`;
 	}
 
-	const [kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings]: [
+	const [kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings]: [
 		KenPomRanking[],
 		EvanMiyaRanking[],
 		BartTorvikRanking[],
-		NetRanking[]
+		NetRanking[],
+		CompositeRanking[]
 	] = await Promise.all([
 		db.query(getQuery('kenpom_rankings')),
 		db.query(getQuery('evanmiya_rankings')),
 		db.query(getQuery('barttorvik_rankings')),
-		db.query(getQuery('net_rankings'))
+		db.query(getQuery('net_rankings')),
+		db.query(getQuery('composite_rankings'))
 	]);
 
 	const baseTeams = mapBaseTeams(kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings);
 
-	const teams = computeAverageZScores(baseTeams);
+	let teams = computeAverageZScores(baseTeams);
+
+	const compositeMap = compositeRankings.reduce<Record<string, Record<string, CompositeRanking>>>(
+		(groups, curr) => ({
+			...groups,
+			[curr.team_key]: { ...groups[curr.team_key], [curr.sources]: curr }
+		}),
+		{}
+	);
+
+	teams = teams.map(t => ({ ...t, composite_combos: compositeMap[t.team_key] }));
 
 	return teams;
 }
@@ -146,7 +158,7 @@ type TeamProfileData = KenPomProfileRow &
 	EvanMiyaProfileRow &
 	BartTorvikProfileRow &
 	NetProfileRow &
-	CompositeProfileRow & { compositeCombos: Record<string, CompositeProfileRow> };
+	CompositeProfileRow & { composite_combos: Record<string, CompositeProfileRow> };
 
 export type ProfileRatingsHistory = Record<string, TeamProfileData>;
 
@@ -281,7 +293,7 @@ export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
 			...bartTorvikRankings.find(r => r.date === date),
 			...netRankings.find(r => r.date === date),
 			...compositeMap['kp,em,bt,net'],
-			compositeCombos: compositeMap
+			composite_combos: compositeMap
 		} as TeamProfileData;
 		return map;
 	}, {});
