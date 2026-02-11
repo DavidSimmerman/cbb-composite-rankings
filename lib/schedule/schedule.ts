@@ -1,6 +1,6 @@
-import { ESPN_TEAM_IDS, ESPN_TO_TEAM_KEY } from './espn-team-ids';
-import { CompiledTeamData } from '../shared';
 import * as cheerio from 'cheerio';
+import { CompiledTeamData } from '../shared';
+import { ESPN_TEAM_IDS } from './espn-team-ids';
 
 export interface EspnGame {
 	game_id: string;
@@ -51,7 +51,7 @@ async function fetchEspnSchedule(teamId: string): Promise<EspnGame[]> {
 					.attr('href')
 					?.match(/\/id\/(?<id>[^/]+)/)?.groups?.id ?? $r.find('.opponent-logo span:last-of-type').text();
 
-			const vsAt = $r.find('.opponent-logo .pr2').text();
+			const vsAt = $r.find('.opponent-logo .pr2').text().trim();
 
 			const neutNode = $r.find('.opponent-logo span:last-of-type').contents().last().text();
 
