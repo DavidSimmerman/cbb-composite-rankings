@@ -1,5 +1,5 @@
-import TeamTable from './TeamTable';
 import TitleBar from '@/components/TitleBar';
+import TeamTable from './components/TeamTable';
 
 export default async function Home() {
 	return (
