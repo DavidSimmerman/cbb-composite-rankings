@@ -5,7 +5,7 @@ import TeamLogo from '@/components/TeamLogo';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useLocalStorage } from 'usehooks-ts';
+import useLocalStorage from '@/lib/hooks/useLocalStorage';
 import { CompositeRanking } from '@/lib/rankings/composite';
 import { ParsedEspnGame } from '@/lib/schedule/schedule';
 import { CompiledTeamData } from '@/lib/shared';

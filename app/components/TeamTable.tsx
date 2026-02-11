@@ -2,7 +2,7 @@
 
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useLocalStorage } from 'usehooks-ts';
+import useLocalStorage from '@/lib/hooks/useLocalStorage';
 import { sourceSystems as allSources, rerankColumns } from '@/lib/shared';
 import {
 	flexRender,
