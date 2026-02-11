@@ -9,8 +9,6 @@ export default function TeamSchedule() {
 	const { schedule } = useTeamProfile();
 	const { columns } = useScheduleColumns();
 
-	console.log(schedule);
-
 	const table = useReactTable({
 		data: schedule,
 		columns,
