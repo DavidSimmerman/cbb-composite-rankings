@@ -58,6 +58,7 @@ export async function updateRankings(rankings: Ranking[]) {
 }
 
 export async function getRankings(): Promise<CompiledTeamData[]> {
+	const start = performance.now();
 	function getQuery(table: string) {
 		return `
 			SELECT * FROM ${table}
@@ -94,6 +95,7 @@ export async function getRankings(): Promise<CompiledTeamData[]> {
 
 	teams = teams.map(t => ({ ...t, composite_combos: compositeMap[t.team_key] }));
 
+	console.log(`getRankings took ${Math.round(performance.now() - start)}ms`);
 	return teams;
 }
 
@@ -172,6 +174,7 @@ export interface TeamProfile {
 export type ParsedTeamProfile = Omit<TeamProfile, 'schedule'> & { schedule: ParsedEspnGame[] };
 
 export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
+	const start = performance.now();
 	function getQuery(
 		table: string,
 		keys: Partial<
@@ -298,5 +301,6 @@ export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
 		return map;
 	}, {});
 
+	console.log(`getTeamProfile(${teamKey}) took ${Math.round(performance.now() - start)}ms`);
 	return { team_key: teamKey, team_name: teamName, ratings_history, schedule };
 }

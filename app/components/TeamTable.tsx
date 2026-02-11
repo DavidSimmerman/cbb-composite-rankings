@@ -2,8 +2,8 @@
 
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import useLocalStorage from '@/lib/hooks/useLocalStorage';
-import { sourceSystems as allSources, rerankColumns } from '@/lib/shared';
+import { useLocalStorage } from 'usehooks-ts';
+import { sourceSystems as allSources, computeAverageZScores, rerankColumns } from '@/lib/shared';
 import {
 	flexRender,
 	getCoreRowModel,
@@ -43,24 +43,8 @@ export default function TeamTable() {
 	const activeSources = useMemo(() => allSources.filter(s => sourcesFilter.includes(s.key)), [sourcesFilter]);
 
 	const adjustedData = useMemo(() => {
-		const sourceOrder = ['kp', 'em', 'bt', 'net'];
-		const selectedFilters = activeSources.map(s => s.key.replaceAll(/[a-z]+/g, '').toLowerCase());
-		const compositeKey = selectedFilters.length
-			? sourceOrder.filter(s => selectedFilters.includes(s)).join(',')
-			: sourceOrder.join(',');
-
-		return data.map(t => {
-			const compositeRanking = t.composite_combos[compositeKey];
-			return {
-				...t,
-				avg_zscore: compositeRanking.avg_zscore,
-				avg_zscore_rank: compositeRanking.avg_zscore_rank,
-				avg_offensive_zscore: compositeRanking.avg_offensive_zscore,
-				avg_offensive_zscore_rank: compositeRanking.avg_offensive_zscore_rank,
-				avg_defensive_zscore: compositeRanking.avg_defensive_zscore,
-				avg_defensive_zscore_rank: compositeRanking.avg_defensive_zscore_rank
-			};
-		});
+		if (activeSources.length === allSources.length || activeSources.length === 0) return data;
+		return computeAverageZScores(data, activeSources);
 	}, [data, activeSources]);
 
 	const midMajorConferences = useMemo(() => {
