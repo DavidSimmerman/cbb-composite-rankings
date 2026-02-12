@@ -5,7 +5,6 @@ import TeamLogo from '@/components/TeamLogo';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { useLocalStorage } from 'usehooks-ts';
 import { CompositeRanking } from '@/lib/rankings/composite';
 import { ParsedEspnGame } from '@/lib/schedule/schedule';
 import { CompiledTeamData } from '@/lib/shared';
@@ -14,6 +13,7 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 import { GoDotFill } from 'react-icons/go';
 import { PiQuestion } from 'react-icons/pi';
+import { useLocalStorage } from 'usehooks-ts';
 
 export default function useScheduleColumns() {
 	const [ratingSource, setRatingSource] = useLocalStorage<string>('schedule_rating_source', 'composite');
@@ -49,7 +49,10 @@ export default function useScheduleColumns() {
 						id: 'opp',
 						header: () => <div>Opponent</div>,
 						cell: ({ row }) => (
-							<Link href={row.original.opp.team_key ?? '/'} className="flex gap-1 items-center pr-1">
+							<Link
+								href={row.original.opp.team_key ?? '/'}
+								className="flex gap-1 items-center pr-1 hover:underline"
+							>
 								{row.original.opp.team_key && <TeamLogo teamKey={row.original.opp.team_key} className="h-lh" />}
 								<span className="truncate">{row.original.opp.team_name ?? row.original.espn_id}</span>
 							</Link>
@@ -265,7 +268,7 @@ function RatingCell({
 	let displayValue: React.ReactNode | number = Math.round((game.opp[ratingKey] as any) * 100) / 100;
 	let displayRank: React.ReactNode | number = game.opp[(ratingKey + '_rank') as keyof CompiledTeamData] as number;
 
-	if (ratingKey.startsWith('avg')) {
+	if (ratingKey.startsWith('avg') && game.opp.team_key) {
 		const combo = game.opp.composite_combos[compositeKey];
 		displayValue = Math.round((combo[ratingKey as keyof CompositeRanking] as number) * 100) / 100;
 		displayRank = combo[(ratingKey + '_rank') as keyof CompositeRanking] as number;

@@ -1,9 +1,9 @@
 'use client';
 
+import TeamLogo from '@/components/TeamLogo';
+import { type CompiledTeamData } from '@/lib/shared';
 import { type ColumnDef } from '@tanstack/react-table';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
-import { type CompiledTeamData } from '@/lib/shared';
-import TeamLogo from '@/components/TeamLogo';
 
 const headerBtn =
 	'inline-flex items-center justify-center gap-1 m-auto cursor-pointer rounded-md px-0 py-1 text-xs md:text-sm font-medium hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 [&_svg]:size-3 [&_svg]:md:size-4 [&_svg]:shrink-0';
@@ -15,7 +15,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 		cell: ({ row }) => (
 			<div className="px-1 flex items-center gap-1">
 				<TeamLogo teamKey={row.original.team_key} className="h-lh" size={50} />
-				<span className="truncate max-w-[12ch]">{row.original.team_name}</span>
+				<span className="truncate max-w-[12ch] group-hover:underline">{row.original.team_name}</span>
 			</div>
 		),
 		enableSorting: false,
