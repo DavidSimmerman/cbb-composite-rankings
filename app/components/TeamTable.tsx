@@ -2,7 +2,6 @@
 
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useLocalStorage } from 'usehooks-ts';
 import { sourceSystems as allSources, computeAverageZScores, rerankColumns } from '@/lib/shared';
 import {
 	flexRender,
@@ -19,6 +18,7 @@ import Fuse from 'fuse.js';
 import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { useLocalStorage } from 'usehooks-ts';
 import { useRankings } from '../context/RankingsContext';
 import { allMetrics as allMetricToggles, allSources as allSourceToggles, columns, p5Conferences, sourceColumns } from './columns';
 import ConferenceFilter from './ConferenceFilter';
@@ -156,7 +156,7 @@ export default function TeamTable() {
 					/>
 				</div>
 			</div>
-			<div className="overflow-x-scroll overflow-y-auto overscroll-none rounded-md border flex-1 min-h-0 always-show-scrollbar">
+			<div className="overflow-x-auto overflow-y-auto overscroll-none rounded-md border flex-1 min-h-0 always-show-scrollbar">
 				{table.getRowModel().rows?.length ? (
 					<Table>
 						<TableHeader className="bg-neutral-800">

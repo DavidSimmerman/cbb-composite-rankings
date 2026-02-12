@@ -22,7 +22,7 @@ export default function TeamSchedule() {
 
 	return (
 		<div className="flex-1 min-h-0 flex flex-col w-full gap-4 border border-neutral-800 rounded-lg p-4">
-			<div className="overflow-x-scroll overflow-y-auto overscroll-none ">
+			<div className="overflow-x-auto overflow-y-auto overscroll-none ">
 				<Table>
 					<TableHeader>
 						{table.getHeaderGroups().map((headerGroup, groupIndex) => (
