@@ -299,6 +299,8 @@ function RatingCell({
 		displayRank = '';
 	}
 
+	let deltaPct: number | undefined;
+
 	if (viewMode === 'game_delta') {
 		const { prev, next } = getSurroundDays(game.date);
 
@@ -344,6 +346,7 @@ function RatingCell({
 				ratingDelta *= -1;
 			}
 			rankDelta = beforeRank - afterRank;
+			deltaPct = beforeValue ? (ratingDelta / Math.abs(beforeValue)) * 100 : 0;
 
 			let ratingColor, rankColor;
 			if (ratingDelta > 0) {
@@ -365,11 +368,43 @@ function RatingCell({
 		}
 	}
 
+	let heatMapBg = '';
+	if (viewMode === 'opponent') {
+		heatMapBg = getRankHeatMap(displayRank as number);
+	} else if (viewMode === 'game_delta' && deltaPct !== undefined) {
+		heatMapBg = getDeltaHeatMap(deltaPct);
+	}
+
 	return (
-		<div className={`text-center -my-2 py-2 ${ratingBgColors[ratingSource]}`}>
+		<div className={`text-center -my-2 py-2 ${heatMapBg}`}>
 			{displayValue} <span className="text-xs text-neutral-400">{displayRank}</span>
 		</div>
 	);
+}
+
+function getDeltaHeatMap(pct: number): string {
+	const abs = Math.abs(pct);
+	if (abs === 0) return '';
+	const positive = pct > 0;
+	if (abs >= 7.5) return positive ? 'bg-green-500/25' : 'bg-red-500/25';
+	if (abs >= 5) return positive ? 'bg-green-500/20' : 'bg-red-500/20';
+	if (abs >= 2.5) return positive ? 'bg-green-500/15' : 'bg-red-500/15';
+	if (abs >= 1) return positive ? 'bg-green-500/10' : 'bg-red-500/10';
+	if (abs > 0) return positive ? 'bg-green-500/5' : 'bg-red-500/5';
+	return '';
+}
+
+function getRankHeatMap(rank: number): string {
+	if (isNaN(rank)) return '';
+	if (rank <= 5) return 'bg-green-500/50';
+	if (rank <= 10) return 'bg-green-500/30';
+	if (rank <= 20) return 'bg-green-500/20';
+	if (rank <= 30) return 'bg-green-500/10';
+	if (rank > 150) return 'bg-red-500/30';
+	if (rank > 100) return 'bg-red-500/20';
+
+	if (rank > 60) return 'bg-red-500/10';
+	return '';
 }
 
 function getLocalTime(timeString: string) {
