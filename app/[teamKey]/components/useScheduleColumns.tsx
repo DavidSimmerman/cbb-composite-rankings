@@ -395,7 +395,7 @@ function getDeltaHeatMap(pct: number): string {
 }
 
 function getRankHeatMap(rank: number): string {
-	if (isNaN(rank)) return '';
+	if (isNaN(rank) || !rank) return '';
 	if (rank <= 5) return 'bg-green-500/50';
 	if (rank <= 10) return 'bg-green-500/30';
 	if (rank <= 20) return 'bg-green-500/20';
