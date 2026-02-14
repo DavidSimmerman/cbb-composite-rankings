@@ -1,4 +1,4 @@
-import { ESPN_TEAM_IDS } from '@/lib/schedule/espn-team-ids';
+import { ESPN_TEAM_IDS } from '@/lib/espn/espn-team-ids';
 import { twMerge } from 'tailwind-merge';
 
 export default function TeamLogo({

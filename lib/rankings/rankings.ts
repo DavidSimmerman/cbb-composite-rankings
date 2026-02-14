@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import { PostgresService } from '../database';
-import { EspnGame, ParsedEspnGame, getSchedule } from '../schedule/schedule';
+import { EspnGame, ParsedEspnGame, getSchedule } from '../espn/schedule';
 import { CompiledTeamData, computeAverageZScores } from '../shared';
 import { BartTorvikRanking, updateBartTorvik } from './barttorvik';
 import { CompositeRanking, updateComposite } from './composite';

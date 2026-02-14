@@ -1,7 +1,7 @@
 'use client';
 
+import { ESPN_TO_TEAM_KEY } from '@/lib/espn/espn-team-ids';
 import { ParsedTeamProfile, TeamProfile } from '@/lib/rankings/rankings';
-import { ESPN_TO_TEAM_KEY } from '@/lib/schedule/espn-team-ids';
 import { createContext, useContext, useMemo } from 'react';
 import { useRankings } from './RankingsContext';
 
@@ -11,14 +11,15 @@ export function TeamProfileProvider({ profile, children }: { profile: TeamProfil
 	const rankings = useRankings();
 
 	const parsedProfile = useMemo<ParsedTeamProfile>(
-		() => ({
-			...profile,
-			schedule: profile.schedule.map(g => ({
-				...g,
-				espn_id: g.opp,
-				opp: rankings.find(r => r.team_key === ESPN_TO_TEAM_KEY[g.opp]) ?? {}
-			}))
-		}) as ParsedTeamProfile,
+		() =>
+			({
+				...profile,
+				schedule: profile.schedule.map(g => ({
+					...g,
+					espn_id: g.opp,
+					opp: rankings.find(r => r.team_key === ESPN_TO_TEAM_KEY[g.opp]) ?? {}
+				}))
+			}) as ParsedTeamProfile,
 		[profile, rankings]
 	);
 
