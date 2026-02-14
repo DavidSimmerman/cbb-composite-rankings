@@ -31,7 +31,7 @@ export default function Header() {
 	}
 
 	return (
-		<div className="w-full bg-neutral-900 flex items-stretch gap-5 border-b border-neutral-700 py-3 px-6">
+		<div className="sticky top-0 z-50 w-full bg-neutral-900 flex items-stretch gap-5 border-b border-neutral-700 py-3 px-6">
 			<Link href="/" className="cursor-pointer font-kanit font-medium italic text-2xl md:text-4xl flex gap-1">
 				<Logo className="h-lh w-auto" />
 				CBB Composite

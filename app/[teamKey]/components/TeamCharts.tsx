@@ -87,107 +87,111 @@ export default function TeamCharts({ className }: { className: string }) {
 	}, [zoom, rank]);
 
 	return (
-		<div className={twMerge(`flex flex-col w-full gap-4 border border-neutral-800 rounded-lg p-4`, className)}>
-			<div className="ml-auto mr-0 flex gap-2 z-1">
-				<Toggle
-					className={`cursor-pointer [&_svg]:transition-transform [&_svg]:duration-200 ${zoom ? 'hover:[&_svg]:scale-75' : 'hover:[&_svg]:scale-125'}`}
-					pressed={zoom}
-					onPressedChange={setZoom}
-				>
-					{zoom ? <RiCollapseVerticalLine /> : <RiExpandVerticalLine />}
-				</Toggle>
-				<Toggle className="cursor-pointer group/dash" pressed={dashedLines} onPressedChange={setDashedLines}>
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth={2.5}
-						strokeLinecap="round"
-						className="size-4"
-					>
-						<path
-							d="M3 8 C8 4, 14 14, 21 6"
-							strokeDasharray={dashedLines ? '3 3' : '100'}
-							className={
-								dashedLines
-									? 'group-hover/dash:[stroke-dasharray:100]'
-									: 'group-hover/dash:[stroke-dasharray:3_3]'
-							}
-						/>
-						<path
-							d="M3 18 C8 12, 14 20, 21 14"
-							strokeDasharray={dashedLines ? '3 3' : '100'}
-							className={
-								dashedLines
-									? 'group-hover/dash:[stroke-dasharray:100]'
-									: 'group-hover/dash:[stroke-dasharray:3_3]'
-							}
-						/>
-					</svg>
-				</Toggle>
-				<Toggle className="cursor-pointer group/wl" pressed={gameLines} onPressedChange={setGameLines}>
-					<svg
-						viewBox="0 0 24 24"
-						fill="none"
-						stroke="currentColor"
-						strokeWidth="2"
-						strokeLinecap="round"
-						className="size-4"
-					>
-						<line
-							x1="6"
-							y1="4"
-							x2="6"
-							y2="20"
-							className="stroke-white group-hover/wl:stroke-green-500 transition-colors"
-						/>
-						<line
-							x1="12"
-							y1="4"
-							x2="12"
-							y2="20"
-							className="stroke-white group-hover/wl:stroke-red-500 transition-colors"
-						/>
-						<line
-							x1="18"
-							y1="4"
-							x2="18"
-							y2="20"
-							className="stroke-white group-hover/wl:stroke-green-500 transition-colors"
-						/>
-					</svg>
-				</Toggle>
+		<div className={twMerge(`flex flex-col w-full  border border-neutral-800 rounded-lg p-4`, className)}>
+			<div className="flex">
+				<div className="text-2xl font-bold text-neutral-600 h-full align-top">Rating History</div>
 
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button className="cursor-pointer" variant="outline">
-							<PiChartLineBold />
-							{rank ? 'Rank' : 'Z-Score'}
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent className="">
-						<DropdownMenuGroup>
-							<DropdownMenuCheckboxItem
-								checked={!rank}
-								onCheckedChange={() => setRank(false)}
-								className="px-6 flex gap-0 justify-center cursor-pointer capitalize"
-							>
-								Z-Score
-							</DropdownMenuCheckboxItem>
-							<DropdownMenuCheckboxItem
-								checked={rank}
-								onCheckedChange={() => setRank(true)}
-								className="px-6 flex gap-0 justify-center cursor-pointer capitalize"
-							>
-								Rank
-							</DropdownMenuCheckboxItem>
-						</DropdownMenuGroup>
-					</DropdownMenuContent>
-				</DropdownMenu>
-				<SourcesFilter sourcesFilter={sourcesFilter} onChange={setSourcesFilter} />
+				<div className="ml-auto mr-0 flex gap-2 z-1">
+					<Toggle
+						className={`cursor-pointer [&_svg]:transition-transform [&_svg]:duration-200 ${zoom ? 'hover:[&_svg]:scale-75' : 'hover:[&_svg]:scale-125'}`}
+						pressed={zoom}
+						onPressedChange={setZoom}
+					>
+						{zoom ? <RiCollapseVerticalLine /> : <RiExpandVerticalLine />}
+					</Toggle>
+					<Toggle className="cursor-pointer group/dash" pressed={dashedLines} onPressedChange={setDashedLines}>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth={2.5}
+							strokeLinecap="round"
+							className="size-4"
+						>
+							<path
+								d="M3 8 C8 4, 14 14, 21 6"
+								strokeDasharray={dashedLines ? '3 3' : '100'}
+								className={
+									dashedLines
+										? 'group-hover/dash:[stroke-dasharray:100]'
+										: 'group-hover/dash:[stroke-dasharray:3_3]'
+								}
+							/>
+							<path
+								d="M3 18 C8 12, 14 20, 21 14"
+								strokeDasharray={dashedLines ? '3 3' : '100'}
+								className={
+									dashedLines
+										? 'group-hover/dash:[stroke-dasharray:100]'
+										: 'group-hover/dash:[stroke-dasharray:3_3]'
+								}
+							/>
+						</svg>
+					</Toggle>
+					<Toggle className="cursor-pointer group/wl" pressed={gameLines} onPressedChange={setGameLines}>
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							className="size-4"
+						>
+							<line
+								x1="6"
+								y1="4"
+								x2="6"
+								y2="20"
+								className="stroke-white group-hover/wl:stroke-green-500 transition-colors"
+							/>
+							<line
+								x1="12"
+								y1="4"
+								x2="12"
+								y2="20"
+								className="stroke-white group-hover/wl:stroke-red-500 transition-colors"
+							/>
+							<line
+								x1="18"
+								y1="4"
+								x2="18"
+								y2="20"
+								className="stroke-white group-hover/wl:stroke-green-500 transition-colors"
+							/>
+						</svg>
+					</Toggle>
+
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button className="cursor-pointer" variant="outline">
+								<PiChartLineBold />
+								{rank ? 'Rank' : 'Z-Score'}
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent className="">
+							<DropdownMenuGroup>
+								<DropdownMenuCheckboxItem
+									checked={!rank}
+									onCheckedChange={() => setRank(false)}
+									className="px-6 flex gap-0 justify-center cursor-pointer capitalize"
+								>
+									Z-Score
+								</DropdownMenuCheckboxItem>
+								<DropdownMenuCheckboxItem
+									checked={rank}
+									onCheckedChange={() => setRank(true)}
+									className="px-6 flex gap-0 justify-center cursor-pointer capitalize"
+								>
+									Rank
+								</DropdownMenuCheckboxItem>
+							</DropdownMenuGroup>
+						</DropdownMenuContent>
+					</DropdownMenu>
+					<SourcesFilter sourcesFilter={sourcesFilter} onChange={setSourcesFilter} />
+				</div>
 			</div>
 
-			<div className="flex flex-col md:flex-row gap-8 -mt-8">
+			<div className="flex flex-col md:flex-row gap-8">
 				<div className="w-full flex flex-col gap-1">
 					<div className="text-muted-foreground ml-3">Rating</div>
 
