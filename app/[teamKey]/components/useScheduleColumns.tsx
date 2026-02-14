@@ -156,6 +156,13 @@ export default function useScheduleColumns() {
 							const oppNetRank = row.original.opp.net_rank;
 							let quadrant;
 
+							const quadStyles = {
+								'1': 'border-emerald-500/80 bg-emerald-500/30',
+								'2': 'border-blue-500/80 bg-blue-500/30',
+								'3': 'border-amber-500/80 bg-amber-500/30',
+								'4': 'border-red-500/80 bg-red-500/30'
+							};
+
 							if (row.original.homeAway === 'home') {
 								if (oppNetRank <= 30) {
 									quadrant = 1;
@@ -188,7 +195,13 @@ export default function useScheduleColumns() {
 								}
 							}
 
-							return <div className="text-center -my-2 py-2 bg-red-600/15">Q{quadrant}</div>;
+							return (
+								<div
+									className={`text-center -my-2 w-fit m-auto py-1 px-1.5 rounded-xl border ${quadStyles[quadrant]}`}
+								>
+									Q{quadrant}
+								</div>
+							);
 						}
 					},
 					// TODO: handle live games
@@ -208,7 +221,9 @@ export default function useScheduleColumns() {
 									<span className="w-full">{row.original.score}</span>
 								</div>
 							) : (
-								<div className="text-neutral-400 pl-2">{getLocalTime(row.original.time!)}</div>
+								<div className="text-neutral-400 pl-2">
+									{row.original.time === 'TBD' ? 'TBD' : getLocalTime(row.original.time!)}
+								</div>
 							)
 					}
 				]
