@@ -4,6 +4,7 @@ export type BaseTeamData = {
 	team_key: string;
 	team_name: string;
 	conference: string;
+	record: string;
 	kp_rating: number;
 	kp_rating_rank: number;
 	kp_offensive_rating: number;
@@ -41,6 +42,7 @@ export type BaseTeamData = {
 	bt_offensive_rating_zscore: number;
 	bt_defensive_rating_zscore: number;
 	net_rank_zscore: number;
+	ap_rank: number;
 };
 
 export type CompiledTeamData = BaseTeamData & {

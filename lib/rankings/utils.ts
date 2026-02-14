@@ -1,9 +1,10 @@
 import { Page } from 'playwright';
-import { KenPomRanking } from './kenpom';
-import { EvanMiyaRanking } from './evanmiya';
-import { BartTorvikRanking } from './barttorvik';
-import { NetRanking } from './net';
+import { ApPollTeam } from '../espn/ap-poll';
 import { BaseTeamData } from '../shared';
+import { BartTorvikRanking } from './barttorvik';
+import { EvanMiyaRanking } from './evanmiya';
+import { KenPomRanking } from './kenpom';
+import { NetRanking } from './net';
 
 export async function waitForSelectorRetries(page: Page, selector: string): Promise<number> {
 	const retries = 5;
@@ -55,18 +56,21 @@ export function mapBaseTeams(
 	kpTeams: KenPomRanking[],
 	emTeams: EvanMiyaRanking[],
 	btTeams: BartTorvikRanking[],
-	netTeams: NetRanking[]
+	netTeams: NetRanking[],
+	apRankings: ApPollTeam[]
 ): BaseTeamData[] {
 	return kpTeams.map(kpValues => {
 		const teamKey = kpValues.team_key;
 		const emValues = emTeams.find(t => t.team_key === teamKey)!;
 		const btValues = btTeams.find(t => t.team_key === teamKey)!;
 		const netValues = netTeams.find(t => t.team_key === teamKey)!;
+		const apRank = apRankings.find(t => t.team_key === teamKey);
 
 		return {
 			team_key: teamKey,
 			team_name: kpValues.team,
 			conference: kpValues.conference,
+			record: kpValues.win_loss,
 
 			kp_rating: kpValues.net_rating,
 			kp_rating_rank: kpValues.rank,
@@ -107,8 +111,9 @@ export function mapBaseTeams(
 			net_q2_wins: netValues.q2_wins,
 			net_q3_wins: netValues.q3_wins,
 			net_q4_wins: netValues.q4_wins,
+			net_rank_zscore: netValues.rank_zscore,
 
-			net_rank_zscore: netValues.rank_zscore
+			ap_rank: apRank?.rank
 		};
 	});
 }

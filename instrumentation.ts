@@ -10,5 +10,11 @@ export async function register() {
 		cron.schedule('0 15,16 * * 0,6', () => {
 			updateRankings(['kenpom', 'evanmiya', 'barttorvik', 'net']);
 		});
+
+		const { updateApPollRankings } = await import('./lib/espn/ap-poll');
+
+		cron.schedule('0 14,15,16,17 * * 1', () => {
+			updateApPollRankings();
+		});
 	}
 }
