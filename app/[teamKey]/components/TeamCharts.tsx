@@ -15,12 +15,12 @@ import {
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Toggle } from '@/components/ui/toggle';
-import { useLocalStorage } from 'usehooks-ts';
 import { useMemo } from 'react';
 import { PiChartLineBold } from 'react-icons/pi';
 import { RiCollapseVerticalLine, RiExpandVerticalLine } from 'react-icons/ri';
 import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { twMerge } from 'tailwind-merge';
+import { useLocalStorage } from 'usehooks-ts';
 
 export default function TeamCharts({ className }: { className: string }) {
 	const [zoom, setZoom] = useLocalStorage<boolean>('chart_zoom', false);
@@ -333,11 +333,12 @@ function ChartCard({
 												<TeamLogo teamKey={game.opp.team_key} className="h-lh" />
 												<span className="truncate ">{game.opp.team_name}</span>
 												<span className="mx-1">
-													{game.won ? (
-														<span className="font-bold text-green-500">W</span>
-													) : (
-														<span className="font-bold text-red-500">L</span>
-													)}
+													{typeof game.won === 'boolean' &&
+														(game.won ? (
+															<span className="font-bold text-green-500">W</span>
+														) : (
+															<span className="font-bold text-red-500">L</span>
+														))}
 												</span>
 												<span className="w-fit">{game.score}</span>
 											</div>
