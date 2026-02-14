@@ -277,6 +277,9 @@ function ChartCard({
 	const chartDates = new Set(chartData.map(d => d.date));
 	const games = schedule.filter(g => g.score && chartDates.has(g.date));
 
+	const gameByDate: Record<string, (typeof schedule)[0]> = {};
+	games.forEach(g => (gameByDate[g.date] = g));
+
 	const show = (source: string) => sources.includes(source) || sources.length === 0;
 
 	return (
@@ -297,8 +300,25 @@ function ChartCard({
 						dataKey="date"
 						tickLine={false}
 						axisLine={false}
-						tickMargin={8}
-						tickFormatter={value => value.replace(/^\d{4}-/, '')}
+						minTickGap={showGameLines ? undefined : 20}
+						tickMargin={showGameLines ? 4 : 8}
+						interval={showGameLines ? 0 : undefined}
+						{...(showGameLines
+							? {
+									tick: ({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
+										const game = gameByDate[payload.value];
+										if (!game) return <g />;
+										const logoSize = 16;
+										return (
+											<foreignObject x={x - logoSize / 2} y={y} width={logoSize} height={logoSize}>
+												<TeamLogo teamKey={game.opp.team_key} size={40} className="size-full" />
+											</foreignObject>
+										);
+									}
+								}
+							: {
+									tickFormatter: (value: string) => value.replace(/^\d{4}-/, '')
+								})}
 					/>
 					<YAxis domain={range} hide />
 					<ChartTooltip
