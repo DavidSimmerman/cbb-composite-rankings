@@ -184,7 +184,7 @@ export default function TeamTable() {
 								<TableRow
 									key={row.id}
 									data-state={row.getIsSelected() && 'selected'}
-									className="cursor-pointer"
+									className="cursor-pointer group"
 									onClick={() => router.push(`/${row.original.team_key}`)}
 								>
 									{row.getVisibleCells().map((cell, index) => {
