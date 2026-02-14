@@ -42,7 +42,7 @@ export type BaseTeamData = {
 	bt_offensive_rating_zscore: number;
 	bt_defensive_rating_zscore: number;
 	net_rank_zscore: number;
-	ap_rank: number;
+	ap_rank: number | undefined;
 };
 
 export type CompiledTeamData = BaseTeamData & {

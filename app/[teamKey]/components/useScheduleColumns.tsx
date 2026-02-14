@@ -156,12 +156,12 @@ export default function useScheduleColumns() {
 							const oppNetRank = row.original.opp.net_rank;
 							let quadrant;
 
-							const quadStyles = {
+							const quadStyles: Record<string, string> = {
 								'1': 'border-emerald-500/80 bg-emerald-500/30',
 								'2': 'border-blue-500/80 bg-blue-500/30',
 								'3': 'border-amber-500/80 bg-amber-500/30',
 								'4': 'border-red-500/80 bg-red-500/30'
-							};
+							} as const;
 
 							if (row.original.homeAway === 'home') {
 								if (oppNetRank <= 30) {
@@ -197,7 +197,7 @@ export default function useScheduleColumns() {
 
 							return (
 								<div
-									className={`text-center -my-2 w-fit m-auto py-1 px-1.5 rounded-xl border ${quadStyles[quadrant]}`}
+									className={`text-center -my-2 w-fit m-auto py-1 px-1.5 rounded-xl border ${quadStyles[String(quadrant!)]}`}
 								>
 									Q{quadrant}
 								</div>
