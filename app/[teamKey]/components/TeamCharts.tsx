@@ -292,33 +292,39 @@ function ChartCard({
 							<ReferenceLine
 								key={g.date}
 								x={g.date}
+								xAxisId="dates"
 								stroke={g.won ? 'var(--color-green-500)' : 'var(--color-red-500)'}
 								strokeOpacity={0.9}
 							/>
 						))}
 					<XAxis
+						xAxisId="logos"
+						dataKey="date"
+						orientation="top"
+						tickLine={false}
+						axisLine={false}
+						tickMargin={22}
+						interval={0}
+						hide={!showGameLines}
+						tick={({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
+							const game = gameByDate[payload.value];
+							if (!game) return <g />;
+							const logoSize = 16;
+							return (
+								<foreignObject x={x - logoSize / 2} y={y} width={logoSize} height={logoSize}>
+									<TeamLogo teamKey={game.opp.team_key} size={40} className="size-full" />
+								</foreignObject>
+							);
+						}}
+					/>
+					<XAxis
+						xAxisId="dates"
 						dataKey="date"
 						tickLine={false}
 						axisLine={false}
-						minTickGap={showGameLines ? undefined : 20}
-						tickMargin={showGameLines ? 4 : 8}
-						interval={showGameLines ? 0 : undefined}
-						{...(showGameLines
-							? {
-									tick: ({ x, y, payload }: { x: number; y: number; payload: { value: string } }) => {
-										const game = gameByDate[payload.value];
-										if (!game) return <g />;
-										const logoSize = 16;
-										return (
-											<foreignObject x={x - logoSize / 2} y={y} width={logoSize} height={logoSize}>
-												<TeamLogo teamKey={game.opp.team_key} size={40} className="size-full" />
-											</foreignObject>
-										);
-									}
-								}
-							: {
-									tickFormatter: (value: string) => value.replace(/^\d{4}-/, '')
-								})}
+						tickMargin={8}
+						minTickGap={20}
+						tickFormatter={(value: string) => value.replace(/^\d{4}-/, '')}
 					/>
 					<YAxis domain={range} hide />
 					<ChartTooltip
@@ -403,6 +409,7 @@ function ChartCard({
 					/>
 
 					<Line
+						xAxisId="dates"
 						dataKey="composite"
 						type="monotone"
 						stroke="var(--color-purple-500)"
@@ -412,6 +419,7 @@ function ChartCard({
 						activeDot={show('Composite')}
 					/>
 					<Line
+						xAxisId="dates"
 						dataKey="kenpom"
 						type="monotone"
 						stroke="var(--color-blue-500)"
@@ -423,6 +431,7 @@ function ChartCard({
 						activeDot={show('KenPom')}
 					/>
 					<Line
+						xAxisId="dates"
 						dataKey="evanmiya"
 						type="monotone"
 						stroke="var(--color-green-500)"
@@ -434,6 +443,7 @@ function ChartCard({
 						activeDot={show('EvanMiya')}
 					/>
 					<Line
+						xAxisId="dates"
 						dataKey="barttorvik"
 						type="monotone"
 						stroke="var(--color-yellow-500)"
@@ -445,6 +455,7 @@ function ChartCard({
 						activeDot={show('BartTorvik')}
 					/>
 					<Line
+						xAxisId="dates"
 						dataKey="net"
 						type="monotone"
 						stroke="var(--color-red-500)"
