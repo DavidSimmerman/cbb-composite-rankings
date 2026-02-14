@@ -57,14 +57,14 @@ export function mapBaseTeams(
 	emTeams: EvanMiyaRanking[],
 	btTeams: BartTorvikRanking[],
 	netTeams: NetRanking[],
-	apRankings: ApPollTeam[]
+	apRankings?: ApPollTeam[]
 ): BaseTeamData[] {
 	return kpTeams.map(kpValues => {
 		const teamKey = kpValues.team_key;
 		const emValues = emTeams.find(t => t.team_key === teamKey)!;
 		const btValues = btTeams.find(t => t.team_key === teamKey)!;
 		const netValues = netTeams.find(t => t.team_key === teamKey)!;
-		const apRank = apRankings.find(t => t.team_key === teamKey);
+		const apRank = apRankings?.find(t => t.team_key === teamKey);
 
 		return {
 			team_key: teamKey,

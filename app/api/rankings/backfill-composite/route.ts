@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
 import { PostgresService } from '@/lib/database';
-import { KenPomRanking } from '@/lib/rankings/kenpom';
-import { EvanMiyaRanking } from '@/lib/rankings/evanmiya';
 import { BartTorvikRanking } from '@/lib/rankings/barttorvik';
+import { EvanMiyaRanking } from '@/lib/rankings/evanmiya';
+import { KenPomRanking } from '@/lib/rankings/kenpom';
 import { NetRanking } from '@/lib/rankings/net';
 import { mapBaseTeams } from '@/lib/rankings/utils';
 import { computeAverageZScores, SourceSystem, sourceSystems } from '@/lib/shared';
+import { NextResponse } from 'next/server';
 
 const db = PostgresService.getInstance();
 
@@ -86,7 +86,9 @@ export async function GET() {
 
 		await db.transaction(allQueries);
 
-		return NextResponse.json({ msg: `Successfully backfilled composite rankings for ${dates.length} dates across ${sourceCombos.length} source combos.` });
+		return NextResponse.json({
+			msg: `Successfully backfilled composite rankings for ${dates.length} dates across ${sourceCombos.length} source combos.`
+		});
 	} catch (err: any) {
 		console.error('BACKFILL ERROR:', err);
 		return NextResponse.json({ error: err.toString() }, { status: 500 });
