@@ -15,9 +15,9 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 		cell: ({ row }) => (
 			<div className="px-1 flex items-center gap-1">
 				<TeamLogo teamKey={row.original.team_key} className="h-lh" size={50} />
-				<span className="truncate max-w-[12ch] group-hover:underline">
-					{row.original.ap_rank && row.original.ap_rank + ' '}
-					{row.original.team_name}
+				<span className="truncate max-w-[12ch]">
+					{row.original.ap_rank && <span className="text-muted-foreground text-xs mr-1">{row.original.ap_rank}</span>}
+					<span className="group-hover:underline">{row.original.team_name}</span>
 				</span>
 			</div>
 		),

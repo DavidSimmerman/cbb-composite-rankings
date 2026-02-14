@@ -1,6 +1,6 @@
 'use client';
 
-import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import SearchBar from '@/components/SearchBar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { sourceSystems as allSources, computeAverageZScores, rerankColumns } from '@/lib/shared';
 import {
@@ -15,7 +15,6 @@ import {
 	type VisibilityState
 } from '@tanstack/react-table';
 import Fuse from 'fuse.js';
-import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocalStorage } from 'usehooks-ts';
@@ -134,16 +133,12 @@ export default function TeamTable() {
 	return (
 		<div className="mt-8 md:mb-8 flex flex-col flex-1 min-h-0">
 			<div className="mb-4 flex gap-2 justify-between">
-				<InputGroup className="md:w-1/3">
-					<InputGroupInput
-						placeholder="Search teams..."
-						value={searchQuery}
-						onChange={e => setSearchQuery(e.target.value)}
-					/>
-					<InputGroupAddon>
-						<Search className="text-white" />
-					</InputGroupAddon>
-				</InputGroup>
+				<SearchBar
+					searchQuery={searchQuery}
+					setSearchQuery={setSearchQuery}
+					placeholder="Search teams..."
+					className="md:w-1/3"
+				/>
 
 				<div className="flex gap-2">
 					<MetricsFilter metricsFilter={metricsFilter} onChange={setMetricsFilter} />

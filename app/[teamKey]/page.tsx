@@ -1,11 +1,12 @@
+import Header from '@/components/Header';
+import TeamLogo from '@/components/TeamLogo';
 import TitleBar from '@/components/TitleBar';
 import { getTeamProfile } from '@/lib/rankings/rankings';
-import TeamCharts from './components/TeamCharts';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import TeamLogo from '@/components/TeamLogo';
-import TeamSchedule from './components/TeamSchedule';
 import { TeamProfileProvider } from '../context/TeamProfileContext';
+import TeamCharts from './components/TeamCharts';
+import TeamSchedule from './components/TeamSchedule';
 
 export default async function TeamPage({ params }: { params: Promise<{ teamKey: string }> }) {
 	const { teamKey } = await params;
@@ -14,6 +15,7 @@ export default async function TeamPage({ params }: { params: Promise<{ teamKey: 
 
 	return (
 		<TeamProfileProvider profile={profile}>
+			<Header />
 			<div className="h-dvh flex flex-col overflow-hidden">
 				<div className="relative flex items-center justify-center">
 					<Link href="/" className="absolute left-4 mt-10 cursor-pointer group">

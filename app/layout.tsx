@@ -59,7 +59,7 @@ export default async function RootLayout({
 			<body className={`${geistSans.variable} ${geistMono.variable} ${kanit.variable} antialiased`}>
 				<RankingsLoader isNewSession={trackingCookie ? JSON.parse(trackingCookie).isNewSession : false}>
 					<TooltipProvider>
-						<div className="mx-2 md:mx-8 ">{children}</div>
+						<div className="">{children}</div>
 					</TooltipProvider>
 				</RankingsLoader>
 				{trackingData && (

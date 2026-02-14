@@ -49,14 +49,17 @@ export default function useScheduleColumns() {
 						id: 'opp',
 						header: () => <div>Opponent</div>,
 						cell: ({ row }) => (
-							<Link
-								href={row.original.opp.team_key ?? '/'}
-								className="flex gap-1 items-center pr-1 hover:underline"
-							>
+							<Link href={row.original.opp.team_key ?? '/'} className="flex gap-1 items-center pr-1 group">
 								{row.original.opp.team_key && <TeamLogo teamKey={row.original.opp.team_key} className="h-lh" />}
-								{row.original.opp.ap_rank && row.original.opp.ap_rank + ' '}
 
-								<span className="truncate">{row.original.opp.team_name ?? row.original.espn_id}</span>
+								<span className="truncate">
+									{row.original.opp.ap_rank && (
+										<span className="text-muted-foreground text-xs mr-1">{row.original.opp.ap_rank}</span>
+									)}
+									<span className="group-hover:underline">
+										{row.original.opp.team_name ?? row.original.espn_id}
+									</span>
+								</span>
 								{row.original.opp.team_name && (
 									<span className="text-neutral-400">({row.original.opp.record})</span>
 								)}
