@@ -1,6 +1,6 @@
 import { BrowserContext } from 'playwright';
-import { waitForSelectorRetries, calculateZScores, validateRankings } from './utils';
 import { PostgresService } from '../database';
+import { calculateZScores, validateRankings, waitForSelectorRetries } from './utils';
 
 const db = PostgresService.getInstance();
 
@@ -72,7 +72,8 @@ export async function updateBartTorvik(browser: BrowserContext) {
 			"3p_pct", "3p_pct_rank", "3p_pct_d", "3p_pct_d_rank",
 			"3pr", "3pr_rank", "3prd", "3prd_rank",
 			adj_t, adj_t_rank, wab, wab_rank,
-			barthag_zscore, adjoe_zscore, adjde_zscore
+			barthag_zscore, adjoe_zscore, adjde_zscore,
+			season
 		) VALUES (
 			$1, $2, $3, $4, $5, $6,
 			$7, $8, $9, $10,
@@ -85,7 +86,8 @@ export async function updateBartTorvik(browser: BrowserContext) {
 			$33, $34, $35, $36,
 			$37, $38, $39, $40,
 			$41, $42, $43, $44,
-			$45, $46, $47
+			$45, $46, $47,
+			$48
 		)
 		ON CONFLICT (team_key, date) DO UPDATE SET
 			team = EXCLUDED.team, rk = EXCLUDED.rk, conf = EXCLUDED.conf, g = EXCLUDED.g, rec = EXCLUDED.rec,
@@ -104,7 +106,8 @@ export async function updateBartTorvik(browser: BrowserContext) {
 			"3prd" = EXCLUDED."3prd", "3prd_rank" = EXCLUDED."3prd_rank",
 			adj_t = EXCLUDED.adj_t, adj_t_rank = EXCLUDED.adj_t_rank,
 			wab = EXCLUDED.wab, wab_rank = EXCLUDED.wab_rank,
-			barthag_zscore = EXCLUDED.barthag_zscore, adjoe_zscore = EXCLUDED.adjoe_zscore, adjde_zscore = EXCLUDED.adjde_zscore
+			barthag_zscore = EXCLUDED.barthag_zscore, adjoe_zscore = EXCLUDED.adjoe_zscore, adjde_zscore = EXCLUDED.adjde_zscore,
+			season = EXCLUDED.season
 	`;
 
 	const teams = await fetchBartTorvikRankings(browser);
@@ -161,7 +164,8 @@ export async function updateBartTorvik(browser: BrowserContext) {
 				team.wab_rank,
 				team.barthag_zscore,
 				team.adjoe_zscore,
-				team.adjde_zscore
+				team.adjde_zscore,
+				team.season
 			]
 		}))
 	);
@@ -192,6 +196,8 @@ export async function fetchBartTorvikRankings(browser: BrowserContext) {
 			e.textContent!.toLowerCase().replaceAll('%', '_pct_').replaceAll(/_$/g, '').replaceAll('.', '').replaceAll(' ', '_')
 		);
 
+		const season = parseInt((document.querySelector('#yeardrop') as HTMLSelectElement).value.slice(2));
+
 		return Array.from(document.querySelectorAll('.seedrow')).map(e => {
 			const teamData: Record<string, unknown> = {};
 			e.querySelectorAll('td').forEach((td, i) => {
@@ -212,6 +218,8 @@ export async function fetchBartTorvikRankings(browser: BrowserContext) {
 					teamData[columnName + '_rank'] = parseInt(td.childNodes[2].textContent!);
 				}
 			});
+
+			teamData['season'] = season;
 
 			return teamData;
 		});

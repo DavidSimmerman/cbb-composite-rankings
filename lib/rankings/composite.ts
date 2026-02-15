@@ -1,10 +1,10 @@
 import { PostgresService } from '../database';
-import { KenPomRanking } from './kenpom';
-import { EvanMiyaRanking } from './evanmiya';
+import { computeAverageZScores, SourceSystem, sourceSystems } from '../shared';
 import { BartTorvikRanking } from './barttorvik';
+import { EvanMiyaRanking } from './evanmiya';
+import { KenPomRanking } from './kenpom';
 import { NetRanking } from './net';
 import { mapBaseTeams } from './utils';
-import { computeAverageZScores, SourceSystem, sourceSystems } from '../shared';
 
 const db = PostgresService.getInstance();
 
@@ -51,19 +51,19 @@ export async function updateComposite() {
 			avg_zscore, avg_zscore_rank,
 			avg_offensive_zscore, avg_offensive_zscore_rank,
 			avg_defensive_zscore, avg_defensive_zscore_rank,
-			sources
+			sources, season
 		) VALUES (
 			$1,
 			$2, $3,
 			$4, $5,
 			$6, $7,
-			$8
+			$8, $9
 		)
 		ON CONFLICT (date, team_key, sources) DO UPDATE SET
 			avg_zscore = EXCLUDED.avg_zscore, avg_zscore_rank = EXCLUDED.avg_zscore_rank,
 			avg_offensive_zscore = EXCLUDED.avg_offensive_zscore, avg_offensive_zscore_rank = EXCLUDED.avg_offensive_zscore_rank,
 			avg_defensive_zscore = EXCLUDED.avg_defensive_zscore, avg_defensive_zscore_rank = EXCLUDED.avg_defensive_zscore_rank,
-			sources = EXCLUDED.sources
+			sources = EXCLUDED.sources, season = EXCLUDED.season
 	`;
 
 	const allQueries = getAllSourceCombos().flatMap(sourceList => {
@@ -78,7 +78,8 @@ export async function updateComposite() {
 				t.avg_offensive_zscore_rank,
 				t.avg_defensive_zscore,
 				t.avg_defensive_zscore_rank,
-				sourceList.map(s => s.key.replaceAll(/[a-z]+/g, '').toLocaleLowerCase()).join(',')
+				sourceList.map(s => s.key.replaceAll(/[a-z]+/g, '').toLocaleLowerCase()).join(','),
+				t.season
 			]
 		}));
 	});

@@ -1,6 +1,6 @@
 import { BrowserContext } from 'playwright';
-import { waitForSelectorRetries, calculateZScores, validateRankings } from './utils';
 import { PostgresService } from '../database';
+import { calculateZScores, validateRankings, waitForSelectorRetries } from './utils';
 
 const db = PostgresService.getInstance();
 
@@ -34,6 +34,7 @@ export interface KenPomRanking {
 	defensive_rating_zscore: number;
 	created_at: string;
 	updated_at: string;
+	season: string;
 }
 
 export async function updateKenPom(browser: BrowserContext) {
@@ -45,8 +46,9 @@ export async function updateKenPom(browser: BrowserContext) {
 			sos_net_rating, sos_net_rating_rank,
 			sos_offensive_rating, sos_offensive_rating_rank,
 			sos_defensive_rating, sos_defensive_rating_rank,
-			noncon_sos, noncon_sos_rank,
-			net_rating_zscore, offensive_rating_zscore, defensive_rating_zscore
+			noncon_sos, noncon_sos_rank, 
+			net_rating_zscore, offensive_rating_zscore, defensive_rating_zscore,
+			season
 		) VALUES (
 			$1, $2, $3, $4, $5, $6,
 			$7, $8, $9, $10,
@@ -55,7 +57,8 @@ export async function updateKenPom(browser: BrowserContext) {
 			$17, $18,
 			$19, $20,
 			$21, $22,
-			$23, $24, $25
+			$23, $24, $25,
+			$26
 		)
 		ON CONFLICT (team_key, date) DO UPDATE SET
 			team = EXCLUDED.team, rank = EXCLUDED.rank, conference = EXCLUDED.conference,
@@ -69,7 +72,8 @@ export async function updateKenPom(browser: BrowserContext) {
 			sos_defensive_rating = EXCLUDED.sos_defensive_rating, sos_defensive_rating_rank = EXCLUDED.sos_defensive_rating_rank,
 			noncon_sos = EXCLUDED.noncon_sos, noncon_sos_rank = EXCLUDED.noncon_sos_rank,
 			net_rating_zscore = EXCLUDED.net_rating_zscore, offensive_rating_zscore = EXCLUDED.offensive_rating_zscore,
-			defensive_rating_zscore = EXCLUDED.defensive_rating_zscore
+			defensive_rating_zscore = EXCLUDED.defensive_rating_zscore,
+			season = EXCLUDED.season
 	`;
 
 	const kenpomRankings = await fetchKenpomRankings(browser);
@@ -104,7 +108,8 @@ export async function updateKenPom(browser: BrowserContext) {
 				team.noncon_sos_rank,
 				team.net_rating_zscore,
 				team.offensive_rating_zscore,
-				team.defensive_rating_zscore
+				team.defensive_rating_zscore,
+				team.season
 			]
 		}))
 	);
@@ -147,6 +152,13 @@ async function fetchKenpomRankings(browser: BrowserContext) {
 
 	let teams = await page.evaluate(
 		headers => {
+			const season = parseInt(
+				Array.from(document.querySelector('#years-container')!.childNodes)
+					.filter(n => !(n as HTMLAnchorElement).href)
+					.map(n => n.textContent?.replaceAll(/[^0-9]/g, '') ?? '')
+					.find(n => n)!
+			);
+
 			return Array.from(document.querySelectorAll('#ratings-table tbody tr')).map(tr => {
 				const teamInfo: Record<string, unknown> = {};
 
@@ -162,6 +174,8 @@ async function fetchKenpomRankings(browser: BrowserContext) {
 						teamInfo[header] = parseFloat(tdContent);
 					}
 				});
+
+				teamInfo['season'] = season;
 
 				const teamKey = (teamInfo.team as string)
 					.toLowerCase()

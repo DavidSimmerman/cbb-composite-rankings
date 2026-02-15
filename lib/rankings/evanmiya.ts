@@ -1,6 +1,6 @@
 import { BrowserContext } from 'playwright';
-import { waitForSelectorRetries, calculateZScores, validateRankings } from './utils';
 import { PostgresService } from '../database';
+import { calculateZScores, validateRankings, waitForSelectorRetries } from './utils';
 
 const db = PostgresService.getInstance();
 
@@ -35,6 +35,7 @@ export interface EvanMiyaRanking {
 	d_rate_zscore: number;
 	created_at: string;
 	updated_at: string;
+	season: number;
 }
 
 export async function updateEvanMiya(browser: BrowserContext) {
@@ -49,7 +50,8 @@ export async function updateEvanMiya(browser: BrowserContext) {
 			kill_shots_per_game, kill_shots_conceded_per_game, kill_shots_margin_per_game,
 			total_kill_shots, total_kill_shots_conceded,
 			d1_wins, d1_losses,
-			relative_rating_zscore, o_rate_zscore, d_rate_zscore
+			relative_rating_zscore, o_rate_zscore, d_rate_zscore,
+			season
 		) VALUES (
 			$1, $2, $3, $4,
 			$5, $6, $7,
@@ -60,7 +62,8 @@ export async function updateEvanMiya(browser: BrowserContext) {
 			$17, $18, $19,
 			$20, $21,
 			$22, $23,
-			$24, $25, $26
+			$24, $25, $26,
+			$27
 		)
 		ON CONFLICT (team_key, date) DO UPDATE SET
 			team = EXCLUDED.team, relative_ranking = EXCLUDED.relative_ranking, trends = EXCLUDED.trends,
@@ -74,7 +77,8 @@ export async function updateEvanMiya(browser: BrowserContext) {
 			total_kill_shots = EXCLUDED.total_kill_shots, total_kill_shots_conceded = EXCLUDED.total_kill_shots_conceded,
 			d1_wins = EXCLUDED.d1_wins, d1_losses = EXCLUDED.d1_losses,
 			relative_rating_zscore = EXCLUDED.relative_rating_zscore, o_rate_zscore = EXCLUDED.o_rate_zscore,
-			d_rate_zscore = EXCLUDED.d_rate_zscore
+			d_rate_zscore = EXCLUDED.d_rate_zscore,
+			season = EXCLUDED.season
 	`;
 
 	const teams = await fetchEvanMiyaRankings(browser);
@@ -110,7 +114,8 @@ export async function updateEvanMiya(browser: BrowserContext) {
 				team.d1_losses,
 				team.relative_rating_zscore,
 				team.o_rate_zscore,
-				team.d_rate_zscore
+				team.d_rate_zscore,
+				team.season
 			]
 		}))
 	);
@@ -190,6 +195,8 @@ export async function fetchEvanMiyaRankings(browser: BrowserContext) {
 				.replaceAll('-', '_')
 		);
 
+		const season = (document.querySelector('#team_ratings_page-year') as HTMLSelectElement)!.value.split('-')[1];
+
 		return Array.from(document.querySelectorAll('#team_ratings_page-team_ratings .rt-tr-group')).map(row => {
 			const team: Record<string, unknown> = {};
 
@@ -216,6 +223,8 @@ export async function fetchEvanMiyaRankings(browser: BrowserContext) {
 				} else if (column) {
 					team[column] = parseFloat(td.textContent!.trim());
 				}
+
+				team['season'] = season;
 			});
 
 			return team;

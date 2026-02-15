@@ -5,6 +5,7 @@ export type BaseTeamData = {
 	team_name: string;
 	conference: string;
 	record: string;
+	season: string;
 	kp_rating: number;
 	kp_rating_rank: number;
 	kp_offensive_rating: number;

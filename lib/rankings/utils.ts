@@ -71,6 +71,7 @@ export function mapBaseTeams(
 			team_name: kpValues.team,
 			conference: kpValues.conference,
 			record: kpValues.win_loss,
+			season: kpValues.season,
 
 			kp_rating: kpValues.net_rating,
 			kp_rating_rank: kpValues.rank,
