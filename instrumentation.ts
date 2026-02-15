@@ -16,5 +16,11 @@ export async function register() {
 		cron.schedule('0 14,15,16,17 * * 1', () => {
 			updateApPollRankings();
 		});
+
+		const { updateEspnStats } = await import('./lib/espn/espn-stats');
+
+		cron.schedule('0 6 * * *', () => {
+			updateEspnStats();
+		});
 	}
 }
