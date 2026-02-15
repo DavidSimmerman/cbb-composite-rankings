@@ -297,7 +297,7 @@ function ChartCard({
 								key={g.date}
 								x={g.date}
 								xAxisId="dates"
-								stroke={g.won ? 'var(--color-green-500)' : 'var(--color-red-500)'}
+								stroke={g.won ? 'var(--color-green-800)' : 'var(--color-red-800)'}
 								strokeOpacity={0.9}
 							/>
 						))}

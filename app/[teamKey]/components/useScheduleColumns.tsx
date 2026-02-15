@@ -8,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ParsedEspnGame } from '@/lib/espn/schedule';
 import { CompositeRanking } from '@/lib/rankings/composite';
 import { CompiledTeamData } from '@/lib/shared';
+import { getRankHeatMap } from '@/lib/utils';
 import { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
 import { useMemo } from 'react';
@@ -397,18 +398,6 @@ function getDeltaHeatMap(pct: number): string {
 	return '';
 }
 
-function getRankHeatMap(rank: number): string {
-	if (isNaN(rank) || !rank) return '';
-	if (rank <= 5) return 'bg-green-500/50';
-	if (rank <= 10) return 'bg-green-500/30';
-	if (rank <= 20) return 'bg-green-500/20';
-	if (rank <= 30) return 'bg-green-500/10';
-	if (rank > 150) return 'bg-red-500/30';
-	if (rank > 100) return 'bg-red-500/20';
-
-	if (rank > 60) return 'bg-red-500/10';
-	return '';
-}
 
 function getLocalTime(timeString: string) {
 	const today = new Date();
