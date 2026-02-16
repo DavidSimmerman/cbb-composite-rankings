@@ -1,5 +1,4 @@
 import { TooltipProvider } from '@/components/ui/tooltip';
-import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import localFont from 'next/font/local';
 import { cookies } from 'next/headers';
@@ -36,9 +35,21 @@ const kanit = localFont({
 	variable: '--font-kanit-face'
 });
 
-export const metadata: Metadata = {
+export const metadata = {
 	title: 'CBB Composite Rankings',
-	description: 'Composite rankings of the 4 major CBB rankings systems.'
+	description: 'Composite college basketball rankings from KenPom, EvanMiya, BartTorvik, and NET',
+	openGraph: {
+		title: 'CBB Composite Rankings',
+		description: 'Composite college basketball rankings from KenPom, EvanMiya, BartTorvik, and NET',
+		images: [{ url: '/open-graph-image.png', width: 1200, height: 630 }],
+		type: 'website'
+	},
+	twitter: {
+		card: 'summary_large_image',
+		title: 'CBB Composite Rankings',
+		description: 'Composite college basketball rankings',
+		images: [{ url: '/open-graph-image.png', width: 1200, height: 630 }]
+	}
 };
 
 export default async function RootLayout({
