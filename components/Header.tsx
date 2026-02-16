@@ -14,6 +14,7 @@ export default function Header() {
 	const [search, setSearch] = useState('');
 	const [open, setOpen] = useState(false);
 	const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+	const [selectedIndex, setSelectedIndex] = useState(-1);
 	const rankings = useRankings();
 	const router = useRouter();
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -25,6 +26,23 @@ export default function Header() {
 		if (!search.trim()) return [];
 		return fuse.search(search, { limit: 10 }).map(r => r.item);
 	}, [fuse, search]);
+
+	useEffect(() => {
+		setSelectedIndex(-1);
+	}, [results]);
+
+	function handleSearchKeyDown(e: React.KeyboardEvent) {
+		if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			setSelectedIndex(i => (i < results.length - 1 ? i + 1 : i));
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			setSelectedIndex(i => (i > 0 ? i - 1 : -1));
+		} else if (e.key === 'Enter' && selectedIndex >= 0 && results[selectedIndex]) {
+			e.preventDefault();
+			selectTeam(results[selectedIndex].team_key);
+		}
+	}
 
 	function selectTeam(teamKey: string) {
 		setOpen(false);
@@ -89,7 +107,10 @@ export default function Header() {
 							onBlur={() => {
 								setTimeout(closeMobileSearch, 150);
 							}}
-							onKeyDown={e => e.key === 'Escape' && closeMobileSearch()}
+							onKeyDown={e => {
+								if (e.key === 'Escape') closeMobileSearch();
+								else handleSearchKeyDown(e);
+							}}
 							className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
 							tabIndex={mobileSearchOpen ? 0 : -1}
 						/>
@@ -103,11 +124,11 @@ export default function Header() {
 					onOpenAutoFocus={e => e.preventDefault()}
 				>
 					<div className="max-h-75 overflow-y-auto p-1">
-						{results.map(team => (
+						{results.map((team, i) => (
 							<button
 								key={team.team_key}
 								onClick={() => selectTeam(team.team_key)}
-								className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"
+								className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground ${i === selectedIndex ? 'bg-accent text-accent-foreground' : ''}`}
 							>
 								<TeamLogo teamKey={team.team_key} size={40} className="size-5" />
 								<span>
@@ -134,6 +155,7 @@ export default function Header() {
 								setOpen(true);
 							}}
 							onFocus={() => search.trim() && setOpen(true)}
+							onKeyDown={handleSearchKeyDown}
 							className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
 						/>
 						<Search className="size-4 text-muted-foreground" />
@@ -146,11 +168,11 @@ export default function Header() {
 					onOpenAutoFocus={e => e.preventDefault()}
 				>
 					<div className="max-h-75 overflow-y-auto p-1">
-						{results.map(team => (
+						{results.map((team, i) => (
 							<button
 								key={team.team_key}
 								onClick={() => selectTeam(team.team_key)}
-								className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"
+								className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground ${i === selectedIndex ? 'bg-accent text-accent-foreground' : ''}`}
 							>
 								<TeamLogo teamKey={team.team_key} size={40} className="size-5" />
 								<span>
