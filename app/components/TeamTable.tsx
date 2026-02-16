@@ -131,7 +131,7 @@ export default function TeamTable() {
 	});
 
 	return (
-		<div className="mt-8 md:mb-8 flex flex-col flex-1 min-h-0">
+		<div className="mt-6 md:mt-8 md:mb-8 flex flex-col flex-1 min-h-0">
 			<div className="mb-4 flex gap-2 justify-between">
 				<SearchBar
 					searchQuery={searchQuery}
