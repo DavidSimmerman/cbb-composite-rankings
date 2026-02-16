@@ -36,6 +36,7 @@ const kanit = localFont({
 });
 
 export const metadata = {
+	metadataBase: new URL('https://cbb-composite.simmerman.tech'),
 	title: 'CBB Composite Rankings',
 	description: 'Composite college basketball rankings from KenPom, EvanMiya, BartTorvik, and NET',
 	openGraph: {
