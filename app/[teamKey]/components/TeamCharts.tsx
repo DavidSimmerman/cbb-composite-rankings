@@ -20,14 +20,15 @@ import { PiChartLineBold } from 'react-icons/pi';
 import { RiCollapseVerticalLine, RiExpandVerticalLine } from 'react-icons/ri';
 import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { twMerge } from 'tailwind-merge';
-import { useLocalStorage } from 'usehooks-ts';
+import { useCookie } from '@/app/context/CookieContext';
 
 export default function TeamCharts({ className }: { className: string }) {
-	const [zoom, setZoom] = useLocalStorage<boolean>('chart_zoom', false);
-	const [dashedLines, setDashedLines] = useLocalStorage<boolean>('dashed_lines', false);
-	const [gameLines, setGameLines] = useLocalStorage<boolean>('chart_game_lines', true);
-	const [rank, setRank] = useLocalStorage<boolean>('rank_view', false);
-	const [sourcesFilter, setSourcesFilter] = useLocalStorage<string[]>('sources_filter', [...allSources]);
+	const [zoom, setZoom] = useCookie<boolean>('chart_zoom', false);
+	const [dashedLines, setDashedLines] = useCookie<boolean>('dashed_lines', false);
+	const [gameLines, setGameLines] = useCookie<boolean>('chart_game_lines', true);
+	const [rank, setRank] = useCookie<boolean>('rank_view', false);
+	const [sourcesFilter, setSourcesFilter] = useCookie<string[]>('sources_filter', [...allSources]);
+	const [activeChart, setActiveChart] = useCookie<'rating' | 'offensive' | 'defensive'>('chart_active', 'rating');
 
 	const { ratings_history: history } = useTeamProfile();
 
@@ -78,16 +79,16 @@ export default function TeamCharts({ className }: { className: string }) {
 
 	const range = useMemo(() => {
 		if (zoom) {
-			return ['dataMin - 0.2', 'dataMax + 0.2'];
+			return ['dataMin - 0.1', 'dataMax + 0.1'];
 		} else if (rank) {
 			return [-50, 0];
 		} else {
-			return [0, 3];
+			return [1, 3];
 		}
 	}, [zoom, rank]);
 
 	return (
-		<div className={twMerge(`flex flex-col w-full  border border-neutral-800 rounded-lg p-4`, className)}>
+		<div className={twMerge(`flex flex-col w-full min-h-0 border border-neutral-800 rounded-lg p-4`, className)}>
 			<div className="flex">
 				<div className="text-2xl font-bold text-neutral-600 h-full align-top">Rating History</div>
 
@@ -191,35 +192,40 @@ export default function TeamCharts({ className }: { className: string }) {
 				</div>
 			</div>
 
-			<div className="flex flex-col md:flex-row gap-8">
-				<div className="w-full flex flex-col gap-1">
-					<div className="text-muted-foreground ml-3">Rating</div>
-
-					<ChartCard
-						chartData={ratingData}
-						metric="rating"
-						range={range}
-						sources={sourcesFilter}
-						dashed={dashedLines}
-						gameLines={gameLines}
-					/>
+			<div className="flex mt-3 flex-1 min-h-0">
+				<div className="flex flex-col -mr-px z-10">
+					{(
+						[
+							{ key: 'rating', label: 'Rating' },
+							{ key: 'offensive', label: 'Off' },
+							{ key: 'defensive', label: 'Def' }
+						] as const
+					).map(tab => (
+						<button
+							key={tab.key}
+							onClick={() => setActiveChart(tab.key)}
+							className={`flex-1 px-1.5 py-3 text-md font-bold cursor-pointer border border-border border-l-0 first:rounded-br-lg last:rounded-tr-lg transition-colors [writing-mode:vertical-lr] rotate-180 ${
+								activeChart === tab.key
+									? 'bg-card text-foreground border-r-transparent'
+									: 'bg-transparent text-muted-foreground hover:text-foreground border-r-border'
+							}`}
+						>
+							{tab.label}
+						</button>
+					))}
 				</div>
-				<div className="w-full flex flex-col gap-1">
-					<div className="text-muted-foreground ml-3">Offensive Rating</div>
+				<div className="w-full min-w-0 h-full">
 					<ChartCard
-						chartData={offensiveData}
-						metric="offensive_rating"
-						range={range}
-						sources={sourcesFilter}
-						dashed={dashedLines}
-						gameLines={gameLines}
-					/>
-				</div>
-				<div className="w-full flex flex-col gap-1">
-					<div className="text-muted-foreground ml-3">Defensive Rating</div>
-					<ChartCard
-						chartData={defensiveData}
-						metric="defensive_rating"
+						chartData={
+							activeChart === 'rating' ? ratingData : activeChart === 'offensive' ? offensiveData : defensiveData
+						}
+						metric={
+							activeChart === 'rating'
+								? 'rating'
+								: activeChart === 'offensive'
+									? 'offensive_rating'
+									: 'defensive_rating'
+						}
 						range={range}
 						sources={sourcesFilter}
 						dashed={dashedLines}
@@ -287,8 +293,8 @@ function ChartCard({
 	const show = (source: string) => sources.includes(source) || sources.length === 0;
 
 	return (
-		<Card className="w-full p-3">
-			<ChartContainer config={chartConfig}>
+		<Card className="w-full h-full p-3 rounded-l-none border-l-none">
+			<ChartContainer config={chartConfig} className="aspect-auto h-full w-full">
 				<LineChart data={chartData} margin={{ left: 12, right: 12 }}>
 					<CartesianGrid vertical={false} />
 					{showGameLines &&

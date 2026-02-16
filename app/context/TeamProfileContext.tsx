@@ -1,7 +1,7 @@
 'use client';
 
 import { ESPN_TO_TEAM_KEY } from '@/lib/espn/espn-team-ids';
-import { ParsedTeamProfile, TeamProfile } from '@/lib/rankings/rankings';
+import { ParsedTeamProfile, TeamProfile } from '@/lib/rankings/profile';
 import { createContext, useContext, useMemo } from 'react';
 import { useRankings } from './RankingsContext';
 

@@ -104,6 +104,8 @@ export interface EspnStats {
 	off_avg_offensive_rebounds_rank: number;
 	off_avg_assists: number;
 	off_avg_assists_rank: number;
+	off_assist_percentage: number;
+	off_assist_percentage_rank: number;
 	off_points: number;
 	off_points_rank: number;
 	off_field_goals_made: number;
@@ -362,6 +364,11 @@ export async function fetchEspnStats(season = 26) {
 
 		return teamData;
 	});
+
+	teams.forEach(t => {
+		t.off_assist_percentage = (t.off_avg_assists / t.off_avg_field_goals_made) * 100;
+	});
+	missingRanks.add('off_assist_percentage');
 
 	missingRanks.forEach((key: string) => {
 		const sorted = teams

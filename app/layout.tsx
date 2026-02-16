@@ -5,6 +5,7 @@ import localFont from 'next/font/local';
 import { cookies } from 'next/headers';
 import RankingsLoader from './components/RankingsLoader';
 import TrackingBeacon from './components/TrackingBeacon';
+import { CookieProvider } from './context/CookieContext';
 import './globals.css';
 
 const geistSans = Geist({
@@ -57,11 +58,13 @@ export default async function RootLayout({
 	return (
 		<html lang="en" className="dark">
 			<body className={`${geistSans.variable} ${geistMono.variable} ${kanit.variable} antialiased`}>
-				<RankingsLoader isNewSession={trackingCookie ? JSON.parse(trackingCookie).isNewSession : false}>
-					<TooltipProvider>
-						<div className="">{children}</div>
-					</TooltipProvider>
-				</RankingsLoader>
+				<CookieProvider cookies={Object.fromEntries(cookieStore.getAll().map(c => [c.name, c.value]))}>
+					<RankingsLoader isNewSession={trackingCookie ? JSON.parse(trackingCookie).isNewSession : false}>
+						<TooltipProvider>
+							<div className="">{children}</div>
+						</TooltipProvider>
+					</RankingsLoader>
+				</CookieProvider>
 				{trackingData && (
 					<TrackingBeacon
 						visitorId={trackingData.visitorId}

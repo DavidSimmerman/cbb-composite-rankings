@@ -14,17 +14,17 @@ import Link from 'next/link';
 import { useMemo } from 'react';
 import { GoDotFill } from 'react-icons/go';
 import { PiQuestion } from 'react-icons/pi';
-import { useLocalStorage } from 'usehooks-ts';
+import { useCookie } from '@/app/context/CookieContext';
 
 export default function useScheduleColumns() {
-	const [ratingSource, setRatingSource] = useLocalStorage<string>('schedule_rating_source', 'composite');
-	const [viewMode, setViewMode] = useLocalStorage<string>('schedule_view_mode', 'opponent');
+	const [ratingSource, setRatingSource] = useCookie<string>('schedule_rating_source', 'composite');
+	const [viewMode, setViewMode] = useCookie<string>('schedule_view_mode', 'opponent');
 
 	const columns = useMemo<ColumnDef<ParsedEspnGame, unknown>[]>(
 		() => [
 			{
 				id: 'first_sections',
-				header: () => <div className="text-2xl -ml-2 h-full align-top font-bold text-white/35">Schedule</div>,
+				header: () => <div className="text-2xl -ml-2 h-full  align-top font-bold text-neutral-600 ">Schedule</div>,
 				columns: [
 					{
 						id: 'date',
@@ -201,7 +201,7 @@ export default function useScheduleColumns() {
 
 							return (
 								<div
-									className={`text-center -my-2 w-fit m-auto py-1 px-1.5 rounded-xl border ${quadStyles[String(quadrant!)]}`}
+									className={`text-center -my-2 w-[1.75lh] m-auto py-1 px-1.5 rounded-xl border ${quadStyles[String(quadrant!)]}`}
 								>
 									Q{quadrant}
 								</div>
@@ -251,7 +251,7 @@ function RatingCell({
 	ratingSource: string;
 }) {
 	const { ratings_history: history } = useTeamProfile();
-	const [compositeSources] = useLocalStorage<string[]>('sources_filter', []);
+	const [compositeSources] = useCookie<string[]>('sources_filter', []);
 
 	const compositeKey = useMemo(() => {
 		const sourceOrder = ['kp', 'em', 'bt', 'net'];
@@ -397,7 +397,6 @@ function getDeltaHeatMap(pct: number): string {
 	if (abs > 0) return positive ? 'bg-green-500/5' : 'bg-red-500/5';
 	return '';
 }
-
 
 function getLocalTime(timeString: string) {
 	const today = new Date();

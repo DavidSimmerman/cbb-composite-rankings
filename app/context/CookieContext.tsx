@@ -1,0 +1,52 @@
+'use client';
+
+import { createContext, useCallback, useContext, useSyncExternalStore } from 'react';
+
+const CookieContext = createContext<Record<string, string>>({});
+
+export function CookieProvider({ cookies, children }: { cookies: Record<string, string>; children: React.ReactNode }) {
+	return <CookieContext.Provider value={cookies}>{children}</CookieContext.Provider>;
+}
+
+const listeners = new Map<string, Set<() => void>>();
+const store = new Map<string, string>();
+
+function subscribe(key: string, listener: () => void) {
+	if (!listeners.has(key)) listeners.set(key, new Set());
+	listeners.get(key)!.add(listener);
+	return () => {
+		listeners.get(key)!.delete(listener);
+	};
+}
+
+function setCookieValue(key: string, value: string) {
+	store.set(key, value);
+	document.cookie = `${key}=${encodeURIComponent(value)};path=/;max-age=${60 * 60 * 24 * 365}`;
+	listeners.get(key)?.forEach(l => l());
+}
+
+function parse<T>(raw: string, defaultValue: T): T {
+	try {
+		return JSON.parse(raw);
+	} catch {
+		return defaultValue;
+	}
+}
+
+export function useCookie<T>(key: string, defaultValue: T): [T, (value: T) => void] {
+	const serverCookies = useContext(CookieContext);
+	const initial = serverCookies[key] ?? JSON.stringify(defaultValue);
+
+	if (!store.has(key)) store.set(key, initial);
+
+	const raw = useSyncExternalStore(
+		cb => subscribe(key, cb),
+		() => store.get(key) ?? initial,
+		() => initial
+	);
+
+	const value = parse<T>(raw, defaultValue);
+	const setValue = useCallback((v: T) => setCookieValue(key, JSON.stringify(v)), [key]);
+
+	return [value, setValue];
+}

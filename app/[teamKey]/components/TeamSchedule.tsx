@@ -3,9 +3,10 @@
 import { useTeamProfile } from '@/app/context/TeamProfileContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { twMerge } from 'tailwind-merge';
 import useScheduleColumns from './useScheduleColumns';
 
-export default function TeamSchedule() {
+export default function TeamSchedule({ className }: { className: string }) {
 	const { schedule } = useTeamProfile();
 	const { columns } = useScheduleColumns();
 
@@ -21,7 +22,7 @@ export default function TeamSchedule() {
 	});
 
 	return (
-		<div className="flex-1 min-h-0 flex flex-col w-full gap-4 border border-neutral-800 rounded-lg p-4">
+		<div className={twMerge('flex-1 min-h-0 flex flex-col w-full gap-4 border border-neutral-800 rounded-lg p-4', className)}>
 			<div className="overflow-x-auto overflow-y-auto overscroll-none ">
 				<Table>
 					<TableHeader>

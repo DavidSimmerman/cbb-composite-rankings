@@ -28,7 +28,7 @@ export default function TeamProfileBanner() {
 						<div className="flex gap-3">
 							<div className="flex items-center gap-1">
 								<div
-									className={`text-center w-fit text-xs! m-auto py-0.5 px-1 rounded-xl border border-emerald-500/80 bg-emerald-500/30`}
+									className={`text-center text-xs! m-auto w-[1.75lh] py-0.5 px-1 rounded-xl border border-emerald-500/80 bg-emerald-500/30`}
 								>
 									Q1
 								</div>
@@ -37,7 +37,7 @@ export default function TeamProfileBanner() {
 
 							<div className="flex items-center gap-1">
 								<div
-									className={`text-center w-fit text-xs! m-auto py-0.5 px-1 rounded-xl border border-blue-500/80 bg-blue-500/30`}
+									className={`text-center text-xs! m-auto w-[1.75lh] py-0.5 px-1 rounded-xl border border-blue-500/80 bg-blue-500/30`}
 								>
 									Q2
 								</div>
@@ -46,7 +46,7 @@ export default function TeamProfileBanner() {
 
 							<div className="flex items-center gap-1">
 								<div
-									className={`text-center w-fit text-xs! m-auto py-0.5 px-1 rounded-xl border border-amber-500/80 bg-amber-500/30`}
+									className={`text-center text-xs! m-auto  w-[1.75lh] py-0.5 px-1 rounded-xl border border-amber-500/80 bg-amber-500/30`}
 								>
 									Q3
 								</div>
@@ -55,7 +55,7 @@ export default function TeamProfileBanner() {
 
 							<div className="flex items-center gap-1">
 								<div
-									className={`text-center w-fit text-xs! m-auto py-0.5 px-1 rounded-xl border border-red-500/80 bg-red-500/30`}
+									className={`text-center text-xs! m-auto w-[1.75lh] py-0.5 px-1 rounded-xl border border-red-500/80 bg-red-500/30`}
 								>
 									Q4
 								</div>
@@ -67,7 +67,7 @@ export default function TeamProfileBanner() {
 				<div className="ml-auto h-[85%] flex gap-3">
 					<div
 						className={twMerge(
-							`text-center h-full px-3 border border-white/10 bg-white/5 rounded-lg flex flex-col items-center justify-center`,
+							`text-center h-full px-3 py-1 border border-white/10 bg-white/5 rounded-lg flex flex-col items-center justify-center`,
 							getRankHeatMap(team.avg_zscore_rank)
 						)}
 					>
@@ -76,7 +76,7 @@ export default function TeamProfileBanner() {
 					</div>
 					<div
 						className={twMerge(
-							`text-center h-full px-3 border border-white/10 bg-white/5 rounded-lg flex flex-col items-center justify-center`,
+							`text-center h-full px-3 py-1 border border-white/10 bg-white/5 rounded-lg flex flex-col items-center justify-center`,
 							getRankHeatMap(team.avg_offensive_zscore_rank)
 						)}
 					>
@@ -85,7 +85,7 @@ export default function TeamProfileBanner() {
 					</div>
 					<div
 						className={twMerge(
-							`text-center h-full px-3 border border-white/10 bg-white/5 rounded-lg flex flex-col items-center justify-center`,
+							`text-center h-full px-3 py-1 border border-white/10 bg-white/5 rounded-lg flex flex-col items-center justify-center`,
 							getRankHeatMap(team.avg_defensive_zscore_rank)
 						)}
 					>

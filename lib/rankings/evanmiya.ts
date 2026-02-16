@@ -24,10 +24,15 @@ export interface EvanMiyaRanking {
 	home_rank: number;
 	roster_rank: number;
 	kill_shots_per_game: number;
+	kill_shots_per_game_rank: number;
 	kill_shots_conceded_per_game: number;
+	kill_shots_conceded_per_game_rank: number;
 	kill_shots_margin_per_game: number;
+	kill_shots_margin_per_game_rank: number;
 	total_kill_shots: number;
+	total_kill_shots_rank: number;
 	total_kill_shots_conceded: number;
+	total_kill_shots_conceded_rank: number;
 	d1_wins: number;
 	d1_losses: number;
 	relative_rating_zscore: number;
@@ -47,8 +52,11 @@ export async function updateEvanMiya(browser: BrowserContext) {
 			off_rank, def_rank,
 			true_tempo, tempo_rank,
 			injury_rank, home_rank, roster_rank,
-			kill_shots_per_game, kill_shots_conceded_per_game, kill_shots_margin_per_game,
-			total_kill_shots, total_kill_shots_conceded,
+			kill_shots_per_game, kill_shots_per_game_rank,
+			kill_shots_conceded_per_game, kill_shots_conceded_per_game_rank,
+			kill_shots_margin_per_game, kill_shots_margin_per_game_rank,
+			total_kill_shots, total_kill_shots_rank,
+			total_kill_shots_conceded, total_kill_shots_conceded_rank,
 			d1_wins, d1_losses,
 			relative_rating_zscore, o_rate_zscore, d_rate_zscore,
 			season
@@ -59,11 +67,14 @@ export async function updateEvanMiya(browser: BrowserContext) {
 			$10, $11,
 			$12, $13,
 			$14, $15, $16,
-			$17, $18, $19,
-			$20, $21,
-			$22, $23,
-			$24, $25, $26,
-			$27
+			$17, $18,
+			$19, $20,
+			$21, $22,
+			$23, $24,
+			$25, $26,
+			$27, $28,
+			$29, $30, $31,
+			$32
 		)
 		ON CONFLICT (team_key, date) DO UPDATE SET
 			team = EXCLUDED.team, relative_ranking = EXCLUDED.relative_ranking, trends = EXCLUDED.trends,
@@ -72,9 +83,11 @@ export async function updateEvanMiya(browser: BrowserContext) {
 			off_rank = EXCLUDED.off_rank, def_rank = EXCLUDED.def_rank,
 			true_tempo = EXCLUDED.true_tempo, tempo_rank = EXCLUDED.tempo_rank,
 			injury_rank = EXCLUDED.injury_rank, home_rank = EXCLUDED.home_rank, roster_rank = EXCLUDED.roster_rank,
-			kill_shots_per_game = EXCLUDED.kill_shots_per_game, kill_shots_conceded_per_game = EXCLUDED.kill_shots_conceded_per_game,
-			kill_shots_margin_per_game = EXCLUDED.kill_shots_margin_per_game,
-			total_kill_shots = EXCLUDED.total_kill_shots, total_kill_shots_conceded = EXCLUDED.total_kill_shots_conceded,
+			kill_shots_per_game = EXCLUDED.kill_shots_per_game, kill_shots_per_game_rank = EXCLUDED.kill_shots_per_game_rank,
+			kill_shots_conceded_per_game = EXCLUDED.kill_shots_conceded_per_game, kill_shots_conceded_per_game_rank = EXCLUDED.kill_shots_conceded_per_game_rank,
+			kill_shots_margin_per_game = EXCLUDED.kill_shots_margin_per_game, kill_shots_margin_per_game_rank = EXCLUDED.kill_shots_margin_per_game_rank,
+			total_kill_shots = EXCLUDED.total_kill_shots, total_kill_shots_rank = EXCLUDED.total_kill_shots_rank,
+			total_kill_shots_conceded = EXCLUDED.total_kill_shots_conceded, total_kill_shots_conceded_rank = EXCLUDED.total_kill_shots_conceded_rank,
 			d1_wins = EXCLUDED.d1_wins, d1_losses = EXCLUDED.d1_losses,
 			relative_rating_zscore = EXCLUDED.relative_rating_zscore, o_rate_zscore = EXCLUDED.o_rate_zscore,
 			d_rate_zscore = EXCLUDED.d_rate_zscore,
@@ -106,10 +119,15 @@ export async function updateEvanMiya(browser: BrowserContext) {
 				team.home_rank,
 				team.roster_rank,
 				team.kill_shots_per_game,
+				team.kill_shots_per_game_rank,
 				team.kill_shots_conceded_per_game,
+				team.kill_shots_conceded_per_game_rank,
 				team.kill_shots_margin_per_game,
+				team.kill_shots_margin_per_game_rank,
 				team.total_kill_shots,
+				team.total_kill_shots_rank,
 				team.total_kill_shots_conceded,
+				team.total_kill_shots_conceded_rank,
 				team.d1_wins,
 				team.d1_losses,
 				team.relative_rating_zscore,
@@ -234,6 +252,22 @@ export async function fetchEvanMiyaRankings(browser: BrowserContext) {
 	await page.close();
 
 	teams = calculateZScores(teams, [{ source: 'relative_rating' }, { source: 'o_rate' }, { source: 'd_rate' }]);
+
+	const descKeys = ['kill_shots_per_game', 'kill_shots_margin_per_game', 'total_kill_shots'] as const;
+	for (const key of descKeys) {
+		const sorted = [...teams].sort((a, b) => (b[key] as number) - (a[key] as number));
+		sorted.forEach((t, i) => {
+			t[`${key}_rank`] = i + 1;
+		});
+	}
+
+	const ascKeys = ['kill_shots_conceded_per_game', 'total_kill_shots_conceded'] as const;
+	for (const key of ascKeys) {
+		const sorted = [...teams].sort((a, b) => (a[key] as number) - (b[key] as number));
+		sorted.forEach((t, i) => {
+			t[`${key}_rank`] = i + 1;
+		});
+	}
 
 	const took = Math.round((new Date().getTime() - startTime) / 10) / 100;
 

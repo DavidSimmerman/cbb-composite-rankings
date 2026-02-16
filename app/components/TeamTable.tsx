@@ -17,7 +17,7 @@ import {
 import Fuse from 'fuse.js';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { useLocalStorage } from 'usehooks-ts';
+import { useCookie } from '../context/CookieContext';
 import { useRankings } from '../context/RankingsContext';
 import { allMetrics as allMetricToggles, allSources as allSourceToggles, columns, p5Conferences, sourceColumns } from './columns';
 import ConferenceFilter from './ConferenceFilter';
@@ -30,10 +30,10 @@ export default function TeamTable() {
 	const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 	const [rowSelection, setRowSelection] = useState({});
 	const [searchQuery, setSearchQuery] = useState('');
-	const [conferenceFilter, setConferenceFilter] = useLocalStorage<string[]>('conference_filter', []);
-	const [sourcesFilter, setSourcesFilter] = useLocalStorage<string[]>('sources_filter', [...allSourceToggles]);
-	const [metricsFilter, setMetricsFilter] = useLocalStorage<string[]>('metrics_filter', [...allMetricToggles]);
-	const [relativeRankings, setOnRelativeRankings] = useLocalStorage<boolean>('relative_rankings', true);
+	const [conferenceFilter, setConferenceFilter] = useCookie<string[]>('conference_filter', []);
+	const [sourcesFilter, setSourcesFilter] = useCookie<string[]>('sources_filter', [...allSourceToggles]);
+	const [metricsFilter, setMetricsFilter] = useCookie<string[]>('metrics_filter', [...allMetricToggles]);
+	const [relativeRankings, setOnRelativeRankings] = useCookie<boolean>('relative_rankings', true);
 
 	const data = useRankings();
 
