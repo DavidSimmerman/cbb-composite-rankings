@@ -153,10 +153,10 @@ export default function TeamTable() {
 			</div>
 			<div className="overflow-x-auto overflow-y-auto overscroll-none rounded-md border flex-1 min-h-0 always-show-scrollbar">
 				{table.getRowModel().rows?.length ? (
-					<Table>
+					<Table className="[&_td]:py-3.5 [&_td]:md:py-2">
 						<TableHeader className="bg-neutral-800">
 							{table.getHeaderGroups().map((headerGroup, groupIndex) => (
-								<TableRow key={headerGroup.id} className={groupIndex === 0 ? '!border-b-0' : ''}>
+								<TableRow key={headerGroup.id} className={groupIndex === 0 ? 'border-b-0!' : ''}>
 									{headerGroup.headers.map((header, index) => {
 										const isSticky = index === 0;
 										return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useSyncExternalStore } from 'react';
+import { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from 'react';
 
 const CookieContext = createContext<Record<string, string>>({});
 
@@ -45,7 +45,7 @@ export function useCookie<T>(key: string, defaultValue: T): [T, (value: T) => vo
 		() => initial
 	);
 
-	const value = parse<T>(raw, defaultValue);
+	const value = useMemo(() => parse<T>(raw, defaultValue), [raw]);
 	const setValue = useCallback((v: T) => setCookieValue(key, JSON.stringify(v)), [key]);
 
 	return [value, setValue];

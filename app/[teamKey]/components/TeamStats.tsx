@@ -13,15 +13,13 @@ export default function TeamStats({ className }: { className: string }) {
 	const [viewMode, setViewMode] = useState<string>('offense');
 	const [pieValueType, setPieValueType] = useCookie('pie_chart_value_type', 'stat');
 
-	console.log(profile);
-
 	const fullRatings = useMemo(() => {
 		const season = Object.keys(profile.full_ratings).sort().at(-1)!;
 		return profile.full_ratings[season];
 	}, [profile]);
 
 	return (
-		<div className={twMerge('border border-neutral-800 rounded-lg p-4 overflow-auto flex flex-col', className)}>
+		<div className={twMerge('border border-neutral-800 rounded-lg p-3 md:p-4 overflow-auto flex flex-col', className)}>
 			<div className="text-2xl font-bold text-neutral-600 align-top mb-4">Team Profile</div>
 
 			<ToggleGroup
@@ -151,7 +149,7 @@ export default function TeamStats({ className }: { className: string }) {
 									rank: fullRatings.em_kill_shots_per_game_rank
 								},
 								{
-									label: 'Drawn Fouls / G',
+									label: 'Fouls Drawn / G',
 									value: Math.round(fullRatings.espn_opp_avg_fouls * 10) / 10,
 									rank: fullRatings.espn_opp_avg_fouls_rank
 								},

@@ -22,9 +22,15 @@ export default function TeamSchedule({ className }: { className: string }) {
 	});
 
 	return (
-		<div className={twMerge('flex-1 min-h-0 flex flex-col w-full gap-4 border border-neutral-800 rounded-lg p-4', className)}>
-			<div className="overflow-x-auto overflow-y-auto overscroll-none ">
-				<Table>
+		<div
+			className={twMerge(
+				'flex-1 max-h-[70dvh]! md:max-h-auto flex flex-col w-full gap-1 md:gap-4 border border-neutral-800 rounded-lg p-3 md:p-4',
+				className
+			)}
+		>
+			<div className="text-2xl align-top font-bold text-neutral-600 md:hidden">Schedule</div>
+			<div className="overflow-x-auto overflow-y-auto overscroll-x-none md:overscroll-none ">
+				<Table className="[&_td]:py-3.5 [&_td]:md:py-2">
 					<TableHeader>
 						{table.getHeaderGroups().map((headerGroup, groupIndex) => (
 							<TableRow key={headerGroup.id} className={'border-b-0!'}>

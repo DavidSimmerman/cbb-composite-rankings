@@ -15,7 +15,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 		cell: ({ row }) => (
 			<div className="px-1 flex items-center gap-1">
 				<TeamLogo teamKey={row.original.team_key} className="h-lh" size={50} />
-				<span className="truncate max-w-[12ch]">
+				<span className="truncate max-w-[15ch]">
 					{row.original.ap_rank && <span className="text-muted-foreground text-xs mr-1">{row.original.ap_rank}</span>}
 					<span className="group-hover:underline">{row.original.team_name}</span>
 				</span>
@@ -33,14 +33,14 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 				header: ({ column }) => (
 					<div className="flex pt-0">
 						<div className={headerBtn} onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-							Z-Score
+							Rating
 							{!column.getIsSorted() && <ArrowUpDown />}
 							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
 						</div>
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-purple-600/15 -my-2 py-2">
+					<div className="text-center bg-purple-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
 						{Math.round(row.original.avg_zscore * 100) / 100}{' '}
 						<span className="text-xs text-neutral-400">{row.original.avg_zscore_rank}</span>
 					</div>
@@ -53,14 +53,14 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 				header: ({ column }) => (
 					<div className="flex">
 						<div className={headerBtn} onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-							Off Z-Score
+							Off Rating
 							{!column.getIsSorted() && <ArrowUpDown />}
 							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
 						</div>
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-purple-600/15 -my-2 py-2">
+					<div className="text-center bg-purple-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
 						{Math.round(row.original.avg_offensive_zscore * 100) / 100}{' '}
 						<span className="text-xs text-neutral-400">{row.original.avg_offensive_zscore_rank}</span>
 					</div>
@@ -73,14 +73,14 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 				header: ({ column }) => (
 					<div className="flex">
 						<div className={headerBtn} onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
-							Def Z-Score
+							Def Rating
 							{!column.getIsSorted() && <ArrowUpDown />}
 							{column.getIsSorted() && (column.getIsSorted() === 'asc' ? <ArrowUp /> : <ArrowDown />)}
 						</div>
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-purple-600/15 -my-2 py-2">
+					<div className="text-center bg-purple-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
 						{Math.round(row.original.avg_defensive_zscore * 100) / 100}{' '}
 						<span className="text-xs text-neutral-400">{row.original.avg_defensive_zscore_rank}</span>
 					</div>
@@ -106,7 +106,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-blue-600/15 -my-2 py-2">
+					<div className="text-center bg-blue-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
 						{row.original.kp_rating} <span className="text-xs text-neutral-400">{row.original.kp_rating_rank}</span>
 					</div>
 				),
@@ -125,7 +125,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-blue-600/15 -my-2 py-2">
+					<div className="text-center bg-blue-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
 						{row.original.kp_offensive_rating}{' '}
 						<span className="text-xs text-neutral-400">{row.original.kp_offensive_rating_rank}</span>
 					</div>
@@ -145,7 +145,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-blue-600/15 -my-2 py-2">
+					<div className="text-center bg-blue-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
 						{row.original.kp_defensive_rating}{' '}
 						<span className="text-xs text-neutral-400">{row.original.kp_defensive_rating_rank}</span>
 					</div>
@@ -171,7 +171,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-green-600/15 -my-2 py-2">
+					<div className="text-center bg-green-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
 						{row.original.em_rating} <span className="text-xs text-neutral-400">{row.original.em_rating_rank}</span>
 					</div>
 				),
@@ -190,7 +190,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-green-600/15 -my-2 py-2">
+					<div className="text-center bg-green-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
 						{row.original.em_offensive_rating}{' '}
 						<span className="text-xs text-neutral-400">{row.original.em_offensive_rating_rank}</span>
 					</div>
@@ -210,7 +210,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-green-600/15 -my-2 py-2">
+					<div className="text-center bg-green-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
 						{row.original.em_defensive_rating}{' '}
 						<span className="text-xs text-neutral-400">{row.original.em_defensive_rating_rank}</span>
 					</div>
@@ -236,7 +236,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-yellow-600/15 -my-2 py-2">
+					<div className="text-center bg-yellow-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
 						{row.original.bt_rating} <span className="text-xs text-neutral-400">{row.original.bt_rating_rank}</span>
 					</div>
 				),
@@ -255,7 +255,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-yellow-600/15 -my-2 py-2">
+					<div className="text-center bg-yellow-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
 						{row.original.bt_offensive_rating}{' '}
 						<span className="text-xs text-neutral-400">{row.original.bt_offensive_rating_rank}</span>
 					</div>
@@ -275,7 +275,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-yellow-600/15 -my-2 py-2">
+					<div className="text-center bg-yellow-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
 						{row.original.bt_defensive_rating}{' '}
 						<span className="text-xs text-neutral-400">{row.original.bt_defensive_rating_rank}</span>
 					</div>
@@ -300,7 +300,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 						</div>
 					</div>
 				),
-				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_rank}</div>,
+				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_rank}</div>,
 				enableSorting: true,
 				enableHiding: false
 			},
@@ -315,7 +315,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 						</div>
 					</div>
 				),
-				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q1_record}</div>,
+				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q1_record}</div>,
 				enableSorting: true,
 				enableHiding: false
 			},
@@ -330,7 +330,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 						</div>
 					</div>
 				),
-				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q2_record}</div>,
+				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q2_record}</div>,
 				enableSorting: true,
 				enableHiding: false
 			},
@@ -345,7 +345,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 						</div>
 					</div>
 				),
-				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q3_record}</div>,
+				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q3_record}</div>,
 				enableSorting: true,
 				enableHiding: false
 			},
@@ -360,7 +360,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 						</div>
 					</div>
 				),
-				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-2 py-2">{row.original.net_q4_record}</div>,
+				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q4_record}</div>,
 				enableSorting: true,
 				enableHiding: false
 			}

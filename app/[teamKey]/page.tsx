@@ -16,12 +16,12 @@ export default async function TeamPage({ params }: { params: Promise<{ teamKey: 
 			<div className="h-dvh flex flex-col">
 				<Header />
 				<div className="flex-1 min-h-0 overflow-auto">
-					<div className="max-w-340 mx-auto px-4 pb-8">
+					<div className="max-w-340 mx-auto px-2 md:px-4 pb-4 md:pb-8">
 						<TeamProfileBanner />
-						<div className="grid grid-cols-3 auto-rows-[480px] gap-6 mt-6">
-							<TeamStats className="row-span-2" />
-							<TeamCharts className="col-span-2 min-h-76" />
-							<TeamSchedule className="col-span-2 min-h-76" />
+						<div className="flex flex-col md:grid md:grid-cols-3 md:auto-rows-[480px] gap-3 md:gap-6 mt-4 md:mt-6">
+							<TeamStats className="order-2 md:order-0 md:row-span-2" />
+							<TeamCharts className="order-1 md:order-0 md:col-span-2 min-h-76" />
+							<TeamSchedule className="order-3 md:order-0 md:col-span-2 min-h-76" />
 						</div>
 					</div>
 				</div>

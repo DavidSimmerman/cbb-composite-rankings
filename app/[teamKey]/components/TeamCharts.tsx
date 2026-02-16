@@ -2,6 +2,7 @@
 
 import { allSources } from '@/app/components/columns';
 import SourcesFilter from '@/app/components/SourcesFilter';
+import { useCookie } from '@/app/context/CookieContext';
 import { useTeamProfile } from '@/app/context/TeamProfileContext';
 import TeamLogo from '@/components/TeamLogo';
 import { Button } from '@/components/ui/button';
@@ -15,12 +16,11 @@ import {
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Toggle } from '@/components/ui/toggle';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { PiChartLineBold } from 'react-icons/pi';
 import { RiCollapseVerticalLine, RiExpandVerticalLine } from 'react-icons/ri';
 import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { twMerge } from 'tailwind-merge';
-import { useCookie } from '@/app/context/CookieContext';
 
 export default function TeamCharts({ className }: { className: string }) {
 	const [zoom, setZoom] = useCookie<boolean>('chart_zoom', false);
@@ -88,9 +88,9 @@ export default function TeamCharts({ className }: { className: string }) {
 	}, [zoom, rank]);
 
 	return (
-		<div className={twMerge(`flex flex-col w-full min-h-0 border border-neutral-800 rounded-lg p-4`, className)}>
-			<div className="flex">
-				<div className="text-2xl font-bold text-neutral-600 h-full align-top">Rating History</div>
+		<div className={twMerge(`flex flex-col w-full min-h-0 border border-neutral-800 rounded-lg p-3 md:p-4`, className)}>
+			<div className="flex flex-col md:flex-row">
+				<div className="text-2xl font-bold text-neutral-600 h-full align-top mb-2 md:mb-0">Rating History</div>
 
 				<div className="ml-auto mr-0 flex gap-2 z-1">
 					<Toggle
@@ -166,7 +166,7 @@ export default function TeamCharts({ className }: { className: string }) {
 						<DropdownMenuTrigger asChild>
 							<Button className="cursor-pointer" variant="outline">
 								<PiChartLineBold />
-								{rank ? 'Rank' : 'Z-Score'}
+								<span className="hidden md:inline">{rank ? 'Rank' : 'Z-Score'}</span>
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent className="">
@@ -192,8 +192,8 @@ export default function TeamCharts({ className }: { className: string }) {
 				</div>
 			</div>
 
-			<div className="flex mt-3 flex-1 min-h-0">
-				<div className="flex flex-col -mr-px z-10">
+			<div className="flex flex-col md:flex-row mt-3 flex-1 min-h-0">
+				<div className="hidden md:flex flex-col -mr-px z-10">
 					{(
 						[
 							{ key: 'rating', label: 'Rating' },
@@ -204,7 +204,7 @@ export default function TeamCharts({ className }: { className: string }) {
 						<button
 							key={tab.key}
 							onClick={() => setActiveChart(tab.key)}
-							className={`flex-1 px-1.5 py-3 text-md font-bold cursor-pointer border border-border border-l-0 first:rounded-br-lg last:rounded-tr-lg transition-colors [writing-mode:vertical-lr] rotate-180 ${
+							className={`flex-1 px-1.5 py-3 text-md font-bold cursor-pointer border border-border border-l-0 first:rounded-br-xl last:rounded-tr-xl transition-colors [writing-mode:vertical-lr] rotate-180 ${
 								activeChart === tab.key
 									? 'bg-card text-foreground border-r-transparent'
 									: 'bg-transparent text-muted-foreground hover:text-foreground border-r-border'
@@ -232,6 +232,27 @@ export default function TeamCharts({ className }: { className: string }) {
 						gameLines={gameLines}
 					/>
 				</div>
+				<div className="flex md:hidden -mt-px z-10">
+					{(
+						[
+							{ key: 'rating', label: 'Rating' },
+							{ key: 'offensive', label: 'Off' },
+							{ key: 'defensive', label: 'Def' }
+						] as const
+					).map(tab => (
+						<button
+							key={tab.key}
+							onClick={() => setActiveChart(tab.key)}
+							className={`flex-1 px-3 py-1.5 text-md font-bold cursor-pointer border border-border border-t-0 first:rounded-bl-xl last:rounded-br-xl transition-colors ${
+								activeChart === tab.key
+									? 'bg-card text-foreground border-t-transparent'
+									: 'bg-transparent text-muted-foreground hover:text-foreground border-t-border'
+							}`}
+						>
+							{tab.label}
+						</button>
+					))}
+				</div>
 			</div>
 		</div>
 	);
@@ -252,6 +273,13 @@ function ChartCard({
 	dashed: boolean;
 	gameLines: boolean;
 }) {
+	const scrollRef = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		if (scrollRef.current) {
+			scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
+		}
+	}, []);
+
 	const chartConfig = {
 		composite: {
 			label: 'Composite',
@@ -293,8 +321,8 @@ function ChartCard({
 	const show = (source: string) => sources.includes(source) || sources.length === 0;
 
 	return (
-		<Card className="w-full h-full p-3 rounded-l-none border-l-none">
-			<ChartContainer config={chartConfig} className="aspect-auto h-full w-full">
+		<Card ref={scrollRef} className="w-full h-76 md:h-full overflow-auto p-3 rounded-b-none md:rounded-br-xl md:rounded-tl-none md:border-l-none select-none">
+			<ChartContainer config={chartConfig} className="aspect-auto h-full w-[150dvw] md:w-full">
 				<LineChart data={chartData} margin={{ left: 12, right: 12 }}>
 					<CartesianGrid vertical={false} />
 					{showGameLines &&
@@ -360,7 +388,7 @@ function ChartCard({
 							}
 
 							return (
-								<div className="border-border/50 bg-background grid min-w-[8rem] items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
+								<div className="border-border/50 bg-background grid min-w-32 items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
 									<div className="font-medium">{label}</div>
 									<div className="grid gap-1.5">
 										{game && (

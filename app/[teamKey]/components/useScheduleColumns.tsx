@@ -1,20 +1,17 @@
 'use client';
 
+import { useCookie } from '@/app/context/CookieContext';
 import { useTeamProfile } from '@/app/context/TeamProfileContext';
 import TeamLogo from '@/components/TeamLogo';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ParsedEspnGame } from '@/lib/espn/schedule';
 import { CompositeRanking } from '@/lib/rankings/composite';
 import { CompiledTeamData } from '@/lib/shared';
-import { getRankHeatMap } from '@/lib/utils';
 import { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
 import { useMemo } from 'react';
 import { GoDotFill } from 'react-icons/go';
-import { PiQuestion } from 'react-icons/pi';
-import { useCookie } from '@/app/context/CookieContext';
 
 export default function useScheduleColumns() {
 	const [ratingSource, setRatingSource] = useCookie<string>('schedule_rating_source', 'composite');
@@ -24,12 +21,14 @@ export default function useScheduleColumns() {
 		() => [
 			{
 				id: 'first_sections',
-				header: () => <div className="text-2xl -ml-2 h-full  align-top font-bold text-neutral-600 ">Schedule</div>,
+				header: () => (
+					<div className="hidden md:flex text-2xl -ml-2 h-full align-top font-bold text-neutral-600 ">Schedule</div>
+				),
 				columns: [
 					{
 						id: 'date',
 						header: () => <div className="text-left -ml-2">Date</div>,
-						cell: ({ row }) => <div>{row.original.date.replace(/^\d{4}-/, '')}</div>
+						cell: ({ row }) => <div className="pr-2">{row.original.date.replace(/^\d{4}-/, '')}</div>
 					},
 					{
 						id: 'home_away',
@@ -80,10 +79,12 @@ export default function useScheduleColumns() {
 						className="w-full"
 					>
 						<ToggleGroupItem value="opponent" className="cursor-pointer w-1/2">
-							Opponent Ratings
+							<span className="hidden md:inline">Opponent Ratings</span>
+							<span className="md:hidden">Opponent</span>
 						</ToggleGroupItem>
 						<ToggleGroupItem value="game_delta" className="cursor-pointer w-1/2">
-							Game Delta
+							<span className="hidden md:inline">Game Delta</span>
+							<span className="md:hidden">Delta</span>
 						</ToggleGroupItem>
 					</ToggleGroup>
 				),
@@ -126,8 +127,28 @@ export default function useScheduleColumns() {
 				header: () => (
 					<div className="w-0 min-w-full">
 						<Select value={ratingSource} onValueChange={setRatingSource}>
-							<SelectTrigger className="w-full">
+							<SelectTrigger className="w-full *:data-[slot=select-value]:hidden *:data-[slot=select-value]:md:flex">
 								<SelectValue />
+								<span className="md:hidden flex items-center gap-2">
+									<GoDotFill
+										className={
+											{
+												composite: 'text-purple-500',
+												kenpom: 'text-blue-500',
+												evanmiya: 'text-green-500',
+												barttorvik: 'text-yellow-500'
+											}[ratingSource]
+										}
+									/>
+									{
+										{
+											composite: 'Comp',
+											kenpom: 'KP',
+											evanmiya: 'EM',
+											barttorvik: 'BT'
+										}[ratingSource]
+									}
+								</span>
 							</SelectTrigger>
 							<SelectContent>
 								<SelectGroup>
@@ -201,7 +222,7 @@ export default function useScheduleColumns() {
 
 							return (
 								<div
-									className={`text-center -my-2 w-[1.75lh] m-auto py-1 px-1.5 rounded-xl border ${quadStyles[String(quadrant!)]}`}
+									className={`text-center -my-3.5 md:-my-2 text-xs! m-auto w-[1.75lh] py-0.5 px-1 rounded-xl border   ${quadStyles[String(quadrant!)]}`}
 								>
 									Q{quadrant}
 								</div>
@@ -312,20 +333,8 @@ function RatingCell({
 		const afterRatings = history[next];
 
 		if (!beforeRatings || !afterRatings) {
-			if (!game.time && !beforeRatings && ratingType === 'offensiveRating') {
-				displayValue = (
-					<Tooltip>
-						<TooltipTrigger>
-							<PiQuestion />
-						</TooltipTrigger>
-						<TooltipContent>Data tracking began on 2/1. Previous history not included.</TooltipContent>
-					</Tooltip>
-				);
-				displayRank = '';
-			} else {
-				displayValue = '-';
-				displayRank = '';
-			}
+			displayValue = '-';
+			displayRank = '';
 		} else {
 			let ratingDelta, rankDelta, beforeValue, afterValue, beforeRank, afterRank;
 
@@ -374,26 +383,38 @@ function RatingCell({
 
 	let heatMapBg = '';
 	if (viewMode === 'opponent') {
-		heatMapBg = getRankHeatMap(displayRank as number);
+		heatMapBg = getScheduleHeatMap(displayRank as number);
 	} else if (viewMode === 'game_delta' && deltaPct !== undefined) {
 		heatMapBg = getDeltaHeatMap(deltaPct);
 	}
 
 	return (
-		<div className={`text-center -my-2 py-2 ${heatMapBg}`}>
+		<div className={`text-center -my-3.5 md:-my-2 px-2 py-3.5 md:py-2 ${heatMapBg}`}>
 			{displayValue} <span className="text-xs text-neutral-400">{displayRank}</span>
 		</div>
 	);
+}
+
+function getScheduleHeatMap(rank: number): string {
+	if (isNaN(rank) || !rank) return '';
+	if (rank <= 5) return 'bg-green-500/35';
+	if (rank <= 10) return 'bg-green-500/20';
+	if (rank <= 20) return 'bg-green-500/15';
+	if (rank <= 30) return 'bg-green-500/8';
+	if (rank > 150) return 'bg-red-500/20';
+	if (rank > 100) return 'bg-red-500/15';
+	if (rank > 60) return 'bg-red-500/8';
+	return '';
 }
 
 function getDeltaHeatMap(pct: number): string {
 	const abs = Math.abs(pct);
 	if (abs === 0) return '';
 	const positive = pct > 0;
-	if (abs >= 7.5) return positive ? 'bg-green-500/25' : 'bg-red-500/25';
-	if (abs >= 5) return positive ? 'bg-green-500/20' : 'bg-red-500/20';
-	if (abs >= 2.5) return positive ? 'bg-green-500/15' : 'bg-red-500/15';
-	if (abs >= 1) return positive ? 'bg-green-500/10' : 'bg-red-500/10';
+	if (abs >= 7.5) return positive ? 'bg-green-500/20' : 'bg-red-500/20';
+	if (abs >= 5) return positive ? 'bg-green-500/15' : 'bg-red-500/15';
+	if (abs >= 2.5) return positive ? 'bg-green-500/10' : 'bg-red-500/10';
+	if (abs >= 1) return positive ? 'bg-green-500/8' : 'bg-red-500/8';
 	if (abs > 0) return positive ? 'bg-green-500/5' : 'bg-red-500/5';
 	return '';
 }
