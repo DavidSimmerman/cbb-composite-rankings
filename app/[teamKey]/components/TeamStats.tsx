@@ -47,7 +47,7 @@ export default function TeamStats({ className }: { className: string }) {
 							valueType={pieValueType}
 						/>
 						<RadialRating
-							metric="3pt %"
+							metric="3pt%"
 							value={fullRatings.bt_3p_pct + '%'}
 							rank={fullRatings.bt_3p_pct_rank}
 							valueType={pieValueType}
@@ -59,13 +59,13 @@ export default function TeamStats({ className }: { className: string }) {
 							valueType={pieValueType}
 						/>
 						<RadialRating
-							metric="2pt %"
+							metric="2pt%"
 							value={fullRatings.bt_2p_pct + '%'}
 							rank={fullRatings.bt_2p_pct_rank}
 							valueType={pieValueType}
 						/>
 						<RadialRating
-							metric="FT %"
+							metric="FT%"
 							value={Math.round(fullRatings.espn_off_free_throw_pct * 10) / 10 + '%'}
 							rank={fullRatings.espn_off_free_throw_pct_rank}
 							valueType={pieValueType}
@@ -86,13 +86,13 @@ export default function TeamStats({ className }: { className: string }) {
 							valueType={pieValueType}
 						/>
 						<RadialRating
-							metric="Opp FG %"
+							metric="Opp FG%"
 							value={Math.round(fullRatings.espn_opp_off_field_goal_pct * 10) / 10 + '%'}
 							rank={fullRatings.espn_opp_off_field_goal_pct_rank}
 							valueType={pieValueType}
 						/>
 						<RadialRating
-							metric="Opp 3pt %"
+							metric="Opp 3pt"
 							value={fullRatings.bt_3p_pct_d + '%'}
 							rank={fullRatings.bt_3p_pct_d_rank}
 							valueType={pieValueType}
@@ -144,12 +144,12 @@ export default function TeamStats({ className }: { className: string }) {
 									rank: fullRatings.kp_sos_defensive_rating_rank
 								},
 								{
-									label: 'Killshots / G',
+									label: 'Killshots/G',
 									value: fullRatings.em_kill_shots_per_game,
 									rank: fullRatings.em_kill_shots_per_game_rank
 								},
 								{
-									label: 'Fouls Drawn / G',
+									label: 'Fouls Drawn/G',
 									value: Math.round(fullRatings.espn_opp_avg_fouls * 10) / 10,
 									rank: fullRatings.espn_opp_avg_fouls_rank
 								},
@@ -170,7 +170,7 @@ export default function TeamStats({ className }: { className: string }) {
 									rank: fullRatings.espn_assist_turnover_ratio_rank
 								},
 								{
-									label: 'Assist %',
+									label: 'Assist%',
 									value: Math.round(fullRatings.espn_off_assist_percentage * 10) / 10,
 									rank: fullRatings.espn_off_assist_percentage_rank
 								},
@@ -211,12 +211,12 @@ export default function TeamStats({ className }: { className: string }) {
 									rank: fullRatings.kp_sos_offensive_rating_rank
 								},
 								{
-									label: 'Killshots Conceded / G',
+									label: 'Killshots Conceded/G',
 									value: fullRatings.em_kill_shots_conceded_per_game,
 									rank: fullRatings.em_kill_shots_conceded_per_game_rank
 								},
 								{
-									label: 'Fouls / G',
+									label: 'Fouls/G',
 									value: Math.round(fullRatings.espn_avg_fouls * 10) / 10,
 									rank: fullRatings.espn_avg_fouls_rank
 								}
