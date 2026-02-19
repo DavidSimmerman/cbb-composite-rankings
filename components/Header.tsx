@@ -67,7 +67,7 @@ export default function Header() {
 		<div className="sticky top-0 z-50 w-full bg-neutral-900 flex items-stretch gap-3 md:gap-5 border-b border-neutral-700 py-3 px-4 md:px-6">
 			<Link
 				href="/"
-				className={`cursor-pointer font-kanit font-medium italic text-2xl md:text-4xl flex gap-1 shrink-0 transition-all duration-200 overflow-hidden ${mobileSearchOpen ? 'max-w-[2.5rem]' : 'max-w-80'}`}
+				className={`cursor-pointer font-kanit font-medium italic text-2xl md:text-4xl flex gap-1 shrink-0 transition-all duration-200 overflow-hidden ${mobileSearchOpen ? 'max-w-10' : 'max-w-80'}`}
 			>
 				<Logo className="h-lh w-auto shrink-0" />
 				<span
