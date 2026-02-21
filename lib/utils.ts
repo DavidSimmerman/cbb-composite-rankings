@@ -1,8 +1,8 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+	return twMerge(clsx(inputs));
 }
 
 export function getRankHeatMap(rank: number): string {
@@ -15,4 +15,8 @@ export function getRankHeatMap(rank: number): string {
 	if (rank > 100) return 'bg-red-500/20';
 	if (rank > 60) return 'bg-red-500/10';
 	return '';
+}
+
+export function camelToSnake(str: string) {
+	return str.replace(/[A-Z]/g, match => `_${match.toLowerCase()}`);
 }

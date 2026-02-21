@@ -20,6 +20,7 @@ export type FullRatings = Prefix<Omit<KenPomRanking, SystemFields>, 'kp'> &
 	Prefix<Omit<EvanMiyaRanking, SystemFields>, 'em'> &
 	Prefix<Omit<BartTorvikRanking, SystemFields>, 'bt'> &
 	Prefix<Omit<NetRanking, SystemFields>, 'net'> &
+	Prefix<Omit<ApPollTeam, SystemFields>, 'ap'> &
 	Prefix<Omit<CompositeRanking, SystemFields>, 'comp'> &
 	Prefix<Omit<EspnStats, SystemFields>, 'espn'> & { ap_rank: number | undefined };
 

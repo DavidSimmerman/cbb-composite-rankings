@@ -1,5 +1,5 @@
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist, Geist_Mono, Inter } from 'next/font/google';
 import localFont from 'next/font/local';
 import { cookies } from 'next/headers';
 import RankingsLoader from './components/RankingsLoader';
@@ -9,6 +9,11 @@ import './globals.css';
 
 const geistSans = Geist({
 	variable: '--font-geist-sans',
+	subsets: ['latin']
+});
+
+const inter = Inter({
+	variable: '--font-inter',
 	subsets: ['latin']
 });
 
@@ -69,7 +74,7 @@ export default async function RootLayout({
 
 	return (
 		<html lang="en" className="dark">
-			<body className={`${geistSans.variable} ${geistMono.variable} ${kanit.variable} antialiased`}>
+			<body className={`${geistSans.variable} ${geistMono.variable} ${kanit.variable} ${inter.variable} antialiased`}>
 				<CookieProvider cookies={Object.fromEntries(cookieStore.getAll().map(c => [c.name, c.value]))}>
 					<RankingsLoader isNewSession={trackingCookie ? JSON.parse(trackingCookie).isNewSession : false}>
 						<TooltipProvider>

@@ -1,4 +1,5 @@
 import { PostgresService } from '../database';
+import { camelToSnake } from '../utils';
 import { ESPN_TO_TEAM_KEY } from './espn-team-ids';
 
 export interface EspnStats {
@@ -415,8 +416,4 @@ export async function getEspnStats(teamKey: string) {
         ORDER BY season DESC`,
 		[teamKey]
 	);
-}
-
-function camelToSnake(str: string) {
-	return str.replace(/[A-Z]/g, match => `_${match.toLowerCase()}`);
 }
