@@ -104,7 +104,7 @@ export default function TeamStats({ className }: { className: string }) {
 							valueType={pieValueType}
 						/>
 						<RadialRating
-							metric="Seals/G"
+							metric="Steals/G"
 							value={Math.round(fullRatings.espn_def_avg_steals * 10) / 10}
 							rank={fullRatings.espn_def_avg_steals_rank}
 							valueType={pieValueType}
