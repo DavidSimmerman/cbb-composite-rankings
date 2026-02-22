@@ -2,6 +2,7 @@ import { GameContextProvider } from '@/app/context/GameContext';
 import Header from '@/components/Header';
 import { getGame } from '@/lib/espn/espn-game';
 import GameHeader from './components/GameHeader';
+import MatchupComparison from './components/MatchupComparison';
 
 export default async function GamePage({ params }: { params: { gameId: string } }) {
 	const { gameId } = await params;
@@ -16,6 +17,7 @@ export default async function GamePage({ params }: { params: { gameId: string } 
 				<Header />
 				<div className="max-w-340 w-full mx-auto px-2 md:px-4 pb-4 md:pb-8">
 					<GameHeader />
+					<MatchupComparison />
 				</div>
 			</div>
 		</GameContextProvider>

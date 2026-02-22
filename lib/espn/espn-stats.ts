@@ -179,6 +179,8 @@ export interface EspnStats {
 	opp_off_offensive_rebounds: number;
 	opp_off_offensive_rebounds_rank: number;
 	opp_off_assists: number;
+	opp_off_assist_percentage: number;
+	opp_off_assist_percentage_rank: number;
 	opp_off_offensive_rebound_pct: number;
 	opp_off_offensive_rebound_pct_rank: number;
 	opp_off_scoring_efficiency: number;
@@ -310,12 +312,13 @@ const REVERSE_RANKS = [
 	'opp_off_scoring_efficiency',
 	'opp_off_shooting_efficiency',
 	'opp_off_three_point_pct',
+	'opp_off_assist_percentage',
 	'technical_fouls'
 ];
 
 export async function fetchEspnStats(season = 26) {
 	const response = await fetch(
-		`https://site.web.api.espn.com/apis/common/v3/sports/basketball/mens-college-basketball/statistics/byteam?limit=370&conference=50&season=20${season}`
+		`https://site.web.api.espn.com/apis/common/v3/sports/basketball/mens-college-basketball/statistics/byteam?limit=400&conference=50&season=20${season}`
 	);
 	const data = await response.json();
 
@@ -368,8 +371,10 @@ export async function fetchEspnStats(season = 26) {
 
 	teams.forEach(t => {
 		t.off_assist_percentage = (t.off_avg_assists / t.off_avg_field_goals_made) * 100;
+		t.opp_off_assist_percentage = (t.opp_off_avg_assists / t.opp_off_avg_field_goals_made) * 100;
 	});
 	missingRanks.add('off_assist_percentage');
+	missingRanks.add('opp_off_assist_percentage');
 
 	missingRanks.forEach((key: string) => {
 		const sorted = teams

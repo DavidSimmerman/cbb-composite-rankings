@@ -1,5 +1,6 @@
 import { getTeamProfile, TeamProfile } from '../rankings/profile';
 import { camelToSnake } from '../utils';
+import { getTeamData, TeamData } from './espn-team-data';
 import { ESPN_TO_TEAM_KEY } from './espn-team-ids';
 
 export type GameTeamStats = Record<string, number>;
@@ -13,6 +14,7 @@ export interface GameTeam {
 	home_away: 'home' | 'away';
 	won: boolean;
 	profile: TeamProfile;
+	metadata: TeamData;
 }
 
 export interface Game {
@@ -25,7 +27,7 @@ export interface Game {
 	clock: string;
 }
 
-export type PartialGame = Omit<Game, 'teams'> & { teams: Record<string, Omit<GameTeam, 'profile'>> };
+export type PartialGame = Omit<Game, 'teams'> & { teams: Record<string, Omit<GameTeam, 'profile' | 'metadata'>> };
 
 export async function fetchEspnGame(gameId: string): Promise<PartialGame> {
 	const response = await fetch(
@@ -88,8 +90,9 @@ export async function getGame(gameId: string): Promise<Game> {
 
 	await Promise.all(
 		Object.entries(game.teams).map(async ([homeAway, { team_key: teamKey }]) => {
-			const profile = await getTeamProfile(teamKey);
+			const [profile, metadata] = await Promise.all([getTeamProfile(teamKey), getTeamData(teamKey)]);
 			game.teams[homeAway as 'home' | 'away'].profile = profile;
+			game.teams[homeAway as 'home' | 'away'].metadata = metadata!;
 		})
 	);
 

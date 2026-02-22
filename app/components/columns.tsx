@@ -300,7 +300,9 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 						</div>
 					</div>
 				),
-				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_rank}</div>,
+				cell: ({ row }) => (
+					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_rank}</div>
+				),
 				enableSorting: true,
 				enableHiding: false
 			},
@@ -315,7 +317,9 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 						</div>
 					</div>
 				),
-				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q1_record}</div>,
+				cell: ({ row }) => (
+					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q1_record}</div>
+				),
 				enableSorting: true,
 				enableHiding: false
 			},
@@ -330,7 +334,9 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 						</div>
 					</div>
 				),
-				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q2_record}</div>,
+				cell: ({ row }) => (
+					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q2_record}</div>
+				),
 				enableSorting: true,
 				enableHiding: false
 			},
@@ -345,7 +351,9 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 						</div>
 					</div>
 				),
-				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q3_record}</div>,
+				cell: ({ row }) => (
+					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q3_record}</div>
+				),
 				enableSorting: true,
 				enableHiding: false
 			},
@@ -360,7 +368,9 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 						</div>
 					</div>
 				),
-				cell: ({ row }) => <div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q4_record}</div>,
+				cell: ({ row }) => (
+					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q4_record}</div>
+				),
 				enableSorting: true,
 				enableHiding: false
 			}

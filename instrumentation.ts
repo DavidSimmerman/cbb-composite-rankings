@@ -22,5 +22,11 @@ export async function register() {
 		cron.schedule('0 6 * * *', () => {
 			updateEspnStats();
 		});
+
+		const { updateTeamData } = await import('./lib/espn/espn-team-data');
+
+		cron.schedule('0 0 1 * *', () => {
+			updateTeamData();
+		});
 	}
 }
