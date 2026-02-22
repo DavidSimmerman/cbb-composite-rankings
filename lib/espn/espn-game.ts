@@ -25,7 +25,7 @@ export interface Game {
 	clock: string;
 }
 
-type PartialGame = Omit<Game, 'teams'> & { teams: Record<string, Omit<GameTeam, 'profile'>> };
+export type PartialGame = Omit<Game, 'teams'> & { teams: Record<string, Omit<GameTeam, 'profile'>> };
 
 export async function fetchEspnGame(gameId: string): Promise<PartialGame> {
 	const response = await fetch(

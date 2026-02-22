@@ -2,6 +2,11 @@ import * as cheerio from 'cheerio';
 import { CompiledTeamData } from '../shared';
 import { ESPN_TEAM_IDS } from './espn-team-ids';
 
+export interface LiveScore {
+	teamScore: number;
+	oppScore: number;
+}
+
 export interface EspnGame {
 	game_id: string;
 	date: string;
@@ -11,6 +16,7 @@ export interface EspnGame {
 	score: string | undefined;
 	time: string | undefined;
 	is_live: boolean;
+	live_score: LiveScore | undefined;
 }
 
 export type ParsedEspnGame = Omit<EspnGame, 'opp'> & { opp: CompiledTeamData; espn_id: string };
@@ -28,7 +34,7 @@ async function fetchEspnSchedule(teamId: string): Promise<EspnGame[]> {
 	const html = await res.text();
 	const $ = cheerio.load(html);
 
-	return $('.Table__TR.Table__TR--sm')
+	const schedule = $('.Table__TR.Table__TR--sm')
 		.toArray()
 		.slice(2)
 		.filter(r => $(r).find('.opponent-logo').length > 0)
@@ -82,4 +88,6 @@ async function fetchEspnSchedule(teamId: string): Promise<EspnGame[]> {
 
 			return { game_id: gameId, date, homeAway, opp, won, score, time, is_live: isLive } as EspnGame;
 		});
+
+	return schedule;
 }

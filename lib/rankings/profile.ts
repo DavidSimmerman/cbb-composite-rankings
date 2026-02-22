@@ -1,5 +1,6 @@
 import { PostgresService } from '../database';
 import { ApPollTeam } from '../espn/ap-poll';
+import { fetchEspnGame } from '../espn/espn-game';
 import { EspnStats, getEspnStats } from '../espn/espn-stats';
 import { EspnGame, getSchedule, ParsedEspnGame } from '../espn/schedule';
 import { BartTorvikRanking } from './barttorvik';
@@ -277,6 +278,20 @@ export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
 		} as TeamProfileData;
 		return map;
 	}, {});
+
+	await Promise.all(
+		schedule
+			.filter(g => g.is_live)
+			.map(async g => {
+				const game = await fetchEspnGame(g.game_id);
+				const teamSide = Object.values(game.teams).find(t => t.team_key === teamKey);
+				const oppSide = Object.values(game.teams).find(t => t.team_key !== teamKey);
+				g.live_score = {
+					teamScore: teamSide?.score ?? 0,
+					oppScore: oppSide?.score ?? 0
+				};
+			})
+	);
 
 	console.log(`getTeamProfile(${teamKey}) took ${Math.round(performance.now() - start)}ms`);
 	return { team_key: teamKey, team_name: teamName, full_ratings: fullRankings, ratings_history, schedule };

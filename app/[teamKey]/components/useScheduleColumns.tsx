@@ -229,27 +229,49 @@ export default function useScheduleColumns() {
 							);
 						}
 					},
-					// TODO: handle live games
 					{
 						id: 'score',
 						header: () => <div></div>,
-						cell: ({ row }) =>
-							row.original.score ? (
-								<div className="flex gap-1 pl-2">
-									<span className="w-[1lh]">
-										{row.original.won ? (
-											<span className="font-bold text-green-500">W</span>
-										) : (
-											<span className="font-bold text-red-500">L</span>
-										)}
-									</span>
-									<span className="w-full">{row.original.score}</span>
-								</div>
-							) : (
-								<div className="text-neutral-400 pl-2">
-									{row.original.time === 'TBD' ? 'TBD' : getLocalTime(row.original.time!)}
-								</div>
-							)
+						cell: ({ row }) => {
+							const { is_live, live_score, won, score, time } = row.original;
+
+							if (is_live && live_score) {
+								const diff = live_score.teamScore - live_score.oppScore;
+								const scoreStr = `${live_score.teamScore}-${live_score.oppScore}`;
+
+								return (
+									<div className="flex gap-1 pl-2">
+										<span className="w-[1lh]">
+											{diff > 0 ? (
+												<span className="font-bold text-green-400/50">up</span>
+											) : diff < 0 ? (
+												<span className="font-bold text-red-400/50">dn</span>
+											) : (
+												<span className="font-bold text-neutral-400">tie</span>
+											)}
+										</span>
+										<span>{scoreStr}</span>
+									</div>
+								);
+							}
+
+							if (score) {
+								return (
+									<div className="flex gap-1 pl-2">
+										<span className="w-[1lh]">
+											{won ? (
+												<span className="font-bold text-green-500">W</span>
+											) : (
+												<span className="font-bold text-red-500">L</span>
+											)}
+										</span>
+										<span className="w-full">{score}</span>
+									</div>
+								);
+							}
+
+							return <div className="text-neutral-400 pl-2">{time === 'TBD' ? 'TBD' : getLocalTime(time!)}</div>;
+						}
 					}
 				]
 			}
