@@ -1,7 +1,7 @@
 import { PostgresService } from '../database';
 import { ApPollTeam } from '../espn/ap-poll';
 import { fetchEspnGame } from '../espn/espn-game';
-import { EspnStats, getEspnStats } from '../espn/espn-stats';
+import { EspnStats } from '../espn/espn-stats';
 import { EspnGame, getSchedule, ParsedEspnGame } from '../espn/schedule';
 import { BartTorvikRanking } from './barttorvik';
 import { CompositeRanking } from './composite';
@@ -101,29 +101,71 @@ export interface TeamProfile {
 }
 
 async function getFullRatings(teamKey: string) {
-	function getQuery(table: string) {
-		return `SELECT * FROM ${table}
+	function getQuery(table: string, columns: string) {
+		return `SELECT ${columns} FROM ${table}
             WHERE team_key = $1
             	AND date = (SELECT MAX(date) FROM ${table})
 			ORDER BY season DESC`;
 	}
 
-	const [kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings, apRankings, espnStats]: [
-		KenPomRanking[],
-		EvanMiyaRanking[],
-		BartTorvikRanking[],
-		NetRanking[],
-		CompositeRanking[],
-		ApPollTeam[],
-		EspnStats[]
-	] = await Promise.all([
-		db.query(getQuery('kenpom_rankings'), [teamKey]),
-		db.query(getQuery('evanmiya_rankings'), [teamKey]),
-		db.query(getQuery('barttorvik_rankings'), [teamKey]),
-		db.query(getQuery('net_rankings'), [teamKey]),
-		db.query(getQuery('composite_rankings'), [teamKey]),
-		db.query(getQuery('ap_rankings'), [teamKey]),
-		getEspnStats(teamKey)
+	const [kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings, apRankings, espnStats] = await Promise.all([
+		db.query(
+			getQuery(
+				'kenpom_rankings',
+				`season, win_loss, offensive_rating, defensive_rating,
+				adjusted_tempo, adjusted_tempo_rank,
+				sos_offensive_rating, sos_offensive_rating_rank,
+				sos_defensive_rating, sos_defensive_rating_rank`
+			),
+			[teamKey]
+		),
+		db.query(
+			getQuery(
+				'evanmiya_rankings',
+				`kill_shots_per_game, kill_shots_per_game_rank,
+				kill_shots_conceded_per_game, kill_shots_conceded_per_game_rank`
+			),
+			[teamKey]
+		),
+		db.query(
+			getQuery(
+				'barttorvik_rankings',
+				`efg_pct, efg_pct_rank, efgd_pct, efgd_pct_rank,
+				tor, tor_rank, tord, tord_rank,
+				orb, orb_rank, drb, drb_rank,
+				ftr, ftr_rank, ftrd, ftrd_rank,
+				"2p_pct", "2p_pct_rank", "2p_pct_d", "2p_pct_d_rank",
+				"3p_pct", "3p_pct_rank", "3p_pct_d", "3p_pct_d_rank",
+				"3pr", "3pr_rank", "3prd", "3prd_rank"`
+			),
+			[teamKey]
+		),
+		db.query(getQuery('net_rankings', 'conf'), [teamKey]),
+		db.query(
+			getQuery('composite_rankings', 'avg_offensive_zscore_rank, avg_defensive_zscore_rank'),
+			[teamKey]
+		),
+		db.query(getQuery('ap_rankings', 'rank'), [teamKey]),
+		db.query(
+			`SELECT season,
+				off_field_goal_pct, off_three_point_field_goal_pct,
+				off_free_throw_pct, off_free_throw_pct_rank,
+				off_assist_percentage, off_assist_percentage_rank,
+				off_scoring_efficiency, off_scoring_efficiency_rank,
+				avg_fouls, avg_fouls_rank,
+				opp_avg_fouls, opp_avg_fouls_rank,
+				opp_off_field_goal_pct, opp_off_field_goal_pct_rank,
+				opp_off_three_point_field_goal_pct, opp_off_free_throw_pct,
+				opp_off_assist_percentage, opp_off_assist_percentage_rank,
+				opp_off_avg_turnovers, opp_off_avg_turnovers_rank,
+				opp_off_scoring_efficiency, opp_off_scoring_efficiency_rank,
+				opp_off_avg_points, opp_off_avg_points_rank,
+				def_avg_steals, def_avg_steals_rank,
+				def_avg_blocks, def_avg_blocks_rank,
+				assist_turnover_ratio, assist_turnover_ratio_rank
+			FROM espn_stats WHERE team_key = $1 ORDER BY season DESC`,
+			[teamKey]
+		)
 	]);
 
 	const fullRatings: Record<string, FullRatings> = {};

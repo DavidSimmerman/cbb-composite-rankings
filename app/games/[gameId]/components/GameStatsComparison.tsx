@@ -139,7 +139,7 @@ function TeamStatsSection({ team, opponent, viewMode }: { team: GameTeam; oppone
 
 	const isDefense = viewMode === 'defense';
 	const gameTeam = isDefense ? opponent : team;
-	const headerLabel = isDefense ? `${team.profile.team_name} Defense` : team.profile.team_name;
+	const headerLabel = isDefense ? `${team.metadata.abbreviation} Defense` : team.metadata.abbreviation;
 	const gameColLabel = isDefense ? `${opponent.metadata.abbreviation} Game` : 'Game';
 
 	return (

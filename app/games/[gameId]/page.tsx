@@ -20,12 +20,8 @@ export default async function GamePage({ params }: { params: { gameId: string } 
 
 				<div className="max-w-340 w-full mx-auto px-2 md:px-4 pb-4 md:pb-8">
 					<GameHeader />
-					{game.status === 'final' && (
-						<>
-							<GameDeltas />
-							<GameStatsComparison />
-						</>
-					)}
+					{game.status === 'final' && <GameDeltas />}
+					{game.status !== 'not started' && <GameStatsComparison />}
 					<MatchupComparison />
 				</div>
 			</div>

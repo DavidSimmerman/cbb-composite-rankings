@@ -36,8 +36,8 @@ export default function MatchupComparison() {
 		};
 	}, [game]);
 
-	const awayName = game.teams.away.profile.team_name;
-	const homeName = game.teams.home.profile.team_name;
+	const awayName = game.teams.away.metadata.abbreviation;
+	const homeName = game.teams.home.metadata.abbreviation;
 	const awayMetadata = game.teams.away.metadata;
 	const homeMetadata = game.teams.home.metadata;
 
