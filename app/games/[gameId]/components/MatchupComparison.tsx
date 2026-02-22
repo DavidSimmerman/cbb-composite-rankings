@@ -43,7 +43,7 @@ export default function MatchupComparison() {
 
 	return (
 		<div className="mt-4 border border-neutral-800 rounded-lg p-3 md:p-4">
-			<div className="text-2xl font-bold text-neutral-600 align-top mb-4">Pregame Comparison</div>
+			<div className="text-2xl font-bold text-neutral-600 align-top mb-4">Team Comparison</div>
 			<div className="flex flex-col md:flex-row md:w-full gap-8">
 				<MatchupSection
 					title={`${awayName} Offense vs ${homeName} Defense`}
@@ -158,7 +158,7 @@ function MatchupBar({
 	const activeSecondaryColor = isOffenseFavored ? `#${offenseSecondaryColor}` : `#${defenseSecondaryColor}`;
 
 	return (
-		<div className="py-2 border-b border-neutral-800">
+		<div className="py-2 not-last-of-type:border-b border-neutral-800">
 			<div className="text-xs text-neutral-500 text-center mb-1.5">{label}</div>
 			<div className="flex items-center gap-3">
 				{/* Offense side */}

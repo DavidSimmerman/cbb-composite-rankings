@@ -12,8 +12,6 @@ export default function TeamSchedule({ className }: { className: string }) {
 	const { columns } = useScheduleColumns();
 	const router = useRouter();
 
-	console.log(schedule);
-
 	const table = useReactTable({
 		data: schedule,
 		columns,

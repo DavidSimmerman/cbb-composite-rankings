@@ -73,6 +73,25 @@ export async function fetchEspnGame(gameId: string): Promise<PartialGame> {
 			}
 		});
 
+		const possessions =
+			teamStats.field_goals_attempted +
+			teamStats.free_throws_attempted * 0.44 +
+			teamStats.turnovers -
+			teamStats.offensive_rebounds;
+		teamStats.possessions = possessions;
+
+		teamStats.points_per_possession = parseInt(compTeam.score) / possessions;
+		teamStats.points_per_possession = parseInt(compTeam.score) / possessions;
+
+		teamStats.three_point_rate =
+			Math.round((teamStats.three_point_field_goals_attempted / teamStats.field_goals_attempted) * 1000) / 10;
+
+		teamStats.free_throw_rate = Math.round((teamStats.free_throws_attempted / teamStats.field_goals_attempted) * 1000) / 10;
+
+		teamStats.assist_percentage = Math.round((teamStats.assists / teamStats.field_goals_made) * 1000) / 10;
+
+		teamStats.turnover_percentage = Math.round((teamStats.turnovers / possessions) * 1000) / 10;
+
 		game.teams[t.homeAway] = {
 			team_key: teamKey,
 			stats: teamStats,
@@ -80,6 +99,16 @@ export async function fetchEspnGame(gameId: string): Promise<PartialGame> {
 			home_away: t.homeAway,
 			won: compTeam.winner
 		};
+	});
+
+	Object.entries(game.teams).forEach(([key, team]) => {
+		const opp = Object.entries(game.teams).find(([tk]) => tk !== key)![1];
+
+		team.stats.rebound_rate = team.stats.total_rebounds / (team.stats.total_rebounds + opp.stats.total_rebounds);
+		team.stats.defensive_rebound_rate =
+			team.stats.defensive_rebounds / (team.stats.defensive_rebounds + opp.stats.offensive_rebounds);
+		team.stats.offensive_rebound_rate =
+			team.stats.offensive_rebounds / (team.stats.offensive_rebounds + opp.stats.defensive_rebounds);
 	});
 
 	return game;

@@ -330,6 +330,27 @@ function RatingCell({
 		}
 	};
 
+	const zscoreKeyMap: Record<'rating' | 'offensiveRating' | 'defensiveRating', Record<string, string>> = {
+		rating: {
+			composite: 'avg_zscore',
+			kenpom: 'kp_rating_zscore',
+			evanmiya: 'em_rating_zscore',
+			barttorvik: 'bt_rating_zscore'
+		},
+		offensiveRating: {
+			composite: 'avg_offensive_zscore',
+			kenpom: 'kp_offensive_zscore',
+			evanmiya: 'em_offensive_zscore',
+			barttorvik: 'bt_offensive_zscore'
+		},
+		defensiveRating: {
+			composite: 'avg_defensive_zscore',
+			kenpom: 'kp_defensive_zscore',
+			evanmiya: 'em_defensive_zscore',
+			barttorvik: 'bt_defensive_zscore'
+		}
+	};
+
 	const ratingKey: keyof CompiledTeamData = keyMap[ratingType][ratingSource];
 
 	let displayValue: React.ReactNode | number = Math.round((game.opp[ratingKey] as any) * 100) / 100;
@@ -346,7 +367,7 @@ function RatingCell({
 		displayRank = '';
 	}
 
-	let deltaPct: number | undefined;
+	let zscoreDeltaPct: number | undefined;
 
 	if (viewMode === 'game_delta') {
 		const { prev, next } = getSurroundDays(game.date);
@@ -359,6 +380,8 @@ function RatingCell({
 			displayRank = '';
 		} else {
 			let ratingDelta, rankDelta, beforeValue, afterValue, beforeRank, afterRank;
+			let beforeZscore: number, afterZscore: number;
+			const zscoreKey = zscoreKeyMap[ratingType][ratingSource];
 
 			if (ratingKey.startsWith('avg')) {
 				const beforeCombo = beforeRatings.composite_combos[compositeKey] as unknown as Record<string, number>;
@@ -367,6 +390,8 @@ function RatingCell({
 				beforeRank = beforeCombo[ratingKey + '_rank'];
 				afterValue = afterCombo[ratingKey];
 				afterRank = afterCombo[ratingKey + '_rank'];
+				beforeZscore = beforeValue;
+				afterZscore = afterValue;
 			} else {
 				const before = beforeRatings as unknown as Record<string, number>;
 				const after = afterRatings as unknown as Record<string, number>;
@@ -374,6 +399,8 @@ function RatingCell({
 				beforeRank = before[ratingKey + '_rank'];
 				afterValue = after[ratingKey];
 				afterRank = after[ratingKey + '_rank'];
+				beforeZscore = before[zscoreKey];
+				afterZscore = after[zscoreKey];
 			}
 
 			ratingDelta = Math.round((afterValue - beforeValue) * 100) / 100;
@@ -381,7 +408,7 @@ function RatingCell({
 				ratingDelta *= -1;
 			}
 			rankDelta = beforeRank - afterRank;
-			deltaPct = beforeValue ? (ratingDelta / Math.abs(beforeValue)) * 100 : 0;
+			zscoreDeltaPct = ((afterZscore - beforeZscore) / 5) * 100;
 
 			let ratingColor, rankColor;
 			if (ratingDelta > 0) {
@@ -406,8 +433,8 @@ function RatingCell({
 	let heatMapBg = '';
 	if (viewMode === 'opponent') {
 		heatMapBg = getScheduleHeatMap(displayRank as number);
-	} else if (viewMode === 'game_delta' && deltaPct !== undefined) {
-		heatMapBg = getDeltaHeatMap(deltaPct);
+	} else if (viewMode === 'game_delta' && zscoreDeltaPct !== undefined) {
+		heatMapBg = getDeltaHeatMap(zscoreDeltaPct);
 	}
 
 	return (
@@ -433,11 +460,11 @@ function getDeltaHeatMap(pct: number): string {
 	const abs = Math.abs(pct);
 	if (abs === 0) return '';
 	const positive = pct > 0;
-	if (abs >= 7.5) return positive ? 'bg-green-500/20' : 'bg-red-500/20';
-	if (abs >= 5) return positive ? 'bg-green-500/15' : 'bg-red-500/15';
-	if (abs >= 2.5) return positive ? 'bg-green-500/10' : 'bg-red-500/10';
-	if (abs >= 1) return positive ? 'bg-green-500/8' : 'bg-red-500/8';
-	if (abs > 0) return positive ? 'bg-green-500/5' : 'bg-red-500/5';
+	if (abs >= 1.67) return positive ? 'bg-green-500/20' : 'bg-red-500/20';
+	if (abs >= 1.33) return positive ? 'bg-green-500/15' : 'bg-red-500/15';
+	if (abs >= 1) return positive ? 'bg-green-500/10' : 'bg-red-500/10';
+	if (abs >= 0.67) return positive ? 'bg-green-500/8' : 'bg-red-500/8';
+	if (abs >= 0.33) return positive ? 'bg-green-500/5' : 'bg-red-500/5';
 	return '';
 }
 
