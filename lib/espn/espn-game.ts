@@ -20,7 +20,7 @@ export interface Game {
 	broadcast: string | undefined;
 	status: GameStatus;
 	date: string;
-	time: string;
+	is_halftime: boolean;
 	half: number;
 	clock: string;
 }
@@ -48,11 +48,10 @@ export async function fetchEspnGame(gameId: string): Promise<PartialGame> {
 		game.status = 'in progress';
 	}
 
-	const [date, time] = competition.status.type.shortDetail.split(' - ');
-	game.date = date;
-	game.time = time;
+	game.date = competition.date;
 
-	game.half = competition.status.diplayPeriod;
+	game.is_halftime = competition.status.type?.name === 'STATUS_HALFTIME';
+	game.half = competition.status.displayPeriod;
 	game.clock = competition.status.displayClock;
 
 	data.boxscore.teams.map((t: any) => {

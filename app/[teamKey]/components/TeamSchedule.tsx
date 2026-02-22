@@ -3,12 +3,16 @@
 import { useTeamProfile } from '@/app/context/TeamProfileContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { useRouter } from 'next/navigation';
 import { twMerge } from 'tailwind-merge';
 import useScheduleColumns from './useScheduleColumns';
 
 export default function TeamSchedule({ className }: { className: string }) {
 	const { schedule } = useTeamProfile();
 	const { columns } = useScheduleColumns();
+	const router = useRouter();
+
+	console.log(schedule);
 
 	const table = useReactTable({
 		data: schedule,
@@ -50,7 +54,11 @@ export default function TeamSchedule({ className }: { className: string }) {
 					</TableHeader>
 					<TableBody>
 						{table.getRowModel().rows.map(row => (
-							<TableRow key={row.id}>
+							<TableRow
+								key={row.id}
+								className="cursor-pointer"
+								onClick={() => router.push(`/games/${row.original.game_id}`)}
+							>
 								{row.getVisibleCells().map((cell, index) => (
 									<TableCell key={cell.id}>
 										{flexRender(cell.column.columnDef.cell, cell.getContext())}

@@ -139,7 +139,7 @@ async function getFullRatings(teamKey: string) {
 			Object.entries(netRankings[i]).forEach(([key, value]) => (fullSeason['net_' + key] = value));
 		}
 		if (apRankings[i]) {
-			Object.entries(netRankings[i]).forEach(([key, value]) => (fullSeason['ap_' + key] = value));
+			Object.entries(apRankings[i]).forEach(([key, value]) => (fullSeason['ap_' + key] = value));
 		}
 
 		fullRatings[kpValues.season] = fullSeason as FullRatings;
