@@ -76,15 +76,13 @@ export default function useScheduleColumns() {
 						type="single"
 						value={viewMode}
 						onValueChange={v => v && setViewMode(v)}
-						className="w-full"
+						className="w-full hidden md:flex"
 					>
 						<ToggleGroupItem value="opponent" className="cursor-pointer w-1/2">
-							<span className="hidden md:inline">Opponent Ratings</span>
-							<span className="md:hidden">Opponent</span>
+							Opponent Ratings
 						</ToggleGroupItem>
 						<ToggleGroupItem value="game_delta" className="cursor-pointer w-1/2">
-							<span className="hidden md:inline">Game Delta</span>
-							<span className="md:hidden">Delta</span>
+							Game Delta
 						</ToggleGroupItem>
 					</ToggleGroup>
 				),
@@ -125,7 +123,7 @@ export default function useScheduleColumns() {
 			{
 				id: 'final_sections',
 				header: () => (
-					<div className="w-0 min-w-full">
+					<div className="w-0 min-w-full hidden md:block">
 						<Select value={ratingSource} onValueChange={setRatingSource}>
 							<SelectTrigger className="w-full *:data-[slot=select-value]:hidden *:data-[slot=select-value]:md:flex">
 								<SelectValue />
@@ -279,7 +277,7 @@ export default function useScheduleColumns() {
 		[ratingSource, viewMode]
 	);
 
-	return { columns, ratingSource, viewMode };
+	return { columns, ratingSource, setRatingSource, viewMode, setViewMode };
 }
 
 function RatingCell({
