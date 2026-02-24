@@ -12,8 +12,6 @@ export default function TeamProfileBanner() {
 	const rankings = useRankings();
 	const profile = useTeamProfile();
 
-	console.log(rankings, profile);
-
 	const team = useMemo(() => rankings.find(r => r.team_key === profile.team_key)!, [profile.team_key]);
 
 	return (

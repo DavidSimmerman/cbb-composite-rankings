@@ -2,6 +2,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { Geist, Geist_Mono, Inter } from 'next/font/google';
 import localFont from 'next/font/local';
 import { cookies } from 'next/headers';
+import PathnameKey from '@/components/PathnameKey';
 import RankingsLoader from './components/RankingsLoader';
 import TrackingBeacon from './components/TrackingBeacon';
 import { CookieProvider } from './context/CookieContext';
@@ -78,7 +79,7 @@ export default async function RootLayout({
 				<CookieProvider cookies={Object.fromEntries(cookieStore.getAll().map(c => [c.name, c.value]))}>
 					<RankingsLoader isNewSession={trackingCookie ? JSON.parse(trackingCookie).isNewSession : false}>
 						<TooltipProvider>
-							<div className="">{children}</div>
+							<PathnameKey>{children}</PathnameKey>
 						</TooltipProvider>
 					</RankingsLoader>
 				</CookieProvider>

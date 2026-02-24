@@ -1,16 +1,29 @@
 'use client';
 
-import { createContext, useContext } from 'react';
 import type { Game } from '@/lib/espn/espn-game';
+import type { RanksMap } from '@/lib/rankings/ranks-map';
+import { createContext, useContext } from 'react';
 
 interface GameContextValue {
+	gameId: string;
 	game: Game;
+	ranksMap: RanksMap;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
 
-export function GameContextProvider({ game, children }: { game: Game; children: React.ReactNode }) {
-	return <GameContext.Provider value={{ game }}>{children}</GameContext.Provider>;
+export function GameContextProvider({
+	gameId,
+	game,
+	ranksMap,
+	children
+}: {
+	gameId: string;
+	game: Game;
+	ranksMap: RanksMap;
+	children: React.ReactNode;
+}) {
+	return <GameContext.Provider value={{ gameId, game, ranksMap }}>{children}</GameContext.Provider>;
 }
 
 export function useGame(): GameContextValue {

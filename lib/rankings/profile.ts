@@ -1,8 +1,8 @@
 import { PostgresService } from '../database';
 import { ApPollTeam } from '../espn/ap-poll';
-import { fetchEspnGame } from '../espn/espn-game';
+import { getPartialGame } from '../espn/espn-game';
 import { EspnStats } from '../espn/espn-stats';
-import { EspnGame, getSchedule, ParsedEspnGame } from '../espn/schedule';
+import { EspnGame, getSchedule, getScheduleEnriched, ParsedEspnGame } from '../espn/schedule';
 import { BartTorvikRanking } from './barttorvik';
 import { CompositeRanking } from './composite';
 import { EvanMiyaRanking } from './evanmiya';
@@ -191,7 +191,7 @@ async function getFullRatings(teamKey: string) {
 	return fullRatings;
 }
 
-export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
+export async function getTeamProfile(teamKey: string, options?: { enrichedSchedule?: boolean }): Promise<TeamProfile> {
 	const start = performance.now();
 	function getQuery(
 		table: string,
@@ -291,7 +291,7 @@ export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
 			}),
 			[teamKey]
 		),
-		getSchedule(teamKey)
+		options?.enrichedSchedule ? getScheduleEnriched(teamKey) : getSchedule(teamKey)
 	]);
 
 	const teamName = evanMiyaRankings[0].team_name!;
@@ -321,19 +321,21 @@ export async function getTeamProfile(teamKey: string): Promise<TeamProfile> {
 		return map;
 	}, {});
 
-	await Promise.all(
-		schedule
-			.filter(g => g.is_live)
-			.map(async g => {
-				const game = await fetchEspnGame(g.game_id);
-				const teamSide = Object.values(game.teams).find(t => t.team_key === teamKey);
-				const oppSide = Object.values(game.teams).find(t => t.team_key !== teamKey);
-				g.live_score = {
-					teamScore: teamSide?.score ?? 0,
-					oppScore: oppSide?.score ?? 0
-				};
-			})
-	);
+	if (!options?.enrichedSchedule) {
+		await Promise.all(
+			schedule
+				.filter(g => g.is_live)
+				.map(async g => {
+					const game = await getPartialGame(g.game_id);
+					const teamSide = Object.values(game.teams).find(t => t.team_key === teamKey);
+					const oppSide = Object.values(game.teams).find(t => t.team_key !== teamKey);
+					g.live_score = {
+						teamScore: teamSide?.score ?? 0,
+						oppScore: oppSide?.score ?? 0
+					};
+				})
+		);
+	}
 
 	console.log(`getTeamProfile(${teamKey}) took ${Math.round(performance.now() - start)}ms`);
 	return { team_key: teamKey, team_name: teamName, full_ratings: fullRankings, ratings_history, schedule };

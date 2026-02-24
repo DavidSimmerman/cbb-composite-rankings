@@ -155,7 +155,7 @@ function TeamStatsSection({ team, opponent, viewMode }: { team: GameTeam; oppone
 			</div>
 			<div className="flex flex-col">
 				{statRows.map(row => {
-					let gameValue = gameTeam.stats[row.gameKey];
+					let gameValue = (gameTeam.stats as unknown as Record<string, number>)[row.gameKey];
 					const avgKey = isDefense ? row.defAvgKey : row.avgKey;
 					let avgValue = getStatValue(fullRatings, avgKey);
 					const lowerIsBetter = isDefense ? row.defLowerIsBetter : row.lowerIsBetter;
