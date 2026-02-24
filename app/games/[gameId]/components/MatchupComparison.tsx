@@ -3,7 +3,7 @@
 import { useGame } from '@/app/context/GameContext';
 import { TeamData } from '@/lib/espn/espn-team-data';
 import { FullRatings } from '@/lib/rankings/profile';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 interface MatchupRow {
 	label: string;
@@ -36,34 +36,60 @@ export default function MatchupComparison() {
 		};
 	}, [game]);
 
-	const awayName = game.teams.away.metadata.abbreviation;
-	const homeName = game.teams.home.metadata.abbreviation;
+	const awayAbbr = game.teams.away.metadata.abbreviation;
+	const homeAbbr = game.teams.home.metadata.abbreviation;
+	const awayName = game.teams.away.profile.team_name;
+	const homeName = game.teams.home.profile.team_name;
 	const awayMetadata = game.teams.away.metadata;
 	const homeMetadata = game.teams.home.metadata;
+	const awayColor = `#${awayMetadata.color}`;
+	const homeColor = `#${homeMetadata.color}`;
+
+	const [mobileTeam, setMobileTeam] = useState<'away' | 'home'>('away');
 
 	return (
 		<div className="mt-4 border border-neutral-800 rounded-lg p-3 md:p-4">
-			<div className="text-2xl font-bold text-neutral-600 align-top mb-4">Team Comparison</div>
+			<div className="text-2xl font-bold text-neutral-600 mb-4">Team Comparison</div>
+			<div className="md:hidden flex border-b border-neutral-800 mb-4">
+				<button
+					onClick={() => setMobileTeam('away')}
+					className={`flex-1 pb-2 text-sm font-medium text-center cursor-pointer border-b-2 ${mobileTeam === 'away' ? 'text-white' : 'text-neutral-500 border-transparent'}`}
+					style={mobileTeam === 'away' ? { borderColor: awayColor } : undefined}
+				>
+					{awayName}
+				</button>
+				<button
+					onClick={() => setMobileTeam('home')}
+					className={`flex-1 pb-2 text-sm font-medium text-center cursor-pointer border-b-2 ${mobileTeam === 'home' ? 'text-white' : 'text-neutral-500 border-transparent'}`}
+					style={mobileTeam === 'home' ? { borderColor: homeColor } : undefined}
+				>
+					{homeName}
+				</button>
+			</div>
 			<div className="flex flex-col md:flex-row md:w-full gap-8">
-				<MatchupSection
-					title={`${awayName} Offense vs ${homeName} Defense`}
-					offenseTeamName={awayName}
-					defenseTeamName={homeName}
-					offenseRatings={awayRatings}
-					defenseRatings={homeRatings}
-					offenseMetadata={awayMetadata}
-					defenseMetadata={homeMetadata}
-				/>
+				<div className={`w-full ${mobileTeam !== 'away' ? 'hidden md:block' : ''}`}>
+					<MatchupSection
+						title={`${awayAbbr} Offense vs ${homeAbbr} Defense`}
+						offenseTeamName={awayAbbr}
+						defenseTeamName={homeAbbr}
+						offenseRatings={awayRatings}
+						defenseRatings={homeRatings}
+						offenseMetadata={awayMetadata}
+						defenseMetadata={homeMetadata}
+					/>
+				</div>
 				<div className="hidden md:block md:h-auto md:w-px bg-neutral-800" />
-				<MatchupSection
-					title={`${homeName} Offense vs ${awayName} Defense`}
-					offenseTeamName={homeName}
-					defenseTeamName={awayName}
-					offenseRatings={homeRatings}
-					defenseRatings={awayRatings}
-					offenseMetadata={homeMetadata}
-					defenseMetadata={awayMetadata}
-				/>
+				<div className={`w-full ${mobileTeam !== 'home' ? 'hidden md:block' : ''}`}>
+					<MatchupSection
+						title={`${homeAbbr} Offense vs ${awayAbbr} Defense`}
+						offenseTeamName={homeAbbr}
+						defenseTeamName={awayAbbr}
+						offenseRatings={homeRatings}
+						defenseRatings={awayRatings}
+						offenseMetadata={homeMetadata}
+						defenseMetadata={awayMetadata}
+					/>
+				</div>
 			</div>
 		</div>
 	);
@@ -88,7 +114,7 @@ function MatchupSection({
 }) {
 	return (
 		<div className="w-full">
-			<div className="text-lg font-bold text-neutral-400 mb-3">{title}</div>
+			<div className="hidden md:block text-lg font-bold text-neutral-400 mb-3">{title}</div>
 			<div className="flex justify-between text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2 px-1">
 				<span>{offenseTeamName} OFF</span>
 				<span>{defenseTeamName} DEF</span>
@@ -160,11 +186,11 @@ function MatchupBar({
 	return (
 		<div className="py-2 not-last-of-type:border-b border-neutral-800">
 			<div className="text-xs text-neutral-500 text-center mb-1.5">{label}</div>
-			<div className="flex items-center gap-3">
+			<div className="flex items-center gap-1.5 md:gap-3">
 				{/* Offense side */}
-				<div className="flex items-center gap-1.5 w-24 justify-end">
-					<span className="text-sm font-medium text-white tabular-nums">{offenseValue}</span>
-					<span className="text-xs font-medium tabular-nums w-7 text-right" style={{ color: offRankColor }}>
+				<div className="flex items-center gap-1 md:gap-1.5 w-18 md:w-24 justify-end">
+					<span className="text-xs md:text-sm font-medium text-white tabular-nums">{offenseValue}</span>
+					<span className="text-xs font-medium tabular-nums w-6 md:w-7 text-right" style={{ color: offRankColor }}>
 						{offenseRank}
 					</span>
 				</div>
@@ -189,11 +215,11 @@ function MatchupBar({
 				</div>
 
 				{/* Defense side */}
-				<div className="flex items-center gap-1.5 w-24">
-					<span className="text-xs font-medium tabular-nums w-7" style={{ color: defRankColor }}>
+				<div className="flex items-center gap-1 md:gap-1.5 w-18 md:w-24">
+					<span className="text-xs font-medium tabular-nums w-6 md:w-7" style={{ color: defRankColor }}>
 						{defenseRank}
 					</span>
-					<span className="text-sm font-medium text-white tabular-nums">{defenseValue}</span>
+					<span className="text-xs md:text-sm font-medium text-white tabular-nums">{defenseValue}</span>
 				</div>
 			</div>
 		</div>

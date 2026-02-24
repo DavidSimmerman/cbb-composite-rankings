@@ -72,8 +72,28 @@ export default function GameDeltas() {
 			<div className="flex items-center justify-between mb-4">
 				<div className="text-2xl font-bold text-neutral-600">Rating Changes</div>
 				<Select value={ratingSource} onValueChange={setRatingSource}>
-					<SelectTrigger className="w-40">
+					<SelectTrigger className="w-fit md:w-40 h-8 md:h-9 text-xs md:text-sm *:data-[slot=select-value]:hidden *:data-[slot=select-value]:md:flex">
 						<SelectValue />
+						<span className="md:hidden flex items-center gap-1.5">
+							<GoDotFill
+								className={
+									{
+										composite: 'text-purple-500',
+										kenpom: 'text-blue-500',
+										evanmiya: 'text-green-500',
+										barttorvik: 'text-yellow-500'
+									}[ratingSource]
+								}
+							/>
+							{
+								{
+									composite: 'Comp',
+									kenpom: 'KP',
+									evanmiya: 'EM',
+									barttorvik: 'BT'
+								}[ratingSource]
+							}
+						</span>
 					</SelectTrigger>
 					<SelectContent>
 						<SelectGroup>
@@ -208,14 +228,14 @@ function TeamDelta({
 					return (
 						<div
 							key={delta.label}
-							className={`flex-1 text-center px-3 py-2 rounded-lg flex flex-col items-center justify-center ${bg} ${border}`}
+							className={`flex-1 text-center px-2 md:px-3 py-1.5 md:py-2 rounded-lg flex flex-col items-center justify-center ${bg} ${border}`}
 						>
-							<div className="text-muted-foreground text-xs">{delta.label}</div>
-							<div className={`text-xl font-bold tabular-nums ${ratingColor}`}>
+							<div className="text-muted-foreground text-[10px] md:text-xs">{delta.label}</div>
+							<div className={`text-base md:text-xl font-bold tabular-nums ${ratingColor}`}>
 								{delta.ratingDelta >= 0 ? '+' : ''}
 								{delta.ratingDelta}
 							</div>
-							<div className={`text-sm tabular-nums ${rankColor}`}>
+							<div className={`text-xs md:text-sm tabular-nums ${rankColor}`}>
 								{delta.rankDelta >= 0 ? '+' : ''}
 								{delta.rankDelta}
 							</div>

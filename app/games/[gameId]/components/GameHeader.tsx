@@ -11,8 +11,8 @@ export default function GameHeader() {
 	const { game } = useGame();
 
 	return (
-		<Card className="mt-4 md:mt-8 p-4 px-6">
-			<CardContent className="flex items-center">
+		<Card className="mt-4 md:mt-8 p-2 md:p-4 md:px-6">
+			<CardContent className="flex items-center gap-2 md:gap-0">
 				<div className="flex-1 flex justify-start">
 					<TeamHeader team={game.teams.away} />
 				</div>
@@ -39,13 +39,13 @@ function FinalScore({ game }: { game: Game }) {
 
 	return (
 		<>
-			<div className="text-muted-foreground">{date}</div>
-			<div className="text-5xl">
+			<div className="text-muted-foreground text-xs md:text-base">{date}</div>
+			<div className="text-3xl md:text-5xl">
 				<span className={`font-bold ${game.teams.away.won ? '' : 'text-muted-foreground'}`}>{game.teams.away.score}</span>
 				<span className="font-medium text-muted-foreground"> - </span>
 				<span className={`font-bold ${game.teams.home.won ? '' : 'text-muted-foreground'}`}>{game.teams.home.score}</span>
 			</div>
-			<div className="capitalize text-muted-foreground">{game.status}</div>
+			<div className="capitalize text-muted-foreground text-xs md:text-base">{game.status}</div>
 		</>
 	);
 }
@@ -60,13 +60,13 @@ function InProgress({ game }: { game: Game }) {
 
 	return (
 		<>
-			<div className="text-muted-foreground">{date}</div>
-			<div className="text-5xl">
+			<div className="text-muted-foreground text-xs md:text-base">{date}</div>
+			<div className="text-3xl md:text-5xl">
 				<span className={`font-bold`}>{game.teams.away.score}</span>
 				<span className="font-medium text-muted-foreground"> - </span>
 				<span className={`font-bold`}>{game.teams.home.score}</span>
 			</div>
-			<div className="capitalize text-muted-foreground">{game.is_halftime ? 'Half' : `${game.clock} ${game.half}`}</div>
+			<div className="capitalize text-muted-foreground text-xs md:text-base">{game.is_halftime ? 'Half' : `${game.clock} ${game.half}`}</div>
 		</>
 	);
 }
@@ -88,7 +88,7 @@ function Pregame({ game }: { game: Game }) {
 	});
 
 	return (
-		<div className="text-md text-muted-foreground">
+		<div className="text-xs md:text-md text-muted-foreground">
 			<div>{date}</div>
 			<div>{time}</div>
 			<div>{game.broadcast}</div>
@@ -121,12 +121,13 @@ function TeamHeader({ team }: { team: GameTeam }) {
 				</div>
 			</div> */}
 			<div>
-				<TeamLogo teamKey={team.profile.team_key} className="h-20 m-auto" />
-				<div className="text-center text-2xl font-medium">
-					<span className="text-lg text-muted-foreground">{fullRatings.ap_rank ? `#${fullRatings.ap_rank} ` : ''}</span>
-					<span className="group-hover:underline">{team.profile.team_name}</span>
+				<TeamLogo teamKey={team.profile.team_key} className="h-12 md:h-20 m-auto" />
+				<div className="text-center text-sm md:text-2xl font-medium">
+					<span className="text-xs md:text-lg text-muted-foreground">{fullRatings.ap_rank ? `#${fullRatings.ap_rank} ` : ''}</span>
+					<span className="group-hover:underline hidden md:inline">{team.profile.team_name}</span>
+					<span className="group-hover:underline md:hidden">{team.metadata.abbreviation}</span>
 				</div>
-				<div className="text-center text-muted-foreground">
+				<div className="text-center text-xs md:text-base text-muted-foreground">
 					{fullRatings.net_conf} • {fullRatings.kp_win_loss}
 				</div>
 			</div>

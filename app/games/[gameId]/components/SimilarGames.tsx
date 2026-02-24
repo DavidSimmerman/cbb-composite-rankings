@@ -4,6 +4,7 @@ import { useGame } from '@/app/context/GameContext';
 import { useRankings } from '@/app/context/RankingsContext';
 import TeamLogo from '@/components/TeamLogo';
 import { Card, CardContent } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { EspnGameEnriched } from '@/lib/espn/schedule';
 import { RanksMap, TeamRanks } from '@/lib/rankings/ranks-map';
@@ -139,30 +140,83 @@ export default function SimilarGames() {
 
 	if (!data) return null;
 
-	const awayName = game.teams.away.metadata.abbreviation;
-	const homeName = game.teams.home.metadata.abbreviation;
+	const awayAbbr = game.teams.away.metadata.abbreviation;
+	const homeAbbr = game.teams.home.metadata.abbreviation;
+	const awayName = game.teams.away.profile.team_name;
+	const homeName = game.teams.home.profile.team_name;
+	const awayColor = `#${game.teams.away.metadata.color}`;
+	const homeColor = `#${game.teams.home.metadata.color}`;
+	const [mobileTeam, setMobileTeam] = useState<'away' | 'home'>('away');
 
 	return (
 		<div className="mt-4 border border-neutral-800 rounded-lg p-2 md:p-4 md:h-175 flex flex-col overflow-y-hidden">
 			<div className="mb-4 shrink-0 flex items-center justify-between">
 				<div className="text-2xl font-bold text-neutral-600">Similar Opponents</div>
+				<Popover>
+					<PopoverTrigger asChild>
+						<button className="md:hidden cursor-pointer">
+							<CircleHelp className="h-5 text-neutral-600" />
+						</button>
+					</PopoverTrigger>
+					<PopoverContent
+						side="left"
+						className="max-w-64 text-sm text-center bg-foreground text-background border-foreground"
+					>
+						<p>Games against opponents with similar statistical profiles to the current matchup.</p>
+						<p className="mt-2">
+							The score below shows how closely a past opponent matches across ratings, tempo, shooting, and other
+							key metrics.
+						</p>
+						<div className="flex justify-center mt-2">
+							<ScoreRadial score={75} />
+						</div>
+					</PopoverContent>
+				</Popover>
 				<TooltipProvider>
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<CircleHelp className="h-5 text-neutral-600" />
+							<span className="hidden md:inline">
+								<CircleHelp className="h-5 text-neutral-600" />
+							</span>
 						</TooltipTrigger>
-						<TooltipContent side="left" className="max-w-64">
-							Games against opponents with similar statistical profiles to the current matchup. The similarity score
-							reflects how closely a past opponent matches across ratings, tempo, shooting, and other key metrics.
+						<TooltipContent side="left" className="max-w-64 text-sm text-center">
+							<p>Games against opponents with similar statistical profiles to the current matchup.</p>
+							<p className="mt-2">
+								The score below shows how closely a past opponent matches across ratings, tempo, shooting, and
+								other key metrics.
+							</p>
+							<div className="flex justify-center mt-2">
+								<ScoreRadial score={75} />
+							</div>
 						</TooltipContent>
 					</Tooltip>
 				</TooltipProvider>
 			</div>
+			<div className="md:hidden flex border-b border-neutral-800 mb-4">
+				<button
+					onClick={() => setMobileTeam('away')}
+					className={`flex-1 pb-2 text-sm font-medium text-center cursor-pointer border-b-2 ${mobileTeam === 'away' ? 'text-white' : 'text-neutral-500 border-transparent'}`}
+					style={mobileTeam === 'away' ? { borderColor: awayColor } : undefined}
+				>
+					{awayName}
+				</button>
+				<button
+					onClick={() => setMobileTeam('home')}
+					className={`flex-1 pb-2 text-sm font-medium text-center cursor-pointer border-b-2 ${mobileTeam === 'home' ? 'text-white' : 'text-neutral-500 border-transparent'}`}
+					style={mobileTeam === 'home' ? { borderColor: homeColor } : undefined}
+				>
+					{homeName}
+				</button>
+			</div>
 
 			<div className="flex flex-col md:flex-row gap-6 min-h-0 flex-1">
-				<TeamSimilarColumn teamName={awayName} byCategory={data.awayByCategory} overall={data.awayOverall} />
+				<div className={`flex-1 flex flex-col min-h-0 ${mobileTeam !== 'away' ? 'hidden md:flex' : ''}`}>
+					<TeamSimilarColumn teamName={awayAbbr} byCategory={data.awayByCategory} overall={data.awayOverall} />
+				</div>
 				<div className="hidden md:block md:w-px bg-neutral-800 self-stretch" />
-				<TeamSimilarColumn teamName={homeName} byCategory={data.homeByCategory} overall={data.homeOverall} />
+				<div className={`flex-1 flex flex-col min-h-0 ${mobileTeam !== 'home' ? 'hidden md:flex' : ''}`}>
+					<TeamSimilarColumn teamName={homeAbbr} byCategory={data.homeByCategory} overall={data.homeOverall} />
+				</div>
 			</div>
 		</div>
 	);
@@ -179,7 +233,7 @@ function TeamSimilarColumn({
 }) {
 	return (
 		<div className="flex-1 flex flex-col min-h-0">
-			<div className="text-lg font-bold text-neutral-400 mb-3 shrink-0">{teamName}</div>
+			<div className="hidden md:block text-lg font-bold text-neutral-400 mb-3 shrink-0">{teamName}</div>
 			<div className="flex-1 min-h-0 overflow-auto px-1">
 				<CategorySection category={overallCategory} games={overall} />
 				{byCategory.map(({ category, games }) => (
@@ -221,7 +275,7 @@ function CategorySection({ category, games }: { category: CategoryDef; games: Si
 						<div className="col-span-3 flex">
 							<button
 								onClick={() => setExpanded(!expanded)}
-								className="text-xs m-auto text-neutral-500 hover:text-neutral-300 py-1 cursor-pointer"
+								className="text-sm md:text-xs m-auto text-neutral-500 hover:text-neutral-300 py-1 cursor-pointer"
 							>
 								{expanded ? 'Hide more' : `Show ${games.length - 3} more`}
 							</button>

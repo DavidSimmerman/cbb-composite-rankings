@@ -103,6 +103,12 @@ const statRows: StatRow[] = [
 export default function GameStatsComparison() {
 	const { game } = useGame();
 	const [viewMode, setViewMode] = useState<'offense' | 'defense'>('offense');
+	const [mobileTeam, setMobileTeam] = useState<'away' | 'home'>('away');
+
+	const awayName = game.teams.away.profile.team_name;
+	const homeName = game.teams.home.profile.team_name;
+	const awayColor = `#${game.teams.away.metadata.color}`;
+	const homeColor = `#${game.teams.home.metadata.color}`;
 
 	return (
 		<div className="mt-4 border border-neutral-800 rounded-lg p-3 md:p-4">
@@ -114,18 +120,38 @@ export default function GameStatsComparison() {
 					value={viewMode}
 					onValueChange={v => v && setViewMode(v as 'offense' | 'defense')}
 				>
-					<ToggleGroupItem value="offense" className="cursor-pointer">
+					<ToggleGroupItem value="offense" className="cursor-pointer text-xs md:text-sm h-7 md:h-9 px-2 md:px-3">
 						Offense
 					</ToggleGroupItem>
-					<ToggleGroupItem value="defense" className="cursor-pointer">
+					<ToggleGroupItem value="defense" className="cursor-pointer text-xs md:text-sm h-7 md:h-9 px-2 md:px-3">
 						Defense
 					</ToggleGroupItem>
 				</ToggleGroup>
 			</div>
+			<div className="md:hidden flex border-b border-neutral-800 mb-4">
+				<button
+					onClick={() => setMobileTeam('away')}
+					className={`flex-1 pb-2 text-sm font-medium text-center cursor-pointer border-b-2 ${mobileTeam === 'away' ? 'text-white' : 'text-neutral-500 border-transparent'}`}
+					style={mobileTeam === 'away' ? { borderColor: awayColor } : undefined}
+				>
+					{awayName}
+				</button>
+				<button
+					onClick={() => setMobileTeam('home')}
+					className={`flex-1 pb-2 text-sm font-medium text-center cursor-pointer border-b-2 ${mobileTeam === 'home' ? 'text-white' : 'text-neutral-500 border-transparent'}`}
+					style={mobileTeam === 'home' ? { borderColor: homeColor } : undefined}
+				>
+					{homeName}
+				</button>
+			</div>
 			<div className="flex flex-col md:flex-row gap-6">
-				<TeamStatsSection team={game.teams.away} opponent={game.teams.home} viewMode={viewMode} />
+				<div className={`flex-1 ${mobileTeam !== 'away' ? 'hidden md:block' : ''}`}>
+					<TeamStatsSection team={game.teams.away} opponent={game.teams.home} viewMode={viewMode} />
+				</div>
 				<div className="hidden md:block md:w-px bg-neutral-800 self-stretch" />
-				<TeamStatsSection team={game.teams.home} opponent={game.teams.away} viewMode={viewMode} />
+				<div className={`flex-1 ${mobileTeam !== 'home' ? 'hidden md:block' : ''}`}>
+					<TeamStatsSection team={game.teams.home} opponent={game.teams.away} viewMode={viewMode} />
+				</div>
 			</div>
 		</div>
 	);
@@ -144,12 +170,12 @@ function TeamStatsSection({ team, opponent, viewMode }: { team: GameTeam; oppone
 
 	return (
 		<div className="flex-1">
-			<div className="text-lg font-bold text-neutral-400 mb-3">{headerLabel}</div>
+			<div className="hidden md:block text-lg font-bold text-neutral-400 mb-3">{headerLabel}</div>
 			<div className="flex justify-between text-xs font-medium text-neutral-500 uppercase tracking-wider mb-2 px-1">
 				<span>Stat</span>
-				<div className="flex gap-6">
-					<span className="w-16 text-right text-nowrap">{gameColLabel}</span>
-					<span className="w-12 text-right">Avg</span>
+				<div className="flex gap-3 md:gap-6">
+					<span className="w-11 md:w-16 text-right text-nowrap">{gameColLabel}</span>
+					<span className="w-9 md:w-12 text-right">Avg</span>
 					<span className="w-12 text-right">Diff</span>
 				</div>
 			</div>
@@ -182,16 +208,16 @@ function TeamStatsSection({ team, opponent, viewMode }: { team: GameTeam; oppone
 							key={row.label}
 							className="flex items-center justify-between py-2 not-last-of-type:border-b border-neutral-800"
 						>
-							<span className="text-sm text-neutral-500">{row.label}</span>
-							<div className="flex items-center gap-6">
-								<span className="text-sm font-medium text-white tabular-nums w-16 text-right">
+							<span className="text-xs md:text-sm text-neutral-500 shrink min-w-0 truncate">{row.label}</span>
+							<div className="flex items-center gap-3 md:gap-6 shrink-0">
+								<span className="text-xs md:text-sm font-medium text-white tabular-nums w-11 md:w-16 text-right">
 									{formatGameValue(gameValue, row.format)}
 								</span>
-								<span className="text-sm text-neutral-500 tabular-nums w-12 text-right">
+								<span className="text-xs md:text-sm text-neutral-500 tabular-nums w-9 md:w-12 text-right">
 									{formatAvgValue(avgValue, row.format)}
 								</span>
 								<span
-									className={`text-sm font-medium tabular-nums w-12 text-right text-nowrap ${
+									className={`text-xs md:text-sm font-medium tabular-nums w-12 text-right text-nowrap ${
 										isNeutral ? 'text-neutral-400' : isPositive ? 'text-green-500' : 'text-red-500'
 									}`}
 								>
