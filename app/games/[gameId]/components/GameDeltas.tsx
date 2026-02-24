@@ -246,7 +246,7 @@ function TeamDelta({
 
 function getDeltaHeatMap(pct: number): { bg: string; border: string } {
 	const abs = Math.abs(pct);
-	if (abs === 0) return { bg: 'bg-white/5', border: 'border border-white/10' };
+	if (Math.round(abs * 100) === 0) return { bg: 'bg-white/5', border: 'border border-white/10' };
 	const positive = pct > 0;
 	if (abs >= 1.67)
 		return {
