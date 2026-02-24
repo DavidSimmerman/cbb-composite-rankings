@@ -205,10 +205,17 @@ function fetchFromEspn(gameId: string): Promise<PartialGame> {
 				game.status = 'in progress';
 			}
 
-			game.date = competition.date;
+			const rawDate = new Date(competition.date);
+			game.date = rawDate.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 			game.is_halftime = competition.status.type?.name === 'STATUS_HALFTIME';
 			game.half = competition.status.displayPeriod;
-			game.clock = competition.status.displayClock;
+			game.clock = competition.status.displayClock || rawDate.toLocaleTimeString('en-US', {
+				hour: 'numeric',
+				minute: '2-digit',
+				hour12: true,
+				timeZone: 'America/New_York',
+				timeZoneName: 'short'
+			});
 
 			data.boxscore.teams.map((t: any) => {
 				const teamKey = ESPN_TO_TEAM_KEY[t.team.id];

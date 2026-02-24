@@ -62,10 +62,7 @@ export default function GameDeltas() {
 		return selectedFilters.length ? sourceOrder.filter(s => selectedFilters.includes(s)).join(',') : sourceOrder.join(',');
 	}, [compositeSources]);
 
-	const gameDate = useMemo(() => {
-		const d = new Date(game.date);
-		return d.toISOString().split('T')[0];
-	}, [game.date]);
+	const gameDate = game.date;
 
 	return (
 		<div className="mt-4 border border-neutral-800 rounded-lg p-3 md:p-4">

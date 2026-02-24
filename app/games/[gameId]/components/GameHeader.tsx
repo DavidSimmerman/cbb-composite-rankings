@@ -29,13 +29,13 @@ export default function GameHeader() {
 	);
 }
 
+function getGameDate(dateStr: string): string {
+	const [, mm, dd] = dateStr.split('-');
+	return `${Number(mm)}/${Number(dd)}`;
+}
+
 function FinalScore({ game }: { game: Game }) {
-	const date = useMemo(() => {
-		const date = new Date(game.date);
-		const mm = String(date.getUTCMonth() + 1);
-		const dd = String(date.getUTCDate());
-		return `${mm}/${dd}`;
-	}, [game]);
+	const date = useMemo(() => getGameDate(game.date), [game]);
 
 	return (
 		<>
@@ -51,12 +51,7 @@ function FinalScore({ game }: { game: Game }) {
 }
 
 function InProgress({ game }: { game: Game }) {
-	const date = useMemo(() => {
-		const date = new Date(game.date);
-		const mm = String(date.getUTCMonth() + 1);
-		const dd = String(date.getUTCDate());
-		return `${mm}/${dd}`;
-	}, [game]);
+	const date = useMemo(() => getGameDate(game.date), [game]);
 
 	return (
 		<>
@@ -72,25 +67,12 @@ function InProgress({ game }: { game: Game }) {
 }
 
 function Pregame({ game }: { game: Game }) {
-	const date = useMemo(() => {
-		const date = new Date(game.date);
-		const mm = String(date.getUTCMonth() + 1);
-		const dd = String(date.getUTCDate());
-		return `${mm}/${dd}`;
-	}, [game]);
-
-	const time = new Date(game.date).toLocaleTimeString('en-US', {
-		hour: 'numeric',
-		minute: '2-digit',
-		hour12: true,
-		timeZone: 'America/New_York',
-		timeZoneName: 'short'
-	});
+	const date = useMemo(() => getGameDate(game.date), [game]);
 
 	return (
 		<div className="text-xs md:text-md text-muted-foreground">
 			<div>{date}</div>
-			<div>{time}</div>
+			<div>{game.clock}</div>
 			<div>{game.broadcast}</div>
 		</div>
 	);
