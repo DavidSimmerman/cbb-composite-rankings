@@ -12,14 +12,18 @@ export default function GameHeader() {
 
 	return (
 		<Card className="mt-4 md:mt-8 p-4 px-6">
-			<CardContent className="flex justify-between">
-				<TeamHeader team={game.teams.away} />
-				<div className="m-auto text-center flex flex-col gap-1">
+			<CardContent className="flex items-center">
+				<div className="flex-1 flex justify-start">
+					<TeamHeader team={game.teams.away} />
+				</div>
+				<div className="text-center flex flex-col gap-1 shrink-0">
 					{game.status === 'final' && <FinalScore game={game} />}
 					{game.status === 'in progress' && <InProgress game={game} />}
 					{game.status === 'not started' && <Pregame game={game} />}
 				</div>
-				<TeamHeader team={game.teams.home} />
+				<div className="flex-1 flex justify-end">
+					<TeamHeader team={game.teams.home} />
+				</div>
 			</CardContent>
 		</Card>
 	);
