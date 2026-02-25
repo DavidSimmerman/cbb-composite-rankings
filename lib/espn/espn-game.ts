@@ -50,6 +50,7 @@ export type GameStatus = 'final' | 'not started' | 'in progress';
 
 export interface GameTeam {
 	team_key: string;
+	name: string;
 	stats: GameTeamStats;
 	score: number;
 	home_away: 'home' | 'away';
@@ -120,6 +121,7 @@ function rowToPartialGame(row: DbGameRow): PartialGame {
 		teams: {
 			home: {
 				team_key: row.home_team_key,
+				name: '',
 				stats: row.home_stats!,
 				score: row.home_score,
 				home_away: 'home',
@@ -127,6 +129,7 @@ function rowToPartialGame(row: DbGameRow): PartialGame {
 			},
 			away: {
 				team_key: row.away_team_key,
+				name: '',
 				stats: row.away_stats!,
 				score: row.away_score,
 				home_away: 'away',
@@ -156,7 +159,7 @@ function saveGameToDb(gameId: string, game: PartialGame): void {
 	const home = game.teams.home;
 	const away = game.teams.away;
 
-	if (!home || !away) return;
+	if (!home || !away || !home.team_key || !away.team_key) return;
 
 	db.query(
 		`INSERT INTO espn_games (
@@ -208,7 +211,7 @@ function fetchFromEspn(gameId: string): Promise<PartialGame> {
 			const rawDate = new Date(competition.date);
 			game.date = rawDate.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 			game.is_halftime = competition.status.type?.name === 'STATUS_HALFTIME';
-			game.half = competition.status.displayPeriod;
+			game.half = parseInt(competition.status.displayPeriod) || competition.status.period || 0;
 			game.clock = competition.status.displayClock || rawDate.toLocaleTimeString('en-US', {
 				hour: 'numeric',
 				minute: '2-digit',
@@ -249,6 +252,7 @@ function fetchFromEspn(gameId: string): Promise<PartialGame> {
 
 				game.teams[t.homeAway] = {
 					team_key: teamKey,
+					name: t.team.displayName || t.team.shortDisplayName || t.team.name || '',
 					stats: teamStats as unknown as GameTeamStats,
 					score: parseInt(compTeam.score),
 					home_away: t.homeAway,
@@ -310,6 +314,7 @@ export async function getGame(gameId: string): Promise<Game> {
 
 	await Promise.all(
 		Object.entries(game.teams).map(async ([homeAway, { team_key: teamKey }]) => {
+			if (!teamKey) return;
 			const [profile, metadata] = await Promise.all([
 				getTeamProfile(teamKey, { enrichedSchedule: true }),
 				getTeamData(teamKey)

@@ -105,10 +105,10 @@ export default function GameStatsComparison() {
 	const [viewMode, setViewMode] = useState<'offense' | 'defense'>('offense');
 	const [mobileTeam, setMobileTeam] = useState<'away' | 'home'>('away');
 
-	const awayName = game.teams.away.profile.team_name;
-	const homeName = game.teams.home.profile.team_name;
-	const awayColor = `#${game.teams.away.metadata.color}`;
-	const homeColor = `#${game.teams.home.metadata.color}`;
+	const awayName = game.teams.away.profile?.team_name ?? (game.teams.away.name || 'Away');
+	const homeName = game.teams.home.profile?.team_name ?? (game.teams.home.name || 'Home');
+	const awayColor = game.teams.away.metadata ? `#${game.teams.away.metadata.color}` : '#6b7280';
+	const homeColor = game.teams.home.metadata ? `#${game.teams.home.metadata.color}` : '#ef4444';
 
 	return (
 		<div className="mt-4 border border-neutral-800 rounded-lg p-3 md:p-4">
@@ -159,14 +159,26 @@ export default function GameStatsComparison() {
 
 function TeamStatsSection({ team, opponent, viewMode }: { team: GameTeam; opponent: GameTeam; viewMode: 'offense' | 'defense' }) {
 	const fullRatings = useMemo(() => {
+		if (!team.profile) return undefined;
 		const season = Object.keys(team.profile.full_ratings).sort().at(-1)!;
 		return team.profile.full_ratings[season];
 	}, [team]);
 
+	const teamAbbr = team.metadata?.abbreviation ?? (team.name || 'Team');
+	const oppAbbr = opponent.metadata?.abbreviation ?? (opponent.name || 'Opp');
 	const isDefense = viewMode === 'defense';
 	const gameTeam = isDefense ? opponent : team;
-	const headerLabel = isDefense ? `${team.metadata.abbreviation} Defense` : team.metadata.abbreviation;
-	const gameColLabel = isDefense ? `${opponent.metadata.abbreviation} Game` : 'Game';
+	const headerLabel = isDefense ? `${teamAbbr} Defense` : teamAbbr;
+	const gameColLabel = isDefense ? `${oppAbbr} Game` : 'Game';
+
+	if (!fullRatings) {
+		return (
+			<div className="flex-1">
+				<div className="hidden md:block text-lg font-bold text-neutral-400 mb-3">{headerLabel}</div>
+				<div className="text-sm text-neutral-500">No data available</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className="flex-1">

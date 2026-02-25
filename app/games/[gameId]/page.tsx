@@ -25,7 +25,7 @@ export default async function GamePage({ params }: { params: { gameId: string } 
 					<GameHeader />
 					{game.status === 'final' && <GameDeltas />}
 					{game.status !== 'not started' && <GameBoxScore />}
-				{game.status !== 'not started' && <GameStatsComparison />}
+					{game.status !== 'not started' && <GameStatsComparison />}
 					<MatchupComparison />
 					<SimilarGames />
 				</div>

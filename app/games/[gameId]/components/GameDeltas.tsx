@@ -116,16 +116,16 @@ export default function GameDeltas() {
 			</div>
 			<div className="flex flex-col md:flex-row gap-6">
 				<TeamDelta
-					teamName={game.teams.away.profile.team_name}
-					history={game.teams.away.profile.ratings_history}
+					teamName={game.teams.away.profile?.team_name ?? game.teams.away.team_key ?? 'TBD'}
+					history={game.teams.away.profile?.ratings_history}
 					gameDate={gameDate}
 					ratingSource={ratingSource}
 					compositeKey={compositeKey}
 				/>
 				<div className="hidden md:block md:w-px bg-neutral-800 self-stretch" />
 				<TeamDelta
-					teamName={game.teams.home.profile.team_name}
-					history={game.teams.home.profile.ratings_history}
+					teamName={game.teams.home.profile?.team_name ?? game.teams.home.team_key ?? 'TBD'}
+					history={game.teams.home.profile?.ratings_history}
 					gameDate={gameDate}
 					ratingSource={ratingSource}
 					compositeKey={compositeKey}
@@ -143,12 +143,13 @@ function TeamDelta({
 	compositeKey
 }: {
 	teamName: string;
-	history: ProfileRatingsHistory;
+	history: ProfileRatingsHistory | undefined;
 	gameDate: string;
 	ratingSource: string;
 	compositeKey: string;
 }) {
 	const deltas = useMemo(() => {
+		if (!history) return null;
 		const { prev, next } = getSurroundDays(gameDate);
 		const before = history[prev];
 		const after = history[next];

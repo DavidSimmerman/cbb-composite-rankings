@@ -80,39 +80,39 @@ function Pregame({ game }: { game: Game }) {
 
 function TeamHeader({ team }: { team: GameTeam }) {
 	const fullRatings = useMemo(() => {
+		if (!team.profile) return undefined;
 		const season = Object.keys(team.profile.full_ratings).sort().at(-1)!;
 		return team.profile.full_ratings[season];
 	}, [team]);
 
 	const reverse = team.home_away !== 'home';
 
-	return (
-		<Link href={`/${team.profile.team_key}`} className={`flex gap-8 group ${reverse && 'flex-row-reverse'}`}>
-			{/* <div className="m-auto text-md flex flex-col gap-1.5">
-				<div className="flex gap-1 border rounded-md py-1 px-2 w-fit m-auto">
-					<span>Rating #</span>
-					<span>{fullRatings.comp_avg_zscore_rank}</span>
-				</div>
-				<div className="flex gap-1 border rounded-md py-1 px-2 w-fit m-auto">
-					<span>Offense #</span>
-					<span>{fullRatings.comp_avg_offensive_zscore_rank}</span>
-				</div>
-				<div className="flex gap-1 border rounded-md py-1 px-2 w-fit m-auto">
-					<span>Defense #</span>
-					<span>{fullRatings.comp_avg_defensive_zscore_rank}</span>
-				</div>
-			</div> */}
-			<div>
-				<TeamLogo teamKey={team.profile.team_key} className="h-12 md:h-20 m-auto" />
-				<div className="text-center text-sm md:text-2xl font-medium">
-					<span className="text-xs md:text-lg text-muted-foreground">{fullRatings.ap_rank ? `#${fullRatings.ap_rank} ` : ''}</span>
-					<span className="group-hover:underline hidden md:inline">{team.profile.team_name}</span>
-					<span className="group-hover:underline md:hidden">{team.metadata.abbreviation}</span>
-				</div>
+	const teamName = team.profile?.team_name ?? (team.name || 'TBD');
+	const abbreviation = team.metadata?.abbreviation ?? (team.name || 'TBD');
+
+	const content = (
+		<div>
+			{team.profile && <TeamLogo teamKey={team.team_key || ''} className="h-12 md:h-20 m-auto" />}
+			<div className="text-center text-sm md:text-2xl font-medium">
+				{fullRatings?.ap_rank && <span className="text-xs md:text-lg text-muted-foreground">#{fullRatings.ap_rank} </span>}
+				<span className="group-hover:underline hidden md:inline">{teamName}</span>
+				<span className="group-hover:underline md:hidden">{abbreviation}</span>
+			</div>
+			{fullRatings && (
 				<div className="text-center text-xs md:text-base text-muted-foreground">
 					{fullRatings.net_conf} • {fullRatings.kp_win_loss}
 				</div>
-			</div>
+			)}
+		</div>
+	);
+
+	if (!team.profile) {
+		return <div className={`flex gap-8 ${reverse && 'flex-row-reverse'}`}>{content}</div>;
+	}
+
+	return (
+		<Link href={`/${team.profile.team_key}`} className={`flex gap-8 group ${reverse && 'flex-row-reverse'}`}>
+			{content}
 		</Link>
 	);
 }

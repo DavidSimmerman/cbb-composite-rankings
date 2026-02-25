@@ -28,22 +28,36 @@ export default function MatchupComparison() {
 	const { game } = useGame();
 
 	const { awayRatings, homeRatings } = useMemo(() => {
-		const awaySeason = Object.keys(game.teams.away.profile.full_ratings).sort().at(-1)!;
-		const homeSeason = Object.keys(game.teams.home.profile.full_ratings).sort().at(-1)!;
-		return {
-			awayRatings: game.teams.away.profile.full_ratings[awaySeason],
-			homeRatings: game.teams.home.profile.full_ratings[homeSeason]
-		};
+		const awayRatings = (() => {
+			if (!game.teams.away.profile) return undefined;
+			const season = Object.keys(game.teams.away.profile.full_ratings).sort().at(-1)!;
+			return game.teams.away.profile.full_ratings[season];
+		})();
+		const homeRatings = (() => {
+			if (!game.teams.home.profile) return undefined;
+			const season = Object.keys(game.teams.home.profile.full_ratings).sort().at(-1)!;
+			return game.teams.home.profile.full_ratings[season];
+		})();
+		return { awayRatings, homeRatings };
 	}, [game]);
 
-	const awayAbbr = game.teams.away.metadata.abbreviation;
-	const homeAbbr = game.teams.home.metadata.abbreviation;
-	const awayName = game.teams.away.profile.team_name;
-	const homeName = game.teams.home.profile.team_name;
+	const awayAbbr = game.teams.away.metadata?.abbreviation ?? (game.teams.away.name || 'Away');
+	const homeAbbr = game.teams.home.metadata?.abbreviation ?? (game.teams.home.name || 'Home');
+	const awayName = game.teams.away.profile?.team_name ?? (game.teams.away.name || 'Away');
+	const homeName = game.teams.home.profile?.team_name ?? (game.teams.home.name || 'Home');
 	const awayMetadata = game.teams.away.metadata;
 	const homeMetadata = game.teams.home.metadata;
-	const awayColor = `#${awayMetadata.color}`;
-	const homeColor = `#${homeMetadata.color}`;
+	const awayColor = awayMetadata ? `#${awayMetadata.color}` : '#6b7280';
+	const homeColor = homeMetadata ? `#${homeMetadata.color}` : '#ef4444';
+
+	if (!awayRatings || !homeRatings || !awayMetadata || !homeMetadata) {
+		return (
+			<div className="mt-4 border border-neutral-800 rounded-lg p-3 md:p-4">
+				<div className="text-2xl font-bold text-neutral-600 mb-4">Team Comparison</div>
+				<div className="text-sm text-neutral-500">No data available for one or both teams</div>
+			</div>
+		);
+	}
 
 	const [mobileTeam, setMobileTeam] = useState<'away' | 'home'>('away');
 

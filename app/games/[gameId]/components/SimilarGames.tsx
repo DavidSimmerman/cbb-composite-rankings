@@ -93,6 +93,15 @@ const categories: CategoryDef[] = [
 export default function SimilarGames() {
 	const { game, ranksMap, gameId } = useGame();
 
+	if (!game.teams.away.profile || !game.teams.home.profile || !game.teams.away.metadata || !game.teams.home.metadata) {
+		return (
+			<div className="mt-4 border border-neutral-800 rounded-lg p-3 md:p-4">
+				<div className="text-2xl font-bold text-neutral-600 mb-4">Similar Opponents</div>
+				<div className="text-sm text-neutral-500">No data available for one or both teams</div>
+			</div>
+		);
+	}
+
 	const awaySched = game.teams.away.profile.schedule as unknown as EspnGameEnriched[];
 	const homeSched = game.teams.home.profile.schedule as unknown as EspnGameEnriched[];
 
@@ -140,12 +149,12 @@ export default function SimilarGames() {
 
 	if (!data) return null;
 
-	const awayAbbr = game.teams.away.metadata.abbreviation;
-	const homeAbbr = game.teams.home.metadata.abbreviation;
-	const awayName = game.teams.away.profile.team_name;
-	const homeName = game.teams.home.profile.team_name;
-	const awayColor = `#${game.teams.away.metadata.color}`;
-	const homeColor = `#${game.teams.home.metadata.color}`;
+	const awayAbbr = game.teams.away.metadata!.abbreviation;
+	const homeAbbr = game.teams.home.metadata!.abbreviation;
+	const awayName = game.teams.away.profile!.team_name;
+	const homeName = game.teams.home.profile!.team_name;
+	const awayColor = `#${game.teams.away.metadata!.color}`;
+	const homeColor = `#${game.teams.home.metadata!.color}`;
 	const [mobileTeam, setMobileTeam] = useState<'away' | 'home'>('away');
 
 	return (

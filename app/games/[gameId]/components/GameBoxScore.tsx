@@ -90,13 +90,13 @@ export default function GameBoxScore() {
 
 	const awayStats = game.teams.away.stats;
 	const homeStats = game.teams.home.stats;
-	const awayAbbr = game.teams.away.metadata.abbreviation;
-	const homeAbbr = game.teams.home.metadata.abbreviation;
+	const awayAbbr = game.teams.away.metadata?.abbreviation ?? (game.teams.away.name || 'Away');
+	const homeAbbr = game.teams.home.metadata?.abbreviation ?? (game.teams.home.name || 'Home');
 
-	const awayPrimary = `#${game.teams.away.metadata.color}`;
-	const awaySecondary = `#${game.teams.away.metadata.secondary_color}`;
-	const homePrimary = `#${game.teams.home.metadata.color}`;
-	const homeSecondary = `#${game.teams.home.metadata.secondary_color}`;
+	const awayPrimary = game.teams.away.metadata ? `#${game.teams.away.metadata.color}` : '#6b7280';
+	const awaySecondary = game.teams.away.metadata ? `#${game.teams.away.metadata.secondary_color}` : '#9ca3af';
+	const homePrimary = game.teams.home.metadata ? `#${game.teams.home.metadata.color}` : '#ef4444';
+	const homeSecondary = game.teams.home.metadata ? `#${game.teams.home.metadata.secondary_color}` : '#f87171';
 
 	const [awayColor, homeColor] = pickBarColors(awayPrimary, awaySecondary, homePrimary, homeSecondary);
 
