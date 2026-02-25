@@ -19,9 +19,9 @@ function subscribe(key: string, listener: () => void) {
 	};
 }
 
-function setCookieValue(key: string, value: string) {
+function setCookieValue(key: string, value: string, maxAge = 60 * 60 * 24 * 365) {
 	store.set(key, value);
-	document.cookie = `${key}=${encodeURIComponent(value)};path=/;max-age=${60 * 60 * 24 * 365}`;
+	document.cookie = `${key}=${encodeURIComponent(value)};path=/;max-age=${maxAge}`;
 	listeners.get(key)?.forEach(l => l());
 }
 
@@ -33,7 +33,7 @@ function parse<T>(raw: string, defaultValue: T): T {
 	}
 }
 
-export function useCookie<T>(key: string, defaultValue: T): [T, (value: T) => void] {
+export function useCookie<T>(key: string, defaultValue: T, maxAge?: number): [T, (value: T) => void] {
 	const serverCookies = useContext(CookieContext);
 	const initial = serverCookies[key] ?? JSON.stringify(defaultValue);
 
@@ -46,7 +46,7 @@ export function useCookie<T>(key: string, defaultValue: T): [T, (value: T) => vo
 	);
 
 	const value = useMemo(() => parse<T>(raw, defaultValue), [raw]);
-	const setValue = useCallback((v: T) => setCookieValue(key, JSON.stringify(v)), [key]);
+	const setValue = useCallback((v: T) => setCookieValue(key, JSON.stringify(v), maxAge), [key, maxAge]);
 
 	return [value, setValue];
 }
