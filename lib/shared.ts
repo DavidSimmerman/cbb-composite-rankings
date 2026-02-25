@@ -1,3 +1,4 @@
+import { TeamData } from './espn/espn-team-data';
 import { CompositeRanking } from './rankings/composite';
 
 export type BaseTeamData = {
@@ -54,6 +55,7 @@ export type CompiledTeamData = BaseTeamData & {
 	avg_defensive_zscore: number;
 	avg_defensive_zscore_rank: number;
 	composite_combos: Record<string, CompositeRanking>;
+	metadata: TeamData;
 };
 
 export const sourceSystems = [

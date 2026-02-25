@@ -26,6 +26,8 @@ export default function TrackingBeacon({
 	const isFirstLoad = useRef(true);
 
 	useEffect(() => {
+		if (process.env.NODE_ENV === 'development') return;
+
 		if (isFirstLoad.current) {
 			isFirstLoad.current = false;
 

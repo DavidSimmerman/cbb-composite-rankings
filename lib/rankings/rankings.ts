@@ -1,6 +1,7 @@
 import { chromium } from 'playwright';
 import { PostgresService } from '../database';
 import { ApPollTeam, getApPollRankings } from '../espn/ap-poll';
+import { getAllTeamData, TeamData } from '../espn/espn-team-data';
 import { CompiledTeamData, computeAverageZScores } from '../shared';
 import { BartTorvikRanking, updateBartTorvik } from './barttorvik';
 import { CompositeRanking, updateComposite } from './composite';
@@ -67,20 +68,22 @@ export async function getRankings(): Promise<CompiledTeamData[]> {
 		`;
 	}
 
-	const [kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings, apRankings]: [
+	const [kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings, apRankings, teamData]: [
 		KenPomRanking[],
 		EvanMiyaRanking[],
 		BartTorvikRanking[],
 		NetRanking[],
 		CompositeRanking[],
-		ApPollTeam[]
+		ApPollTeam[],
+		Record<string, TeamData>
 	] = await Promise.all([
 		db.query(getQuery('kenpom_rankings')),
 		db.query(getQuery('evanmiya_rankings')),
 		db.query(getQuery('barttorvik_rankings')),
 		db.query(getQuery('net_rankings')),
 		db.query(getQuery('composite_rankings')),
-		getApPollRankings()
+		getApPollRankings(),
+		getAllTeamData()
 	]);
 
 	const baseTeams = mapBaseTeams(kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, apRankings);
@@ -95,7 +98,7 @@ export async function getRankings(): Promise<CompiledTeamData[]> {
 		{}
 	);
 
-	teams = teams.map(t => ({ ...t, composite_combos: compositeMap[t.team_key] }));
+	teams = teams.map(t => ({ ...t, composite_combos: compositeMap[t.team_key], metadata: teamData[t.team_key] }));
 
 	console.log(`getRankings took ${Math.round(performance.now() - start)}ms`);
 	return teams;

@@ -76,15 +76,13 @@ export default function useScheduleColumns() {
 						type="single"
 						value={viewMode}
 						onValueChange={v => v && setViewMode(v)}
-						className="w-full"
+						className="w-full hidden md:flex"
 					>
 						<ToggleGroupItem value="opponent" className="cursor-pointer w-1/2">
-							<span className="hidden md:inline">Opponent Ratings</span>
-							<span className="md:hidden">Opponent</span>
+							Opponent Ratings
 						</ToggleGroupItem>
 						<ToggleGroupItem value="game_delta" className="cursor-pointer w-1/2">
-							<span className="hidden md:inline">Game Delta</span>
-							<span className="md:hidden">Delta</span>
+							Game Delta
 						</ToggleGroupItem>
 					</ToggleGroup>
 				),
@@ -125,7 +123,7 @@ export default function useScheduleColumns() {
 			{
 				id: 'final_sections',
 				header: () => (
-					<div className="w-0 min-w-full">
+					<div className="w-0 min-w-full hidden md:block">
 						<Select value={ratingSource} onValueChange={setRatingSource}>
 							<SelectTrigger className="w-full *:data-[slot=select-value]:hidden *:data-[slot=select-value]:md:flex">
 								<SelectValue />
@@ -229,27 +227,49 @@ export default function useScheduleColumns() {
 							);
 						}
 					},
-					// TODO: handle live games
 					{
 						id: 'score',
 						header: () => <div></div>,
-						cell: ({ row }) =>
-							row.original.score ? (
-								<div className="flex gap-1 pl-2">
-									<span className="w-[1lh]">
-										{row.original.won ? (
-											<span className="font-bold text-green-500">W</span>
-										) : (
-											<span className="font-bold text-red-500">L</span>
-										)}
-									</span>
-									<span className="w-full">{row.original.score}</span>
-								</div>
-							) : (
-								<div className="text-neutral-400 pl-2">
-									{row.original.time === 'TBD' ? 'TBD' : getLocalTime(row.original.time!)}
-								</div>
-							)
+						cell: ({ row }) => {
+							const { is_live, live_score, won, score, time } = row.original;
+
+							if (is_live && live_score) {
+								const diff = live_score.teamScore - live_score.oppScore;
+								const scoreStr = `${live_score.teamScore}-${live_score.oppScore}`;
+
+								return (
+									<div className="flex gap-1 pl-2">
+										<span className="w-[1lh]">
+											{diff > 0 ? (
+												<span className="font-bold text-green-400/50">up</span>
+											) : diff < 0 ? (
+												<span className="font-bold text-red-400/50">dn</span>
+											) : (
+												<span className="font-bold text-neutral-400">tie</span>
+											)}
+										</span>
+										<span>{scoreStr}</span>
+									</div>
+								);
+							}
+
+							if (score) {
+								return (
+									<div className="flex gap-1 pl-2">
+										<span className="w-[1lh]">
+											{won ? (
+												<span className="font-bold text-green-500">W</span>
+											) : (
+												<span className="font-bold text-red-500">L</span>
+											)}
+										</span>
+										<span className="w-full">{score}</span>
+									</div>
+								);
+							}
+
+							return <div className="text-neutral-400 pl-2">{time === 'TBD' ? 'TBD' : getLocalTime(time!)}</div>;
+						}
 					}
 				]
 			}
@@ -257,7 +277,7 @@ export default function useScheduleColumns() {
 		[ratingSource, viewMode]
 	);
 
-	return { columns, ratingSource, viewMode };
+	return { columns, ratingSource, setRatingSource, viewMode, setViewMode };
 }
 
 function RatingCell({
@@ -308,6 +328,27 @@ function RatingCell({
 		}
 	};
 
+	const zscoreKeyMap: Record<'rating' | 'offensiveRating' | 'defensiveRating', Record<string, string>> = {
+		rating: {
+			composite: 'avg_zscore',
+			kenpom: 'kp_rating_zscore',
+			evanmiya: 'em_rating_zscore',
+			barttorvik: 'bt_rating_zscore'
+		},
+		offensiveRating: {
+			composite: 'avg_offensive_zscore',
+			kenpom: 'kp_offensive_zscore',
+			evanmiya: 'em_offensive_zscore',
+			barttorvik: 'bt_offensive_zscore'
+		},
+		defensiveRating: {
+			composite: 'avg_defensive_zscore',
+			kenpom: 'kp_defensive_zscore',
+			evanmiya: 'em_defensive_zscore',
+			barttorvik: 'bt_defensive_zscore'
+		}
+	};
+
 	const ratingKey: keyof CompiledTeamData = keyMap[ratingType][ratingSource];
 
 	let displayValue: React.ReactNode | number = Math.round((game.opp[ratingKey] as any) * 100) / 100;
@@ -324,7 +365,7 @@ function RatingCell({
 		displayRank = '';
 	}
 
-	let deltaPct: number | undefined;
+	let zscoreDeltaPct: number | undefined;
 
 	if (viewMode === 'game_delta') {
 		const { prev, next } = getSurroundDays(game.date);
@@ -337,6 +378,8 @@ function RatingCell({
 			displayRank = '';
 		} else {
 			let ratingDelta, rankDelta, beforeValue, afterValue, beforeRank, afterRank;
+			let beforeZscore: number, afterZscore: number;
+			const zscoreKey = zscoreKeyMap[ratingType][ratingSource];
 
 			if (ratingKey.startsWith('avg')) {
 				const beforeCombo = beforeRatings.composite_combos[compositeKey] as unknown as Record<string, number>;
@@ -345,6 +388,8 @@ function RatingCell({
 				beforeRank = beforeCombo[ratingKey + '_rank'];
 				afterValue = afterCombo[ratingKey];
 				afterRank = afterCombo[ratingKey + '_rank'];
+				beforeZscore = beforeValue;
+				afterZscore = afterValue;
 			} else {
 				const before = beforeRatings as unknown as Record<string, number>;
 				const after = afterRatings as unknown as Record<string, number>;
@@ -352,6 +397,8 @@ function RatingCell({
 				beforeRank = before[ratingKey + '_rank'];
 				afterValue = after[ratingKey];
 				afterRank = after[ratingKey + '_rank'];
+				beforeZscore = before[zscoreKey];
+				afterZscore = after[zscoreKey];
 			}
 
 			ratingDelta = Math.round((afterValue - beforeValue) * 100) / 100;
@@ -359,7 +406,7 @@ function RatingCell({
 				ratingDelta *= -1;
 			}
 			rankDelta = beforeRank - afterRank;
-			deltaPct = beforeValue ? (ratingDelta / Math.abs(beforeValue)) * 100 : 0;
+			zscoreDeltaPct = ((afterZscore - beforeZscore) / 5) * 100;
 
 			let ratingColor, rankColor;
 			if (ratingDelta > 0) {
@@ -384,8 +431,8 @@ function RatingCell({
 	let heatMapBg = '';
 	if (viewMode === 'opponent') {
 		heatMapBg = getScheduleHeatMap(displayRank as number);
-	} else if (viewMode === 'game_delta' && deltaPct !== undefined) {
-		heatMapBg = getDeltaHeatMap(deltaPct);
+	} else if (viewMode === 'game_delta' && zscoreDeltaPct !== undefined) {
+		heatMapBg = getDeltaHeatMap(zscoreDeltaPct);
 	}
 
 	return (
@@ -411,11 +458,11 @@ function getDeltaHeatMap(pct: number): string {
 	const abs = Math.abs(pct);
 	if (abs === 0) return '';
 	const positive = pct > 0;
-	if (abs >= 7.5) return positive ? 'bg-green-500/20' : 'bg-red-500/20';
-	if (abs >= 5) return positive ? 'bg-green-500/15' : 'bg-red-500/15';
-	if (abs >= 2.5) return positive ? 'bg-green-500/10' : 'bg-red-500/10';
-	if (abs >= 1) return positive ? 'bg-green-500/8' : 'bg-red-500/8';
-	if (abs > 0) return positive ? 'bg-green-500/5' : 'bg-red-500/5';
+	if (abs >= 1.67) return positive ? 'bg-green-500/20' : 'bg-red-500/20';
+	if (abs >= 1.33) return positive ? 'bg-green-500/15' : 'bg-red-500/15';
+	if (abs >= 1) return positive ? 'bg-green-500/10' : 'bg-red-500/10';
+	if (abs >= 0.67) return positive ? 'bg-green-500/8' : 'bg-red-500/8';
+	if (abs >= 0.33) return positive ? 'bg-green-500/5' : 'bg-red-500/5';
 	return '';
 }
 
