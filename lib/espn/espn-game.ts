@@ -298,9 +298,14 @@ export async function getPartialGames(gameIds: string[]): Promise<Map<string, Pa
 
 	if (toFetch.length > 0) {
 		console.log(`fetching ${toFetch.length}/${gameIds.length} games from ESPN API`);
-		const fetched = await Promise.all(toFetch.map(id => fetchFromEspn(id).then(g => [id, g] as const)));
-		for (const [id, game] of fetched) {
-			dbGames.set(id, game);
+		const results = await Promise.allSettled(toFetch.map(id => fetchFromEspn(id).then(g => [id, g] as const)));
+		for (const result of results) {
+			if (result.status === 'fulfilled') {
+				const [id, game] = result.value;
+				dbGames.set(id, game);
+			} else {
+				console.error('Failed to fetch game from ESPN:', result.reason);
+			}
 		}
 	} else {
 		console.log(`all ${gameIds.length} games loaded from db`);

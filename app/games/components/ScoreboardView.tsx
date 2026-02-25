@@ -120,7 +120,7 @@ export default function ScoreboardView({
 	const [ratingFilter, setRatingFilter] = useCookie<string>('sb_rating', '0');
 	const [conferenceFilter, setConferenceFilter] = useCookie<string>('sb_conf', 'all');
 	const [avgRatingFilter, setAvgRatingFilter] = useCookie<string>('sb_avg', '0');
-	const [closeGamesOnly, setCloseGamesOnly] = useCookie<boolean>('sb_close', false);
+	const [alwaysShowClose, setAlwaysShowClose] = useCookie<boolean>('sb_show_close', false);
 	const [alwaysShowHighlighted, setAlwaysShowHighlighted] = useCookie<boolean>('sb_show_highlighted', false);
 	const [watchingOnly, setWatchingOnly] = useCookie<boolean>('sb_watching_only', false);
 	const [sectionState, setSectionState] = useCookie<Record<string, boolean>>('sb_sections', {});
@@ -181,10 +181,8 @@ export default function ScoreboardView({
 		// Apply filters, but if alwaysShowHighlighted is on, keep highlighted games regardless
 		result = result.filter(g => {
 			const passesHighlight = alwaysShowHighlighted && isHighlighted(g);
-			if (passesHighlight) return true;
-
-			// Filter by watching only
-			if (watchingOnly && !watchedSet.has(g.id)) return false;
+			const passesClose = alwaysShowClose && g.status.state === 'in' && g.spread <= 9;
+			if (passesHighlight || passesClose) return true;
 
 			// Filter by highest team rating
 			const maxRating = parseInt(ratingFilter);
@@ -199,17 +197,15 @@ export default function ScoreboardView({
 			const maxAvg = parseInt(avgRatingFilter);
 			if (maxAvg > 0 && g.averageRating > maxAvg) return false;
 
-			// Filter by close games (single digit spread for live/final)
-			if (closeGamesOnly) {
-				if (g.status.state === 'pre') return false;
-				if (g.spread > 9) return false;
-			}
+			// Filter by watching only (lowest priority)
+			if (watchingOnly && !watchedSet.has(g.id)) return false;
+
 
 			return true;
 		});
 
 		return result;
-	}, [games, ratingFilter, conferenceFilter, avgRatingFilter, watchingOnly, watchedSet, closeGamesOnly, alwaysShowHighlighted, isHighlighted]);
+	}, [games, ratingFilter, conferenceFilter, avgRatingFilter, watchingOnly, watchedSet, alwaysShowClose, alwaysShowHighlighted, isHighlighted]);
 
 	// Split into sections: live, upcoming, finished — always sorted by start time
 	const { liveGames, upcomingGames, finishedGames } = useMemo(() => {
@@ -291,7 +287,7 @@ export default function ScoreboardView({
 		(ratingFilter !== '0' ? 1 : 0) +
 		(conferenceFilter !== 'all' ? 1 : 0) +
 		(avgRatingFilter !== '0' ? 1 : 0) +
-		(closeGamesOnly ? 1 : 0) +
+		(alwaysShowClose ? 1 : 0) +
 		(watchingOnly ? 1 : 0);
 	const totalFiltered = filtered.length;
 
@@ -387,7 +383,7 @@ export default function ScoreboardView({
 							setRatingFilter('0');
 							setConferenceFilter('all');
 							setAvgRatingFilter('0');
-							setCloseGamesOnly(false);
+							setAlwaysShowClose(false);
 							setWatchingOnly(false);
 						}}
 					>
@@ -398,70 +394,74 @@ export default function ScoreboardView({
 
 			{/* Filter Panel */}
 			{filtersOpen && (
-				<div className="flex flex-wrap items-end gap-3 mb-4 p-3 rounded-lg border border-border bg-card">
-					<div className="flex flex-col gap-1">
-						<label className="text-xs text-muted-foreground">Best Team</label>
-						<Select value={ratingFilter} onValueChange={v => setRatingFilter(v)}>
-							<SelectTrigger className="w-28 h-8 text-xs">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{RATING_PRESETS.map(p => (
-									<SelectItem key={p.value} value={p.value}>
-										{p.label}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+				<div className="flex flex-col gap-3 mb-4 p-3 rounded-lg border border-border bg-card">
+					<div className="flex flex-wrap items-end gap-3">
+						<div className="flex flex-col gap-1">
+							<label className="text-xs text-muted-foreground">Best Team</label>
+							<Select value={ratingFilter} onValueChange={v => setRatingFilter(v)}>
+								<SelectTrigger className="w-28 h-8 text-xs">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{RATING_PRESETS.map(p => (
+										<SelectItem key={p.value} value={p.value}>
+											{p.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+						<div className="flex flex-col gap-1">
+							<label className="text-xs text-muted-foreground">Conference</label>
+							<Select value={conferenceFilter} onValueChange={v => setConferenceFilter(v)}>
+								<SelectTrigger className="w-32 h-8 text-xs">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="all">All</SelectItem>
+									<SelectItem value="p5">Power 5</SelectItem>
+									<SelectItem value="mid">Mid-Major</SelectItem>
+									{conferences.map(c => (
+										<SelectItem key={c} value={c}>
+											{c}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+						<div className="flex flex-col gap-1">
+							<label className="text-xs text-muted-foreground">Avg Rating</label>
+							<Select value={avgRatingFilter} onValueChange={v => setAvgRatingFilter(v)}>
+								<SelectTrigger className="w-28 h-8 text-xs">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									{RATING_PRESETS.map(p => (
+										<SelectItem key={p.value} value={p.value}>
+											{p.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
 					</div>
-					<div className="flex flex-col gap-1">
-						<label className="text-xs text-muted-foreground">Conference</label>
-						<Select value={conferenceFilter} onValueChange={v => setConferenceFilter(v)}>
-							<SelectTrigger className="w-32 h-8 text-xs">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All</SelectItem>
-								<SelectItem value="p5">Power 5</SelectItem>
-								<SelectItem value="mid">Mid-Major</SelectItem>
-								{conferences.map(c => (
-									<SelectItem key={c} value={c}>
-										{c}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-					<div className="flex flex-col gap-1">
-						<label className="text-xs text-muted-foreground">Avg Rating</label>
-						<Select value={avgRatingFilter} onValueChange={v => setAvgRatingFilter(v)}>
-							<SelectTrigger className="w-28 h-8 text-xs">
-								<SelectValue />
-							</SelectTrigger>
-							<SelectContent>
-								{RATING_PRESETS.map(p => (
-									<SelectItem key={p.value} value={p.value}>
-										{p.label}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					</div>
-					<div className="flex items-center gap-2 h-8">
-						<Switch
-							id="close-games"
-							checked={closeGamesOnly}
-							onCheckedChange={v => setCloseGamesOnly(v)}
-						/>
-						<label htmlFor="close-games" className="text-xs cursor-pointer">Close games</label>
-					</div>
-					<div className="flex items-center gap-2 h-8">
-						<Switch
-							id="show-highlighted"
-							checked={alwaysShowHighlighted}
-							onCheckedChange={v => setAlwaysShowHighlighted(v)}
-						/>
-						<label htmlFor="show-highlighted" className="text-xs cursor-pointer">Always show highlighted</label>
+					<div className="flex flex-col md:flex-row gap-3">
+						<div className="flex items-center gap-2 h-8">
+							<Switch
+								id="close-games"
+								checked={alwaysShowClose}
+								onCheckedChange={v => setAlwaysShowClose(v)}
+							/>
+							<label htmlFor="close-games" className="text-xs cursor-pointer">Always show close games</label>
+						</div>
+						<div className="flex items-center gap-2 h-8">
+							<Switch
+								id="show-highlighted"
+								checked={alwaysShowHighlighted}
+								onCheckedChange={v => setAlwaysShowHighlighted(v)}
+							/>
+							<label htmlFor="show-highlighted" className="text-xs cursor-pointer">Always show highlighted</label>
+						</div>
 					</div>
 				</div>
 			)}

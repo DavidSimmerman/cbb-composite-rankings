@@ -8,8 +8,6 @@ import Link from 'next/link';
 export type GameHighlight = 'watching' | 'upset' | 'close' | 'top30' | null;
 
 export function getGameHighlight(game: ScoreboardGameEnriched, isWatched: boolean): GameHighlight {
-	if (isWatched) return 'watching';
-
 	// Upset alert: AP top 25 team is losing/lost to a team 10+ composite ranks worse
 	if (game.status.state === 'in' || game.status.state === 'post') {
 		const homeRank = game.homeTeamRating;
@@ -35,6 +33,9 @@ export function getGameHighlight(game: ScoreboardGameEnriched, isWatched: boolea
 			if (mins <= 4) return 'close';
 		}
 	}
+
+	// Watched game
+	if (isWatched) return 'watching';
 
 	// Top 30 matchup: both teams are individually ranked in the top 30
 	if (game.homeTeamRating && game.awayTeamRating && game.homeTeamRating <= 30 && game.awayTeamRating <= 30) return 'top30';
