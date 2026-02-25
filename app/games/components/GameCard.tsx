@@ -36,8 +36,8 @@ export function getGameHighlight(game: ScoreboardGameEnriched, isWatched: boolea
 		}
 	}
 
-	// Top 30 matchup: average rating of both teams is <= 30
-	if (game.averageRating <= 30) return 'top30';
+	// Top 30 matchup: both teams are individually ranked in the top 30
+	if (game.homeTeamRating && game.awayTeamRating && game.homeTeamRating <= 30 && game.awayTeamRating <= 30) return 'top30';
 
 	return null;
 }
