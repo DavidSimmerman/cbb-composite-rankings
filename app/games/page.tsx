@@ -3,6 +3,8 @@ import { getScoreboard, type ScoreboardGame, type ScoreboardGameEnriched } from 
 import { getRankings } from '@/lib/rankings/rankings';
 import ScoreboardView from './components/ScoreboardView';
 
+export const dynamic = 'force-dynamic';
+
 function formatDateParam(date?: string): string {
 	if (date && /^\d{8}$/.test(date)) return date;
 	// Before 3 AM ET, show the previous day's games
