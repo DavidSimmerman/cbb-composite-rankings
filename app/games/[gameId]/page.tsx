@@ -2,6 +2,7 @@ import { GameContextProvider } from '@/app/context/GameContext';
 import Header from '@/components/Header';
 import { getGame } from '@/lib/espn/espn-game';
 import { getTeamRanksMap } from '@/lib/rankings/ranks-map';
+import GameBoxScore from './components/GameBoxScore';
 import GameDeltas from './components/GameDeltas';
 import GameHeader from './components/GameHeader';
 import GameStatsComparison from './components/GameStatsComparison';
@@ -23,7 +24,8 @@ export default async function GamePage({ params }: { params: { gameId: string } 
 				<div className="max-w-340 w-full mx-auto px-2 md:px-4 pb-4 md:pb-8">
 					<GameHeader />
 					{game.status === 'final' && <GameDeltas />}
-					{game.status !== 'not started' && <GameStatsComparison />}
+					{game.status !== 'not started' && <GameBoxScore />}
+				{game.status !== 'not started' && <GameStatsComparison />}
 					<MatchupComparison />
 					<SimilarGames />
 				</div>
