@@ -10,24 +10,26 @@ export type GameHighlight = 'watching' | 'upset' | 'close' | 'top30' | null;
 export function getGameHighlight(game: ScoreboardGameEnriched, isWatched: boolean): GameHighlight {
 	if (isWatched) return 'watching';
 
-	// Upset alert: AP top 25 team is currently losing to a team 10+ composite ranks worse (live games only)
-	if (game.status.state === 'in') {
+	// Upset alert: AP top 25 team is losing/lost to a team 10+ composite ranks worse
+	if (game.status.state === 'in' || game.status.state === 'post') {
 		const homeRank = game.homeTeamRating;
 		const awayRank = game.awayTeamRating;
 		const homeScore = game.homeTeam.score ?? 0;
 		const awayScore = game.awayTeam.score ?? 0;
+		const isSecondHalf = game.status.state === 'post' || game.status.period >= 2;
 
-		if (game.homeTeam.curatedRank && homeRank && awayRank && awayRank - homeRank >= 10 && awayScore > homeScore) {
-			return 'upset';
-		}
-		if (game.awayTeam.curatedRank && awayRank && homeRank && homeRank - awayRank >= 10 && homeScore > awayScore) {
-			return 'upset';
+		if (isSecondHalf) {
+			if (game.homeTeam.curatedRank && homeRank && awayRank && awayRank - homeRank >= 10 && awayScore > homeScore) {
+				return 'upset';
+			}
+			if (game.awayTeam.curatedRank && awayRank && homeRank && homeRank - awayRank >= 10 && homeScore > awayScore) {
+				return 'upset';
+			}
 		}
 
-		// Close game: within 5 points with 4 mins or less in 2nd half
-		const clock = game.status.displayClock;
-		const period = game.status.period;
-		if (period >= 2 && Math.abs(homeScore - awayScore) <= 5) {
+		// Close game: within 5 points with 4 mins or less in 2nd half (live only)
+		if (game.status.state === 'in' && isSecondHalf && Math.abs(homeScore - awayScore) <= 5) {
+			const clock = game.status.displayClock;
 			const parts = clock.split(':');
 			const mins = parseInt(parts[0]);
 			if (mins <= 4) return 'close';
