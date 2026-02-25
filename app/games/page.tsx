@@ -5,7 +5,11 @@ import ScoreboardView from './components/ScoreboardView';
 
 function formatDateParam(date?: string): string {
 	if (date && /^\d{8}$/.test(date)) return date;
-	const now = new Date();
+	// Before 3 AM ET, show the previous day's games
+	const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }));
+	if (now.getHours() < 3) {
+		now.setDate(now.getDate() - 1);
+	}
 	const y = now.getFullYear();
 	const m = String(now.getMonth() + 1).padStart(2, '0');
 	const d = String(now.getDate()).padStart(2, '0');
