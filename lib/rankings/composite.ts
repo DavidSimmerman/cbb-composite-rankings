@@ -24,10 +24,11 @@ export interface CompositeRanking {
 }
 
 export async function updateComposite() {
-	function getQuery(table: string) {
+	function getQuery(table: string, hasSeason = true) {
 		return `
 			SELECT * FROM ${table}
-			WHERE date = (SELECT MAX(date) FROM ${table});
+			WHERE date = (SELECT MAX(date) FROM ${table})
+				${hasSeason ? `AND season = (SELECT MAX(season) FROM ${table})` : ''};
 		`;
 	}
 
@@ -40,7 +41,7 @@ export async function updateComposite() {
 		db.query(getQuery('kenpom_rankings')),
 		db.query(getQuery('evanmiya_rankings')),
 		db.query(getQuery('barttorvik_rankings')),
-		db.query(getQuery('net_rankings'))
+		db.query(getQuery('net_rankings', false))
 	]);
 
 	const baseTeamData = mapBaseTeams(kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings);

@@ -60,10 +60,11 @@ export async function updateRankings(rankings: Ranking[]) {
 
 export async function getRankings(): Promise<CompiledTeamData[]> {
 	const start = performance.now();
-	function getQuery(table: string) {
+	function getQuery(table: string, hasSeason = true) {
 		return `
 			SELECT * FROM ${table}
 			WHERE date = (SELECT MAX(date) FROM ${table})
+				${hasSeason ? `AND season = (SELECT MAX(season) FROM ${table})` : ''}
 			ORDER BY team_key;
 		`;
 	}
@@ -80,7 +81,7 @@ export async function getRankings(): Promise<CompiledTeamData[]> {
 		db.query(getQuery('kenpom_rankings')),
 		db.query(getQuery('evanmiya_rankings')),
 		db.query(getQuery('barttorvik_rankings')),
-		db.query(getQuery('net_rankings')),
+		db.query(getQuery('net_rankings', false)),
 		db.query(getQuery('composite_rankings')),
 		getApPollRankings(),
 		getAllTeamData()
