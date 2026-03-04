@@ -49,7 +49,8 @@ export async function getTeamRanksMap(): Promise<RanksMap> {
 				ftr_rank, ftrd_rank, tor_rank, tord_rank, orb_rank, drb_rank,
 				efg_pct_rank, efgd_pct_rank
 			FROM barttorvik_rankings
-			WHERE date = (SELECT MAX(date) FROM barttorvik_rankings)`
+			WHERE date = (SELECT MAX(date) FROM barttorvik_rankings)
+				AND season = (SELECT MAX(season) FROM barttorvik_rankings)`
 		),
 		db.query<{
 			team_key: string;
@@ -59,6 +60,7 @@ export async function getTeamRanksMap(): Promise<RanksMap> {
 			`SELECT team_key, avg_offensive_zscore_rank, avg_defensive_zscore_rank
 			FROM composite_rankings
 			WHERE date = (SELECT MAX(date) FROM composite_rankings)
+				AND season = (SELECT MAX(season) FROM composite_rankings)
 				AND sources = 'kp,em,bt,net'`
 		),
 		db.query<{
@@ -77,7 +79,8 @@ export async function getTeamRanksMap(): Promise<RanksMap> {
 		}>(
 			`SELECT team_key, kill_shots_per_game_rank, kill_shots_conceded_per_game_rank
 			FROM evanmiya_rankings
-			WHERE date = (SELECT MAX(date) FROM evanmiya_rankings)`
+			WHERE date = (SELECT MAX(date) FROM evanmiya_rankings)
+				AND season = (SELECT MAX(season) FROM evanmiya_rankings)`
 		),
 		db.query<{
 			team_key: string;
@@ -85,7 +88,8 @@ export async function getTeamRanksMap(): Promise<RanksMap> {
 		}>(
 			`SELECT team_key, adjusted_tempo_rank
 			FROM kenpom_rankings
-			WHERE date = (SELECT MAX(date) FROM kenpom_rankings)`
+			WHERE date = (SELECT MAX(date) FROM kenpom_rankings)
+				AND season = (SELECT MAX(season) FROM kenpom_rankings)`
 		)
 	]);
 

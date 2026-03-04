@@ -29,11 +29,13 @@ function getAllSourceCombos() {
 
 export async function GET() {
 	try {
+		const currentSeason = (await db.query<{ season: string }>(`SELECT MAX(season) as season FROM kenpom_rankings`))[0].season;
+
 		const [allKp, allEm, allBt, allNet]: [KenPomRanking[], EvanMiyaRanking[], BartTorvikRanking[], NetRanking[]] =
 			await Promise.all([
-				db.query(`SELECT * FROM kenpom_rankings ORDER BY date`),
-				db.query(`SELECT * FROM evanmiya_rankings ORDER BY date`),
-				db.query(`SELECT * FROM barttorvik_rankings ORDER BY date`),
+				db.query(`SELECT * FROM kenpom_rankings WHERE season = $1 ORDER BY date`, [currentSeason]),
+				db.query(`SELECT * FROM evanmiya_rankings WHERE season = $1 ORDER BY date`, [currentSeason]),
+				db.query(`SELECT * FROM barttorvik_rankings WHERE season = $1 ORDER BY date`, [currentSeason]),
 				db.query(`SELECT * FROM net_rankings ORDER BY date`)
 			]);
 

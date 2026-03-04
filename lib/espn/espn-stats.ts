@@ -2,6 +2,8 @@ import { PostgresService } from '../database';
 import { camelToSnake } from '../utils';
 import { ESPN_TO_TEAM_KEY } from './espn-team-ids';
 
+const db = PostgresService.getInstance();
+
 export interface EspnStats {
 	id: string;
 	team_key: string;
@@ -318,7 +320,7 @@ const REVERSE_RANKS = [
 
 export async function fetchEspnStats(season = 26) {
 	const response = await fetch(
-		`https://site.web.api.espn.com/apis/common/v3/sports/basketball/mens-college-basketball/statistics/byteam?limit=400&conference=50&season=20${season}`
+		`https://site.web.api.espn.com/apis/common/v3/sports/basketball/mens-college-basketball/statistics/byteam?limit=400&conference=50&season=20${String(season).padStart(2, '0')}`
 	);
 	const data = await response.json();
 
@@ -369,7 +371,13 @@ export async function fetchEspnStats(season = 26) {
 		return teamData;
 	});
 
-	teams.forEach(t => {
+	const skipped = teams.filter(t => !t.team_key);
+	if (skipped.length > 0) {
+		console.log(`ESPN STATS: Skipping ${skipped.length} teams with no team_key mapping`);
+	}
+	const mapped = teams.filter(t => t.team_key);
+
+	mapped.forEach(t => {
 		t.off_assist_percentage = (t.off_avg_assists / t.off_avg_field_goals_made) * 100;
 		t.opp_off_assist_percentage = (t.opp_off_avg_assists / t.opp_off_avg_field_goals_made) * 100;
 	});
@@ -377,16 +385,14 @@ export async function fetchEspnStats(season = 26) {
 	missingRanks.add('opp_off_assist_percentage');
 
 	missingRanks.forEach((key: string) => {
-		const sorted = teams
+		const sorted = mapped
 			.filter(t => t[key] != null)
 			.sort((a, b) => (REVERSE_RANKS.includes(key) ? a[key] - b[key] : b[key] - a[key]));
 		sorted.forEach((t, i) => (t[key + '_rank'] = i + 1));
 	});
 
-	return teams;
+	return mapped;
 }
-
-const db = PostgresService.getInstance();
 
 export async function updateEspnStats(season = 26) {
 	const teams = await fetchEspnStats(season);
@@ -418,6 +424,7 @@ export async function getEspnStats(teamKey: string) {
 	return await db.query(
 		`SELECT * FROM espn_stats
         WHERE team_key = $1
+			AND season = (SELECT MAX(season) FROM espn_stats)
         ORDER BY season DESC`,
 		[teamKey]
 	);

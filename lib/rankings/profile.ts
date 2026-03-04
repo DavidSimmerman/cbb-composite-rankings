@@ -101,11 +101,12 @@ export interface TeamProfile {
 }
 
 async function getFullRatings(teamKey: string) {
-	function getQuery(table: string, columns: string) {
+	function getQuery(table: string, columns: string, hasSeason = true) {
 		return `SELECT ${columns} FROM ${table}
             WHERE team_key = $1
             	AND date = (SELECT MAX(date) FROM ${table})
-			ORDER BY season DESC`;
+				${hasSeason ? `AND season = (SELECT MAX(season) FROM ${table})` : ''}
+			ORDER BY date DESC`;
 	}
 
 	const [kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings, apRankings, espnStats] = await Promise.all([
@@ -140,12 +141,12 @@ async function getFullRatings(teamKey: string) {
 			),
 			[teamKey]
 		),
-		db.query(getQuery('net_rankings', 'conf'), [teamKey]),
+		db.query(getQuery('net_rankings', 'conf', false), [teamKey]),
 		db.query(
 			getQuery('composite_rankings', 'avg_offensive_zscore_rank, avg_defensive_zscore_rank'),
 			[teamKey]
 		),
-		db.query(getQuery('ap_rankings', 'rank'), [teamKey]),
+		db.query(getQuery('ap_rankings', 'rank', false), [teamKey]),
 		db.query(
 			`SELECT season,
 				off_field_goal_pct, off_three_point_field_goal_pct,
@@ -200,7 +201,8 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 				keyof KenPomRanking | keyof EvanMiyaRanking | keyof BartTorvikRanking | keyof NetRanking | keyof CompositeRanking,
 				string
 			>
-		>
+		>,
+		hasSeason = true
 	) {
 		const query = `
 			SELECT
@@ -212,7 +214,7 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 			FROM ${table}
 			WHERE team_key = $1
 				AND date >= NOW() - INTERVAL '30 days'
-				AND team_key = $1
+				${hasSeason ? `AND season = (SELECT MAX(season) FROM ${table})` : ''}
 			ORDER BY date ASC
 		`;
 
@@ -276,7 +278,7 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 			getQuery('net_rankings', {
 				rank: 'net_rank',
 				rank_zscore: 'net_rank_zscore'
-			}),
+			}, false),
 			[teamKey]
 		),
 		db.query<CompositeProfileRow>(
