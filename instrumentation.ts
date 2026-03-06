@@ -23,6 +23,15 @@ export async function register() {
 			updateEspnStats();
 		});
 
+		const { saveScoreboardGames } = await import('./lib/espn/scoreboard');
+
+		cron.schedule('0 6 * * *', () => {
+			const yesterday = new Date();
+			yesterday.setDate(yesterday.getDate() - 1);
+			const date = yesterday.toISOString().split('T')[0].replace(/-/g, '');
+			saveScoreboardGames(date);
+		});
+
 		const { updateTeamData } = await import('./lib/espn/espn-team-data');
 
 		cron.schedule('0 0 1 * *', () => {
