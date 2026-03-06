@@ -1,3 +1,4 @@
+import { getPartialGames } from './espn-game';
 import { ESPN_TEAM_IDS } from './espn-team-ids';
 
 // Build reverse map: ESPN ID -> team_key
@@ -111,11 +112,20 @@ function parseEvent(event: any): ScoreboardGame {
 }
 
 export async function getScoreboard(date: string): Promise<ScoreboardGame[]> {
-	const url = `https://site.web.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${date}&groups=50&tz=America%2FNew_York`;
+	const url = `https://site.web.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${date}&groups=50&tz=America%2FNew_York&region=us&lang=en`;
 	const res = await fetch(url, { next: { revalidate: 30 } });
 	if (!res.ok) {
 		throw new Error(`Failed to fetch scoreboard: ${res.status}`);
 	}
 	const data = await res.json();
 	return (data.events || []).map(parseEvent);
+}
+
+export async function saveScoreboardGames(date: string): Promise<void> {
+	console.log(`[saveScoreboardGames] Fetching scoreboard for ${date}`);
+	const games = await getScoreboard(date);
+	const gameIds = games.map(g => g.id);
+	console.log(`[saveScoreboardGames] Found ${gameIds.length} games, saving to DB...`);
+	await getPartialGames(gameIds);
+	console.log(`[saveScoreboardGames] Done saving games for ${date}`);
 }
