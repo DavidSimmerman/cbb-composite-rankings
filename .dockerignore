@@ -6,3 +6,8 @@ node_modules
 *.md
 .DS_Store
 .vercel
+ml/venv/
+ml/models/*.joblib
+ml/models/*.json
+__pycache__/
+*.pyc
