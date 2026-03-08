@@ -9,9 +9,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { EspnGameEnriched } from '@/lib/espn/schedule';
 import { RanksMap, TeamRanks } from '@/lib/rankings/ranks-map';
 import { CircleHelp } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { PolarGrid, RadialBar, RadialBarChart } from 'recharts';
+
+const ScoreRadial = dynamic(() => Promise.resolve(ScoreRadialInner), { ssr: false });
 
 const MAX_RANK = 363;
 const MIN_SCORE = 60;
@@ -326,7 +329,7 @@ function SimilarGameCard({ sg }: { sg: SimilarGame }) {
 	);
 }
 
-function ScoreRadial({ score }: { score: number }) {
+function ScoreRadialInner({ score }: { score: number }) {
 	const endAngle = 90 - (score / 100) * 360;
 
 	return (
