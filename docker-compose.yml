@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3020:3000"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - KP_API_KEY=${KP_API_KEY}
@@ -17,10 +17,13 @@ services:
     build:
       context: .
       dockerfile: ml/Dockerfile
-    ports:
-      - "8100:8100"
+    expose:
+      - "8100"
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - ML_PORT=8100
     volumes:
-      - ./ml/models:/app/ml/models
+      - ml_models:/app/ml/models
+
+volumes:
+  ml_models:
