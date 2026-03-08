@@ -5,6 +5,7 @@ import { getTeamRanksMap } from '@/lib/rankings/ranks-map';
 import GameBoxScore from './components/GameBoxScore';
 import GameDeltas from './components/GameDeltas';
 import GameHeader from './components/GameHeader';
+import GamePrediction from './components/GamePrediction';
 import GameStatsComparison from './components/GameStatsComparison';
 import MatchupComparison from './components/MatchupComparison';
 import SimilarGames from './components/SimilarGames';
@@ -23,11 +24,13 @@ export default async function GamePage({ params }: { params: { gameId: string } 
 
 				<div className="max-w-340 w-full mx-auto px-2 md:px-4 pb-4 md:pb-8">
 					<GameHeader />
+					{game.status !== 'final' && <GamePrediction />}
 					{game.status === 'final' && <GameDeltas />}
 					{game.status !== 'not started' && <GameBoxScore />}
 					{game.status !== 'not started' && <GameStatsComparison />}
 					<MatchupComparison />
 					<SimilarGames />
+					{game.status === 'final' && <GamePrediction />}
 				</div>
 			</div>
 		</GameContextProvider>

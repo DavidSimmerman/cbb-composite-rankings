@@ -57,7 +57,7 @@ function dist(a: string, b: string): number {
 	return colorDistance(hexToRgb(a), hexToRgb(b));
 }
 
-function pickBarColors(awayPrimary: string, awaySecondary: string, homePrimary: string, homeSecondary: string): [string, string] {
+export function pickBarColors(awayPrimary: string, awaySecondary: string, homePrimary: string, homeSecondary: string): [string, string] {
 	// First: fix any colors that are too dark for the background (independent of each other)
 	const away = isVisible(awayPrimary) ? awayPrimary : isVisible(awaySecondary) ? awaySecondary : awayPrimary;
 	const home = isVisible(homePrimary) ? homePrimary : isVisible(homeSecondary) ? homeSecondary : homePrimary;
