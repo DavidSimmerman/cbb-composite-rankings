@@ -92,11 +92,76 @@ export type ProfileRatingsHistory = Record<string, TeamProfileData>;
 
 export type ParsedTeamProfile = Omit<TeamProfile, 'schedule'> & { schedule: ParsedEspnGame[] };
 
+export interface SeasonSnapshot {
+	season: string;
+	comp_score: number;
+	comp_rank: number;
+	comp_off_score: number;
+	comp_off_rank: number;
+	comp_def_score: number;
+	comp_def_rank: number;
+	kp_rank: number;
+	kp_offensive_rating: number;
+	kp_offensive_rating_rank: number;
+	kp_defensive_rating: number;
+	kp_defensive_rating_rank: number;
+	kp_net_rating: number;
+	kp_adjusted_tempo: number;
+	kp_adjusted_tempo_rank: number;
+	bt_adjoe: number;
+	bt_adjoe_rank: number;
+	bt_adjde: number;
+	bt_adjde_rank: number;
+	bt_3p_pct: number;
+	bt_3p_pct_rank: number;
+	bt_3p_pct_d: number;
+	bt_3p_pct_d_rank: number;
+	bt_3pr: number;
+	bt_3pr_rank: number;
+	bt_efg_pct: number;
+	bt_efg_pct_rank: number;
+	bt_efgd_pct: number;
+	bt_efgd_pct_rank: number;
+	bt_tor: number;
+	bt_tor_rank: number;
+	bt_tord: number;
+	bt_tord_rank: number;
+	bt_orb: number;
+	bt_orb_rank: number;
+	bt_drb: number;
+	bt_drb_rank: number;
+	bt_ftr: number;
+	bt_ftr_rank: number;
+	bt_2p_pct: number;
+	bt_2p_pct_rank: number;
+	espn_fg_pct: number;
+	espn_fg_pct_rank: number;
+	espn_opp_fg_pct: number;
+	espn_opp_fg_pct_rank: number;
+	espn_3p_pct: number;
+	espn_3p_pct_rank: number;
+	espn_opp_3p_pct: number;
+	espn_opp_3p_pct_rank: number;
+	espn_ft_pct: number;
+	espn_ft_pct_rank: number;
+	espn_avg_turnovers: number;
+	espn_avg_turnovers_rank: number;
+	espn_opp_avg_turnovers: number;
+	espn_opp_avg_turnovers_rank: number;
+	espn_orb_pct: number;
+	espn_orb_pct_rank: number;
+	espn_avg_orb: number;
+	espn_avg_orb_rank: number;
+	espn_avg_drb: number;
+	espn_avg_drb_rank: number;
+}
+
 export interface TeamProfile {
 	team_key: string;
 	team_name: string;
 	ratings_history: ProfileRatingsHistory;
 	full_ratings: Record<string, FullRatings>;
+	season_snapshots: SeasonSnapshot[];
 	schedule: EspnGame[];
 }
 
@@ -192,6 +257,72 @@ async function getFullRatings(teamKey: string) {
 	return fullRatings;
 }
 
+async function getSeasonSnapshots(teamKey: string): Promise<SeasonSnapshot[]> {
+	return db.query<SeasonSnapshot>(
+		`SELECT
+			k.season,
+			c.avg_zscore AS comp_score,
+			c.avg_zscore_rank AS comp_rank,
+			c.avg_offensive_zscore AS comp_off_score,
+			c.avg_offensive_zscore_rank AS comp_off_rank,
+			c.avg_defensive_zscore AS comp_def_score,
+			c.avg_defensive_zscore_rank AS comp_def_rank,
+			k.rank AS kp_rank,
+			k.offensive_rating AS kp_offensive_rating,
+			k.offensive_rating_rank AS kp_offensive_rating_rank,
+			k.defensive_rating AS kp_defensive_rating,
+			k.defensive_rating_rank AS kp_defensive_rating_rank,
+			k.net_rating AS kp_net_rating,
+			k.adjusted_tempo AS kp_adjusted_tempo,
+			k.adjusted_tempo_rank AS kp_adjusted_tempo_rank,
+			b.adjoe AS bt_adjoe, b.adjoe_rank AS bt_adjoe_rank,
+			b.adjde AS bt_adjde, b.adjde_rank AS bt_adjde_rank,
+			b."3p_pct" AS bt_3p_pct, b."3p_pct_rank" AS bt_3p_pct_rank,
+			b."3p_pct_d" AS bt_3p_pct_d, b."3p_pct_d_rank" AS bt_3p_pct_d_rank,
+			b."3pr" AS bt_3pr, b."3pr_rank" AS bt_3pr_rank,
+			b.efg_pct AS bt_efg_pct, b.efg_pct_rank AS bt_efg_pct_rank,
+			b.efgd_pct AS bt_efgd_pct, b.efgd_pct_rank AS bt_efgd_pct_rank,
+			b.tor AS bt_tor, b.tor_rank AS bt_tor_rank,
+			b.tord AS bt_tord, b.tord_rank AS bt_tord_rank,
+			b.orb AS bt_orb, b.orb_rank AS bt_orb_rank,
+			b.drb AS bt_drb, b.drb_rank AS bt_drb_rank,
+			b.ftr AS bt_ftr, b.ftr_rank AS bt_ftr_rank,
+			b."2p_pct" AS bt_2p_pct, b."2p_pct_rank" AS bt_2p_pct_rank,
+			e.off_field_goal_pct AS espn_fg_pct, e.off_field_goal_pct_rank AS espn_fg_pct_rank,
+			e.opp_off_field_goal_pct AS espn_opp_fg_pct, e.opp_off_field_goal_pct_rank AS espn_opp_fg_pct_rank,
+			e.off_three_point_field_goal_pct AS espn_3p_pct, e.off_three_point_field_goal_pct_rank AS espn_3p_pct_rank,
+			e.opp_off_three_point_field_goal_pct AS espn_opp_3p_pct, e.opp_off_three_point_field_goal_pct_rank AS espn_opp_3p_pct_rank,
+			e.off_free_throw_pct AS espn_ft_pct, e.off_free_throw_pct_rank AS espn_ft_pct_rank,
+			e.off_avg_turnovers AS espn_avg_turnovers, e.off_avg_turnovers_rank AS espn_avg_turnovers_rank,
+			e.opp_off_avg_turnovers AS espn_opp_avg_turnovers, e.opp_off_avg_turnovers_rank AS espn_opp_avg_turnovers_rank,
+			e.off_offensive_rebound_pct AS espn_orb_pct, e.off_offensive_rebound_pct_rank AS espn_orb_pct_rank,
+			e.off_avg_offensive_rebounds AS espn_avg_orb, e.off_avg_offensive_rebounds_rank AS espn_avg_orb_rank,
+			e.def_avg_defensive_rebounds AS espn_avg_drb, e.def_avg_defensive_rebounds_rank AS espn_avg_drb_rank
+		FROM (
+			SELECT DISTINCT ON (season) *
+			FROM kenpom_rankings
+			WHERE team_key = $1
+			ORDER BY season, date DESC
+		) k
+		LEFT JOIN (
+			SELECT DISTINCT ON (season) *
+			FROM barttorvik_rankings
+			WHERE team_key = $1
+			ORDER BY season, date DESC
+		) b ON k.season = b.season
+		LEFT JOIN LATERAL (
+			SELECT *
+			FROM composite_rankings
+			WHERE team_key = $1 AND season = k.season
+			ORDER BY date DESC, array_length(string_to_array(sources, ','), 1) DESC
+			LIMIT 1
+		) c ON true
+		LEFT JOIN espn_stats e ON e.team_key = $1 AND e.season = k.season
+		ORDER BY k.season ASC`,
+		[teamKey]
+	);
+}
+
 export async function getTeamProfile(teamKey: string, options?: { enrichedSchedule?: boolean }): Promise<TeamProfile> {
 	const start = performance.now();
 	function getQuery(
@@ -221,8 +352,9 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 		return query;
 	}
 
-	const [fullRankings, kenpomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings, schedule]: [
+	const [fullRankings, seasonSnapshots, kenpomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings, schedule]: [
 		Record<string, FullRatings>,
+		SeasonSnapshot[],
 		KenPomProfileRow[],
 		EvanMiyaProfileRow[],
 		BartTorvikProfileRow[],
@@ -231,6 +363,7 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 		EspnGame[]
 	] = await Promise.all([
 		getFullRatings(teamKey),
+		getSeasonSnapshots(teamKey),
 		db.query<KenPomProfileRow>(
 			getQuery('kenpom_rankings', {
 				net_rating: 'kp_rating',
@@ -340,5 +473,5 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 	}
 
 	console.log(`getTeamProfile(${teamKey}) took ${Math.round(performance.now() - start)}ms`);
-	return { team_key: teamKey, team_name: teamName, full_ratings: fullRankings, ratings_history, schedule };
+	return { team_key: teamKey, team_name: teamName, full_ratings: fullRankings, season_snapshots: seasonSnapshots, ratings_history, schedule };
 }
