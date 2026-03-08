@@ -3,6 +3,7 @@ import { getTeamProfile } from '@/lib/rankings/profile';
 import { TeamProfileProvider } from '../context/TeamProfileContext';
 import TeamCharts from './components/TeamCharts';
 import TeamProfileBanner from './components/TeamProfileBanner';
+import TeamHistory from './components/TeamHistory';
 import TeamSchedule from './components/TeamSchedule';
 import TeamStats from './components/TeamStats';
 
@@ -23,6 +24,7 @@ export default async function TeamPage({ params }: { params: Promise<{ teamKey: 
 							<TeamCharts className="order-1 md:order-0 md:col-span-2 min-h-76" />
 							<TeamSchedule className="order-3 md:order-0 md:col-span-2 min-h-76" />
 						</div>
+						<TeamHistory className="mt-3 md:mt-6" />
 					</div>
 				</div>
 			</div>
