@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# python / ml
+ml/venv/
+ml/models/*.joblib
+ml/models/*.json
+!ml/models/.gitkeep
+__pycache__/
+*.pyc
