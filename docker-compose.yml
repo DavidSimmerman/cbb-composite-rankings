@@ -12,6 +12,9 @@ services:
       - ML_API_URL=http://ml:8100
     depends_on:
       - ml
+    networks:
+      - default
+      - coolify
 
   ml:
     build:
@@ -24,6 +27,13 @@ services:
       - ML_PORT=8100
     volumes:
       - ml_models:/app/ml/models
+    networks:
+      - default
+      - coolify
 
 volumes:
   ml_models:
+
+networks:
+  coolify:
+    external: true
