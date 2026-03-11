@@ -42,7 +42,7 @@ const RechartsImports = dynamic(
 							<BarChart
 								data={barData}
 								width={Math.max(barData.length * 56, containerWidth || 400)}
-								height={260}
+								height={180}
 								margin={{ top: 20, right: 8, left: 8, bottom: 0 }}
 							>
 								<CartesianGrid vertical={false} stroke="#333" />

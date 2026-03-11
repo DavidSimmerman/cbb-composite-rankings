@@ -1,3 +1,4 @@
+import { load as cheerioLoad } from 'cheerio';
 import { PostgresService } from '../database';
 import { ApPollTeam } from '../espn/ap-poll';
 import { getPartialGame } from '../espn/espn-game';
@@ -156,6 +157,61 @@ export interface SeasonSnapshot {
 	espn_avg_drb_rank: number;
 }
 
+// ─── March Analysis Types ────────────────────────────────────────────────
+
+export interface SeedLineValue {
+	projected_seed: number;
+	avg_seed: number | null; // Bracket Matrix precise decimal (e.g. 3.15), null if not on BM
+	team_kp_rating: number;
+	seed_avg_rating: number;
+	seed_median_rating: number;
+	rating_percentile: number;
+	implied_seed: number;
+	seed_outcomes: { round: string; reach_pct: number }[];
+	notable_comps: { season: number; team_key: string; team_name: string; kp_rating: number; seed: number; wins: number; deepest_round: string }[];
+}
+
+export interface HistoricalComp {
+	season: number;
+	team_key: string;
+	team_name: string;
+	seed: number;
+	similarity: number;
+	kp_net_rating: number;
+	kp_tempo: number;
+	wins: number;
+	deepest_round: string;
+}
+
+export interface StyleFactor {
+	key: string;
+	label: string;
+	description: string;
+	applies: boolean;
+	team_value: number | null;
+	team_rank: number | null;
+	sample_size: number;
+	avg_wins_above_seed: number;
+	seed_baseline_wins: number;
+	final_four_rate: number;
+	deep_run_rate: number;
+	round_32_rate: number;
+	percentile: number;  // 0-100
+	verdict: 'positive' | 'negative' | 'neutral';
+}
+
+export interface MarchAnalysis {
+	seed_line: SeedLineValue;
+	similar_teams: HistoricalComp[];
+	style_factors: StyleFactor[];  // top 3
+	march_score: number;           // 0-100 composite (style + comps + rating)
+	style_score: number;           // 0-100 from style factors
+	comps_score: number;           // 0-100 from similar teams wins vs seed
+	rating_score: number;          // 0-100 rating vs historical same-seeds
+	num_qualifying_factors: number;
+	expected_wins: number;
+}
+
 export interface TeamProfile {
 	team_key: string;
 	team_name: string;
@@ -163,6 +219,7 @@ export interface TeamProfile {
 	full_ratings: Record<string, FullRatings>;
 	season_snapshots: SeasonSnapshot[];
 	schedule: EspnGame[];
+	march_analysis: MarchAnalysis | null;
 }
 
 async function getFullRatings(teamKey: string) {
@@ -178,7 +235,7 @@ async function getFullRatings(teamKey: string) {
 		db.query(
 			getQuery(
 				'kenpom_rankings',
-				`season, win_loss, offensive_rating, defensive_rating,
+				`season, rank, win_loss, offensive_rating, defensive_rating,
 				adjusted_tempo, adjusted_tempo_rank,
 				sos_offensive_rating, sos_offensive_rating_rank,
 				sos_defensive_rating, sos_defensive_rating_rank`
@@ -208,7 +265,13 @@ async function getFullRatings(teamKey: string) {
 		),
 		db.query(getQuery('net_rankings', 'conf', false), [teamKey]),
 		db.query(
-			getQuery('composite_rankings', 'avg_offensive_zscore_rank, avg_defensive_zscore_rank'),
+			`SELECT avg_zscore, avg_zscore_rank, avg_offensive_zscore, avg_offensive_zscore_rank, avg_defensive_zscore, avg_defensive_zscore_rank
+			FROM composite_rankings
+			WHERE team_key = $1
+				AND sources = 'kp,em,bt'
+				AND date = (SELECT MAX(date) FROM composite_rankings WHERE sources = 'kp,em,bt')
+				AND season = (SELECT MAX(season) FROM composite_rankings WHERE sources = 'kp,em,bt')
+			ORDER BY date DESC`,
 			[teamKey]
 		),
 		db.query(getQuery('ap_rankings', 'rank', false), [teamKey]),
@@ -321,6 +384,955 @@ async function getSeasonSnapshots(teamKey: string): Promise<SeasonSnapshot[]> {
 		ORDER BY k.season ASC`,
 		[teamKey]
 	);
+}
+
+// ─── March Analysis: Cached Tournament Dataset ──────────────────────────
+
+interface TourneyGameRow {
+	season: number; round: string;
+	team_a_key: string | null; team_b_key: string | null;
+	team_a_seed: number; team_b_seed: number;
+	home_team_key: string | null; away_team_key: string | null;
+	home_score: number | null; away_score: number | null;
+}
+
+interface TourneyKenPomRow {
+	season: number; team_key: string; team: string;
+	net_rating: number; offensive_rating: number; defensive_rating: number;
+	adjusted_tempo: number; sos_net_rating: number; rank: number;
+}
+
+interface TourneyBartTorvikRow {
+	season: number; team_key: string;
+	'3pr': number; '3p_pct': number; '3p_pct_d': number;
+	tor: number; tord: number; efg_pct: number; orb: number;
+	ftr: number; '2p_pct': number;
+	'3pr_rank': number; '3p_pct_rank': number; '3p_pct_d_rank': number;
+	tor_rank: number; orb_rank: number;
+	ftr_rank: number; '2p_pct_rank': number;
+}
+
+interface TourneyCompositeRow {
+	season: number; team_key: string;
+	avg_zscore: number; avg_offensive_zscore: number; avg_defensive_zscore: number;
+}
+
+interface SeedOutcomeEntry { seed: number; wins: number }
+
+interface TourneyTeamSeason {
+	season: number; team_key: string; team_name: string;
+	seed: number; wins: number; deepest_round: string;
+	opp_best_seed: number;
+	comp_rating: number; comp_off_rating: number; comp_def_rating: number;
+	kp_tempo: number; kp_sos: number; kp_rank: number;
+	bt_3pr: number | null; bt_3p_pct: number | null; bt_3p_pct_d: number | null;
+	bt_tor: number | null; bt_tord: number | null; bt_efg_pct: number | null; bt_orb: number | null;
+	bt_ftr: number | null; bt_2p_pct: number | null;
+	bt_3pr_rank: number | null; bt_3p_pct_rank: number | null; bt_3p_pct_d_rank: number | null;
+	bt_tor_rank: number | null; bt_orb_rank: number | null;
+	bt_ftr_rank: number | null; bt_2p_pct_rank: number | null;
+}
+
+const ROUND_DEPTH: Record<string, number> = {
+	'First Four': 0, 'Round of 64': 1, 'Round of 32': 2,
+	'Sweet 16': 3, 'Elite 8': 4, 'Final Four': 5, 'Championship': 6
+};
+const WINS_TO_ROUND = ['R64', 'R32', 'S16', 'E8', 'F4', 'Finals', 'Champ'];
+const ROUND_LABELS = ['R32', 'S16', 'E8', 'F4', 'Finals', 'Champ'];
+
+// ─── Bracket Matrix Scraper ──────────────────────────────────────────────
+
+// Maps Bracket Matrix team names → our team_keys (only for names that don't follow the standard pattern)
+const BM_NAME_OVERRIDES: Record<string, string> = {
+	'Connecticut': 'connecticut', 'Miami (FLA.)': 'miami_fl', 'Miami (Ohio)': 'miami_oh',
+	"St. John's": 'st_johns', "St. Mary's (CA)": 'saint_marys', 'Saint Louis': 'saint_louis',
+	'Central Florida': 'ucf', 'North Carolina State': 'nc_state', 'Stephen F. Austin': 'stephen_f_austin',
+	'North Dakota State': 'north_dakota_st', 'Long Island': 'liu', 'Bethune-Cookman': 'bethune_cookman',
+	'Northern Iowa': 'northern_iowa', 'South Florida': 'south_florida',
+	'Sam Houston State': 'sam_houston_st', 'Middle Tennessee': 'middle_tennessee',
+	'Loyola Chicago': 'loyola_chicago', 'San Diego State': 'san_diego_st',
+	'Southeast Missouri': 'southeast_missouri', 'Western Kentucky': 'western_kentucky',
+	'East Tennessee State': 'east_tennessee_st', 'Florida Atlantic': 'florida_atlantic',
+	'Southern Illinois': 'southern_illinois', 'Oral Roberts': 'oral_roberts',
+	'Eastern Washington': 'eastern_washington', 'South Dakota State': 'south_dakota_st',
+	'Abilene Christian': 'abilene_christian', 'Florida Gulf Coast': 'florida_gulf_coast',
+	'Cal State Fullerton': 'cal_st_fullerton', 'Fairleigh Dickinson': 'fairleigh_dickinson',
+	'UC Santa Barbara': 'uc_santa_barbara', 'Grand Canyon': 'grand_canyon',
+	'New Mexico State': 'new_mexico_st',
+};
+
+function bmNameToTeamKey(name: string): string {
+	if (BM_NAME_OVERRIDES[name]) return BM_NAME_OVERRIDES[name];
+	return name.toLowerCase()
+		.replace(/\s+state$/i, '_st')
+		.replace(/\s+/g, '_')
+		.replace(/[.'()]/g, '')
+		.replace(/_+/g, '_');
+}
+
+type BracketMatrixEntry = { team_key: string; avg_seed: number; team_name: string };
+
+let _bmCache: BracketMatrixEntry[] | null = null;
+let _bmCacheTime = 0;
+const BM_CACHE_TTL = 3600_000;
+
+async function getBracketMatrixSeeds(): Promise<BracketMatrixEntry[]> {
+	if (_bmCache && Date.now() - _bmCacheTime < BM_CACHE_TTL) return _bmCache;
+
+	try {
+		const res = await fetch('http://www.bracketmatrix.com/', {
+			signal: AbortSignal.timeout(10_000),
+		});
+		if (!res.ok) return _bmCache ?? [];
+		const html = await res.text();
+		const $ = cheerioLoad(html);
+		const teams: BracketMatrixEntry[] = [];
+
+		$('tr').each((_i, row) => {
+			const cells = $(row).find('td');
+			const texts: string[] = [];
+			cells.each((_j, cell) => { texts.push($(cell).text().trim()); });
+			if (texts[0] && /^\d+$/.test(texts[0]) && texts.length > 3 && texts[1]) {
+				const avgSeed = parseFloat(texts[3]);
+				if (!isNaN(avgSeed)) {
+					teams.push({
+						team_key: bmNameToTeamKey(texts[1]),
+						avg_seed: avgSeed,
+						team_name: texts[1],
+					});
+				}
+			}
+		});
+
+		_bmCache = teams;
+		_bmCacheTime = Date.now();
+		return teams;
+	} catch {
+		return _bmCache ?? [];
+	}
+}
+
+// Fallback: rank-based seed estimate when Bracket Matrix is unavailable
+const SEED_RANK_MAP: [number, number][] = [
+	[1, 4], [2, 8], [3, 12], [4, 16], [5, 24], [6, 32], [7, 40], [8, 48],
+	[9, 56], [10, 64], [11, 72], [12, 80], [13, 100], [14, 120], [15, 150], [16, 200]
+];
+
+function rankToSeed(rank: number): number {
+	for (const [seed, maxRank] of SEED_RANK_MAP) {
+		if (rank <= maxRank) return seed;
+	}
+	return 16;
+}
+
+let _datasetCache: TourneyTeamSeason[] | null = null;
+let _seedOutcomesCache: SeedOutcomeEntry[] | null = null;
+let _datasetCacheTime = 0;
+const CACHE_TTL = 3600_000;
+
+async function getTournamentDataset(): Promise<{ dataset: TourneyTeamSeason[]; allSeedOutcomes: SeedOutcomeEntry[] }> {
+	if (_datasetCache && _seedOutcomesCache && Date.now() - _datasetCacheTime < CACHE_TTL) {
+		return { dataset: _datasetCache, allSeedOutcomes: _seedOutcomesCache };
+	}
+
+	// Teams with composite data (2010+)
+	const compositeTeamFilter = `
+		SELECT season, team_a_key AS team_key FROM tournament_games WHERE season >= 2010 AND team_a_key IS NOT NULL
+		UNION SELECT season, team_b_key FROM tournament_games WHERE season >= 2010 AND team_b_key IS NOT NULL
+	`;
+
+	const [allGames, kenpom, barttorvik, composite] = await Promise.all([
+		// ALL games back to 2002 for seed outcomes
+		db.query<TourneyGameRow>(
+			`SELECT tg.season, tg.round,
+				tg.team_a_key, tg.team_b_key, tg.team_a_seed, tg.team_b_seed,
+				eg.home_team_key, eg.away_team_key, eg.home_score, eg.away_score
+			FROM tournament_games tg
+			LEFT JOIN espn_games eg ON eg.game_id = tg.game_id
+			WHERE tg.season >= 2002`
+		),
+		// Pre-tournament KenPom (for tempo/sos) — 2010+
+		db.query<TourneyKenPomRow>(
+			`SELECT DISTINCT ON (k.season, k.team_key)
+				k.season + 2000 AS season, k.team_key, k.net_rating, k.offensive_rating, k.defensive_rating,
+				k.adjusted_tempo, k.sos_net_rating, k.rank,
+				COALESCE(em.team, k.team_key) AS team
+			FROM kenpom_rankings k
+			LEFT JOIN LATERAL (
+				SELECT team FROM evanmiya_rankings
+				WHERE team_key = k.team_key AND season = k.season
+				ORDER BY date DESC LIMIT 1
+			) em ON true
+			JOIN LATERAL (
+				SELECT MIN(eg.date::date) AS first_game
+				FROM tournament_games tg
+				JOIN espn_games eg ON eg.game_id = tg.game_id
+				WHERE tg.season = k.season + 2000 AND tg.round != 'First Four'
+			) tourney ON true
+			WHERE (k.season + 2000, k.team_key) IN (${compositeTeamFilter})
+				AND k.date < tourney.first_game
+			ORDER BY k.season, k.team_key, k.date DESC`
+		),
+		db.query<TourneyBartTorvikRow>(
+			`SELECT DISTINCT ON (season, team_key)
+				season + 2000 AS season, team_key,
+				"3pr", "3p_pct", "3p_pct_d", tor, tord, efg_pct, orb, ftr, "2p_pct",
+				"3pr_rank", "3p_pct_rank", "3p_pct_d_rank", tor_rank, orb_rank, ftr_rank, "2p_pct_rank"
+			FROM barttorvik_rankings
+			WHERE (season + 2000, team_key) IN (${compositeTeamFilter})
+			ORDER BY season, team_key, date DESC`
+		),
+		// Composite (kp,em,bt) — 2010+, latest date per season (composites are stored post-season)
+		db.query<TourneyCompositeRow>(
+			`SELECT DISTINCT ON (c.season, c.team_key)
+				c.season + 2000 AS season, c.team_key,
+				c.avg_zscore, c.avg_offensive_zscore, c.avg_defensive_zscore
+			FROM composite_rankings c
+			WHERE c.sources = 'kp,em,bt'
+				AND (c.season + 2000, c.team_key) IN (${compositeTeamFilter})
+			ORDER BY c.season, c.team_key, c.date DESC`
+		)
+	]);
+
+	// Build per-team-season win counts from ALL games (2002+)
+	const teamSeasons = new Map<string, { seed: number; wins: number; maxDepth: number; oppBestSeed: number }>();
+
+	for (const g of allGames) {
+		if (!g.home_team_key || !g.away_team_key || g.home_score == null || g.away_score == null) continue;
+
+		for (const side of ['a', 'b'] as const) {
+			const teamKey = side === 'a' ? g.team_a_key : g.team_b_key;
+			const seed = side === 'a' ? g.team_a_seed : g.team_b_seed;
+			const oppSeed = side === 'a' ? g.team_b_seed : g.team_a_seed;
+			if (!teamKey) continue;
+
+			const key = `${g.season}-${teamKey}`;
+			if (!teamSeasons.has(key)) teamSeasons.set(key, { seed, wins: 0, maxDepth: 0, oppBestSeed: 16 });
+			const ts = teamSeasons.get(key)!;
+
+			const isHome = g.home_team_key === teamKey;
+			const won = isHome ? g.home_score > g.away_score : g.away_score > g.home_score;
+			if (won) ts.wins++;
+
+			const depth = ROUND_DEPTH[g.round] ?? 0;
+			if (depth > ts.maxDepth) ts.maxDepth = depth;
+			if (oppSeed < ts.oppBestSeed) ts.oppBestSeed = oppSeed;
+		}
+	}
+
+	// All seed outcomes (2002+) for historical seed outcome bars
+	const allSeedOutcomes: SeedOutcomeEntry[] = [];
+	for (const ts of teamSeasons.values()) {
+		allSeedOutcomes.push({ seed: ts.seed, wins: ts.wins });
+	}
+
+	// Build lookup maps
+	const kpMap = new Map<string, TourneyKenPomRow>();
+	for (const r of kenpom) kpMap.set(`${r.season}-${r.team_key}`, r);
+
+	const btMap = new Map<string, TourneyBartTorvikRow>();
+	for (const r of barttorvik) btMap.set(`${r.season}-${r.team_key}`, r);
+
+	const compMap = new Map<string, TourneyCompositeRow>();
+	for (const r of composite) compMap.set(`${r.season}-${r.team_key}`, r);
+
+	// Merge into final dataset — require KenPom + composite
+	const dataset: TourneyTeamSeason[] = [];
+	for (const [key, ts] of teamSeasons) {
+		const [seasonStr, teamKey] = key.split('-', 2);
+		const season = parseInt(seasonStr);
+		const kp = kpMap.get(key);
+		const comp = compMap.get(key);
+		if (!kp || !comp) continue;
+
+		const bt = btMap.get(key);
+		dataset.push({
+			season, team_key: teamKey, team_name: kp.team,
+			seed: ts.seed, wins: ts.wins,
+			deepest_round: WINS_TO_ROUND[ts.wins] ?? 'R64',
+			opp_best_seed: ts.oppBestSeed,
+			comp_rating: comp.avg_zscore, comp_off_rating: comp.avg_offensive_zscore,
+			comp_def_rating: comp.avg_defensive_zscore,
+			kp_tempo: kp.adjusted_tempo, kp_sos: kp.sos_net_rating, kp_rank: kp.rank,
+			bt_3pr: bt?.['3pr'] ?? null, bt_3p_pct: bt?.['3p_pct'] ?? null,
+			bt_3p_pct_d: bt?.['3p_pct_d'] ?? null, bt_tor: bt?.tor ?? null,
+			bt_tord: bt?.tord ?? null, bt_efg_pct: bt?.efg_pct ?? null, bt_orb: bt?.orb ?? null,
+			bt_ftr: bt?.ftr ?? null, bt_2p_pct: bt?.['2p_pct'] ?? null,
+			bt_3pr_rank: bt?.['3pr_rank'] ?? null, bt_3p_pct_rank: bt?.['3p_pct_rank'] ?? null,
+			bt_3p_pct_d_rank: bt?.['3p_pct_d_rank'] ?? null, bt_tor_rank: bt?.tor_rank ?? null,
+			bt_orb_rank: bt?.orb_rank ?? null,
+			bt_ftr_rank: bt?.ftr_rank ?? null, bt_2p_pct_rank: bt?.['2p_pct_rank'] ?? null,
+		});
+	}
+
+	_datasetCache = dataset;
+	_seedOutcomesCache = allSeedOutcomes;
+	_datasetCacheTime = Date.now();
+	return { dataset, allSeedOutcomes };
+}
+
+// ─── Shared Factor Infrastructure ────────────────────────────────────────
+
+const TIERS = [5, 10, 15, 25, 35, 50, 75, 100];
+const MIN_SAMPLE = 20;
+const NUM_TEAMS = 364;
+
+type SeasonRankMaps = {
+	defRanks: Map<number, Map<string, number>>;
+	defLowRanks: Map<number, Map<string, number>>;
+	tempoHighRanks: Map<number, Map<string, number>>;
+	tempoLowRanks: Map<number, Map<string, number>>;
+	threePtDefGoodRanks: Map<number, Map<string, number>>;
+	threePtDefBadRanks: Map<number, Map<string, number>>;
+	toMarginGoodRanks: Map<number, Map<string, number>>;
+	toMarginBadRanks: Map<number, Map<string, number>>;
+	efgHighRanks: Map<number, Map<string, number>>;
+	efgLowRanks: Map<number, Map<string, number>>;
+};
+
+/** Dataset-level factor qualifier: only depends on dataset, not team-specific ratings */
+type FactorQualifier = {
+	key: string; label: string; statLabel: string; bottom?: boolean;
+	qualifiesAt: (t: TourneyTeamSeason, tier: number) => boolean;
+};
+
+/** Team-specific factor metadata */
+type TeamFactorMeta = {
+	key: string;
+	teamRank: number | null;
+	teamValue: number | null;
+	widestTeamTier: number | null;
+};
+
+function buildSeasonRankMaps(dataset: TourneyTeamSeason[]): SeasonRankMaps {
+	const defRanks = new Map<number, Map<string, number>>();
+	const defLowRanks = new Map<number, Map<string, number>>();
+	const tempoHighRanks = new Map<number, Map<string, number>>();
+	const tempoLowRanks = new Map<number, Map<string, number>>();
+	const threePtDefGoodRanks = new Map<number, Map<string, number>>();
+	const threePtDefBadRanks = new Map<number, Map<string, number>>();
+	const toMarginGoodRanks = new Map<number, Map<string, number>>();
+	const toMarginBadRanks = new Map<number, Map<string, number>>();
+	const efgHighRanks = new Map<number, Map<string, number>>();
+	const efgLowRanks = new Map<number, Map<string, number>>();
+	for (const season of new Set(dataset.map(d => d.season))) {
+		const seasonTeams = dataset.filter(d => d.season === season);
+		// Defense (composite)
+		const defMap = new Map<string, number>();
+		seasonTeams.sort((a, b) => b.comp_def_rating - a.comp_def_rating).forEach((t, i) => defMap.set(t.team_key, i + 1));
+		defRanks.set(season, defMap);
+		const defLowMap = new Map<string, number>();
+		seasonTeams.sort((a, b) => a.comp_def_rating - b.comp_def_rating).forEach((t, i) => defLowMap.set(t.team_key, i + 1));
+		defLowRanks.set(season, defLowMap);
+		// Tempo
+		const thMap = new Map<string, number>();
+		seasonTeams.sort((a, b) => b.kp_tempo - a.kp_tempo).forEach((t, i) => thMap.set(t.team_key, i + 1));
+		tempoHighRanks.set(season, thMap);
+		const tlMap = new Map<string, number>();
+		seasonTeams.sort((a, b) => a.kp_tempo - b.kp_tempo).forEach((t, i) => tlMap.set(t.team_key, i + 1));
+		tempoLowRanks.set(season, tlMap);
+		// 3pt defense (low opponent 3pt% = good defense = rank 1)
+		const btTeams = seasonTeams.filter(t => t.bt_3p_pct_d != null);
+		const tpdGood = new Map<string, number>();
+		[...btTeams].sort((a, b) => a.bt_3p_pct_d! - b.bt_3p_pct_d!).forEach((t, i) => tpdGood.set(t.team_key, i + 1));
+		threePtDefGoodRanks.set(season, tpdGood);
+		const tpdBad = new Map<string, number>();
+		[...btTeams].sort((a, b) => b.bt_3p_pct_d! - a.bt_3p_pct_d!).forEach((t, i) => tpdBad.set(t.team_key, i + 1));
+		threePtDefBadRanks.set(season, tpdBad);
+		// Turnover margin (tord - tor: higher = better)
+		const toTeams = seasonTeams.filter(t => t.bt_tor != null && t.bt_tord != null);
+		const tmGood = new Map<string, number>();
+		[...toTeams].sort((a, b) => (b.bt_tord! - b.bt_tor!) - (a.bt_tord! - a.bt_tor!)).forEach((t, i) => tmGood.set(t.team_key, i + 1));
+		toMarginGoodRanks.set(season, tmGood);
+		const tmBad = new Map<string, number>();
+		[...toTeams].sort((a, b) => (a.bt_tord! - a.bt_tor!) - (b.bt_tord! - b.bt_tor!)).forEach((t, i) => tmBad.set(t.team_key, i + 1));
+		toMarginBadRanks.set(season, tmBad);
+		// Effective FG% (higher = better)
+		const efgTeams = seasonTeams.filter(t => t.bt_efg_pct != null);
+		const efgH = new Map<string, number>();
+		[...efgTeams].sort((a, b) => b.bt_efg_pct! - a.bt_efg_pct!).forEach((t, i) => efgH.set(t.team_key, i + 1));
+		efgHighRanks.set(season, efgH);
+		const efgL = new Map<string, number>();
+		[...efgTeams].sort((a, b) => a.bt_efg_pct! - b.bt_efg_pct!).forEach((t, i) => efgL.set(t.team_key, i + 1));
+		efgLowRanks.set(season, efgL);
+	}
+	return { defRanks, defLowRanks, tempoHighRanks, tempoLowRanks, threePtDefGoodRanks, threePtDefBadRanks, toMarginGoodRanks, toMarginBadRanks, efgHighRanks, efgLowRanks };
+}
+
+const invertRank = (rank: number | null) => rank != null ? NUM_TEAMS + 1 - rank : null;
+const invertQualifies = (rank: number | null, tier: number) => rank != null && rank >= (NUM_TEAMS + 1 - tier);
+
+function buildFactorQualifiers(maps: SeasonRankMaps): FactorQualifier[] {
+	return [
+		{ key: '3pt_heavy', label: 'High 3pt Rate', statLabel: '3pt attempt rate',
+			qualifiesAt: (t, tier) => t.bt_3pr_rank != null && t.bt_3pr_rank <= tier },
+		{ key: '3pt_low', label: 'Low 3pt Rate', statLabel: '3pt attempt rate', bottom: true,
+			qualifiesAt: (t, tier) => invertQualifies(t.bt_3pr_rank, tier) },
+		{ key: 'ft_heavy', label: 'High FT Rate', statLabel: 'free throw rate',
+			qualifiesAt: (t, tier) => t.bt_ftr_rank != null && t.bt_ftr_rank <= tier },
+		{ key: 'ft_low', label: 'Low FT Rate', statLabel: 'free throw rate', bottom: true,
+			qualifiesAt: (t, tier) => invertQualifies(t.bt_ftr_rank, tier) },
+		{ key: 'low_turnovers', label: 'Low Turnover Rate', statLabel: 'turnover rate (best)',
+			qualifiesAt: (t, tier) => t.bt_tor_rank != null && t.bt_tor_rank <= tier },
+		{ key: 'high_turnovers', label: 'High Turnover Rate', statLabel: 'turnover rate', bottom: true,
+			qualifiesAt: (t, tier) => invertQualifies(t.bt_tor_rank, tier) },
+		{ key: 'elite_defense', label: 'Elite Defense', statLabel: 'composite defense',
+			qualifiesAt: (t, tier) => (maps.defRanks.get(t.season)?.get(t.team_key) ?? 999) <= tier },
+		{ key: 'weak_defense', label: 'Weak Defense', statLabel: 'composite defense', bottom: true,
+			qualifiesAt: (t, tier) => (maps.defLowRanks.get(t.season)?.get(t.team_key) ?? 999) <= tier },
+		{ key: 'high_tempo', label: 'High Tempo', statLabel: 'adjusted tempo',
+			qualifiesAt: (t, tier) => (maps.tempoHighRanks.get(t.season)?.get(t.team_key) ?? 999) <= tier },
+		{ key: 'slow_grinder', label: 'Slow Tempo', statLabel: 'adjusted tempo', bottom: true,
+			qualifiesAt: (t, tier) => (maps.tempoLowRanks.get(t.season)?.get(t.team_key) ?? 999) <= tier },
+		{ key: 'physical', label: 'High Rebound Rate', statLabel: 'offensive rebound rate',
+			qualifiesAt: (t, tier) => t.bt_orb_rank != null && t.bt_orb_rank <= tier },
+		{ key: 'low_rebounding', label: 'Low Rebound Rate', statLabel: 'offensive rebound rate', bottom: true,
+			qualifiesAt: (t, tier) => invertQualifies(t.bt_orb_rank, tier) },
+		{ key: '3pt_defense_good', label: 'Strong 3pt Defense', statLabel: '3pt defense',
+			qualifiesAt: (t, tier) => (maps.threePtDefGoodRanks.get(t.season)?.get(t.team_key) ?? 999) <= tier },
+		{ key: '3pt_defense_bad', label: 'Weak 3pt Defense', statLabel: '3pt defense', bottom: true,
+			qualifiesAt: (t, tier) => (maps.threePtDefBadRanks.get(t.season)?.get(t.team_key) ?? 999) <= tier },
+		{ key: 'turnover_margin_good', label: 'Strong TO Margin', statLabel: 'turnover margin',
+			qualifiesAt: (t, tier) => (maps.toMarginGoodRanks.get(t.season)?.get(t.team_key) ?? 999) <= tier },
+		{ key: 'turnover_margin_bad', label: 'Weak TO Margin', statLabel: 'turnover margin', bottom: true,
+			qualifiesAt: (t, tier) => (maps.toMarginBadRanks.get(t.season)?.get(t.team_key) ?? 999) <= tier },
+		{ key: 'efg_high', label: 'High Effective FG%', statLabel: 'effective FG%',
+			qualifiesAt: (t, tier) => (maps.efgHighRanks.get(t.season)?.get(t.team_key) ?? 999) <= tier },
+		{ key: 'efg_low', label: 'Low Effective FG%', statLabel: 'effective FG%', bottom: true,
+			qualifiesAt: (t, tier) => (maps.efgLowRanks.get(t.season)?.get(t.team_key) ?? 999) <= tier },
+	];
+}
+
+function getTeamFactorMeta(ratings: any): TeamFactorMeta[] {
+	return [
+		{ key: '3pt_heavy', teamRank: ratings.bt_3pr_rank ?? null, teamValue: ratings.bt_3pr ?? null,
+			widestTeamTier: (ratings.bt_3pr_rank ?? 999) <= 100 ? 100 : null },
+		{ key: '3pt_low', teamRank: invertRank(ratings.bt_3pr_rank), teamValue: ratings.bt_3pr ?? null,
+			widestTeamTier: (invertRank(ratings.bt_3pr_rank) ?? 999) <= 100 ? 100 : null },
+		{ key: 'ft_heavy', teamRank: ratings.bt_ftr_rank ?? null, teamValue: ratings.bt_ftr ?? null,
+			widestTeamTier: (ratings.bt_ftr_rank ?? 999) <= 100 ? 100 : null },
+		{ key: 'ft_low', teamRank: invertRank(ratings.bt_ftr_rank), teamValue: ratings.bt_ftr ?? null,
+			widestTeamTier: (invertRank(ratings.bt_ftr_rank) ?? 999) <= 100 ? 100 : null },
+		{ key: 'low_turnovers', teamRank: ratings.bt_tor_rank ?? null, teamValue: ratings.bt_tor ?? null,
+			widestTeamTier: (ratings.bt_tor_rank ?? 999) <= 100 ? 100 : null },
+		{ key: 'high_turnovers', teamRank: invertRank(ratings.bt_tor_rank), teamValue: ratings.bt_tor ?? null,
+			widestTeamTier: (invertRank(ratings.bt_tor_rank) ?? 999) <= 100 ? 100 : null },
+		{ key: 'elite_defense', teamRank: ratings.comp_avg_defensive_zscore_rank ?? null, teamValue: ratings.comp_avg_defensive_zscore ?? null,
+			widestTeamTier: (ratings.comp_avg_defensive_zscore_rank ?? 999) <= 25 ? 25 : null },
+		{ key: 'weak_defense', teamRank: ratings.comp_avg_defensive_zscore_rank ? NUM_TEAMS + 1 - ratings.comp_avg_defensive_zscore_rank : null,
+			teamValue: ratings.comp_avg_defensive_zscore ?? null,
+			widestTeamTier: (ratings.comp_avg_defensive_zscore_rank ?? 0) >= (NUM_TEAMS + 1 - 100) ? 100 : null },
+		{ key: 'high_tempo', teamRank: ratings.kp_adjusted_tempo_rank ?? null, teamValue: ratings.kp_adjusted_tempo ?? null,
+			widestTeamTier: (ratings.kp_adjusted_tempo_rank ?? 999) <= 100 ? 100 : null },
+		{ key: 'slow_grinder', teamRank: invertRank(ratings.kp_adjusted_tempo_rank), teamValue: ratings.kp_adjusted_tempo ?? null,
+			widestTeamTier: (invertRank(ratings.kp_adjusted_tempo_rank) ?? 999) <= 100 ? 100 : null },
+		{ key: 'physical', teamRank: ratings.bt_orb_rank ?? null, teamValue: ratings.bt_orb ?? null,
+			widestTeamTier: (ratings.bt_orb_rank ?? 999) <= 100 ? 100 : null },
+		{ key: 'low_rebounding', teamRank: invertRank(ratings.bt_orb_rank), teamValue: ratings.bt_orb ?? null,
+			widestTeamTier: (invertRank(ratings.bt_orb_rank) ?? 999) <= 100 ? 100 : null },
+		{ key: '3pt_defense_good', teamRank: ratings.bt_3p_pct_d_rank ?? null, teamValue: ratings.bt_3p_pct_d ?? null,
+			widestTeamTier: (ratings.bt_3p_pct_d_rank ?? 999) <= 100 ? 100 : null },
+		{ key: '3pt_defense_bad', teamRank: invertRank(ratings.bt_3p_pct_d_rank), teamValue: ratings.bt_3p_pct_d ?? null,
+			widestTeamTier: (invertRank(ratings.bt_3p_pct_d_rank) ?? 999) <= 100 ? 100 : null },
+		{ key: 'turnover_margin_good', teamRank: ratings.bt_tord_rank ?? null, teamValue: ratings.bt_tord ?? null,
+			widestTeamTier: (ratings.bt_tord_rank ?? 999) <= 100 ? 100 : null },
+		{ key: 'turnover_margin_bad', teamRank: invertRank(ratings.bt_tord_rank), teamValue: ratings.bt_tord ?? null,
+			widestTeamTier: (invertRank(ratings.bt_tord_rank) ?? 999) <= 100 ? 100 : null },
+		{ key: 'efg_high', teamRank: ratings.bt_efg_pct_rank ?? null, teamValue: ratings.bt_efg_pct ?? null,
+			widestTeamTier: (ratings.bt_efg_pct_rank ?? 999) <= 100 ? 100 : null },
+		{ key: 'efg_low', teamRank: invertRank(ratings.bt_efg_pct_rank), teamValue: ratings.bt_efg_pct ?? null,
+			widestTeamTier: (invertRank(ratings.bt_efg_pct_rank) ?? 999) <= 100 ? 100 : null },
+	];
+}
+
+/** Compute avg_wins_above_seed for a set of qualifying teams */
+function computeWinsAboveSeed(teams: TourneyTeamSeason[], seedBaselineWins: Map<number, number>) {
+	if (teams.length === 0) return { avgWinsAboveSeed: 0, seedBaseline: 0, finalFourRate: 0, deepRunRate: 0, round32Rate: 0 };
+	const avgWinsAboveSeed = teams.reduce((s, t) => s + (t.wins - (seedBaselineWins.get(t.seed) ?? 0)), 0) / teams.length;
+	const seedBaseline = teams.reduce((s, t) => s + (seedBaselineWins.get(t.seed) ?? 0), 0) / teams.length;
+	const finalFourRate = Math.round((teams.filter(t => t.wins >= 4).length / teams.length) * 100);
+	const deepRunRate = Math.round((teams.filter(t => t.wins >= 2).length / teams.length) * 100);
+	const round32Rate = Math.round((teams.filter(t => t.wins >= 1).length / teams.length) * 100);
+	return { avgWinsAboveSeed, seedBaseline, finalFourRate, deepRunRate, round32Rate };
+}
+
+/** Evaluate a single factor for a given seed range, finding the tightest qualifying tier */
+function evaluateFactor(
+	qualifier: FactorQualifier, meta: TeamFactorMeta,
+	seedRange: TourneyTeamSeason[], seedBaselineWins: Map<number, number>
+): StyleFactor {
+	let bestTier = meta.widestTeamTier;
+	let qualifying = bestTier != null ? seedRange.filter(t => qualifier.qualifiesAt(t, bestTier!)) : [];
+
+	if (bestTier != null && qualifying.length >= MIN_SAMPLE) {
+		for (const tier of TIERS) {
+			if (tier >= bestTier) break;
+			if ((meta.teamRank ?? 999) > tier) continue;
+			const candidates = seedRange.filter(t => qualifier.qualifiesAt(t, tier));
+			if (candidates.length >= MIN_SAMPLE) {
+				bestTier = tier;
+				qualifying = candidates;
+				break;
+			}
+		}
+	}
+
+	const teamQualifies = bestTier != null && qualifying.length >= MIN_SAMPLE;
+	const { avgWinsAboveSeed, seedBaseline, finalFourRate, deepRunRate, round32Rate } = computeWinsAboveSeed(qualifying, seedBaselineWins);
+	const roundedAboveSeed = Math.round(avgWinsAboveSeed * 100) / 100;
+	const verdict = roundedAboveSeed >= 0.15 ? 'positive' as const : roundedAboveSeed <= -0.15 ? 'negative' as const : 'neutral' as const;
+	const prefix = qualifier.bottom ? 'Bottom' : 'Top';
+	const description = bestTier != null ? `${prefix}-${bestTier} ${qualifier.statLabel}` : qualifier.statLabel;
+
+	return {
+		key: qualifier.key, label: qualifier.label, description,
+		applies: teamQualifies, team_value: meta.teamValue, team_rank: meta.teamRank,
+		sample_size: qualifying.length, avg_wins_above_seed: roundedAboveSeed,
+		seed_baseline_wins: Math.round(seedBaseline * 100) / 100,
+		final_four_rate: finalFourRate, deep_run_rate: deepRunRate, round_32_rate: round32Rate, percentile: 0, verdict,
+	};
+}
+
+/** Compute the factor weight for sorting/scoring (same formula used for top-3 selection) */
+function factorWeight(f: StyleFactor): number {
+	const tierMatch = f.description.match(/(Top|Bottom)-(\d+)/);
+	const tier = tierMatch ? parseInt(tierMatch[2]) : 100;
+	const tierScore = 1 - (TIERS.indexOf(tier) / (TIERS.length - 1));
+	const mag = Math.abs(f.avg_wins_above_seed);
+	return tierScore * 0.6 + Math.min(mag / 0.5, 1) * 0.4;
+}
+
+/** Convert a raw wins_above_seed value to 0-100 percentile using dynamic global bounds */
+export function winsAboveSeedToPercentile(value: number, globalMin: number, globalMax: number): number {
+	if (value >= 0) {
+		return globalMax > 0 ? Math.min(100, 50 + (value / globalMax) * 50) : 50;
+	}
+	return globalMin < 0 ? Math.max(0, 50 + (value / Math.abs(globalMin)) * 50) : 50;
+}
+
+// Global scale bounds cache (computed alongside dataset)
+let _globalBoundsCache: { globalMin: number; globalMax: number } | null = null;
+let _globalBoundsCacheTime = 0;
+
+/** Compute global min/max avg_wins_above_seed across all factor×seed×tier combos */
+async function getGlobalScaleBounds(): Promise<{ globalMin: number; globalMax: number }> {
+	if (_globalBoundsCache && Date.now() - _globalBoundsCacheTime < CACHE_TTL) return _globalBoundsCache;
+
+	const { dataset, allSeedOutcomes } = await getTournamentDataset();
+	const maps = buildSeasonRankMaps(dataset);
+	const qualifiers = buildFactorQualifiers(maps);
+
+	const seedBaselineWins = new Map<number, number>();
+	for (let s = 1; s <= 16; s++) {
+		const teams = allSeedOutcomes.filter(t => t.seed === s);
+		seedBaselineWins.set(s, teams.length > 0 ? teams.reduce((sum, t) => sum + t.wins, 0) / teams.length : 0);
+	}
+
+	let globalMin = 0, globalMax = 0;
+	for (const q of qualifiers) {
+		for (let seed = 1; seed <= 16; seed++) {
+			const seedRange = dataset.filter(t => Math.abs(t.seed - seed) <= 1);
+			for (const tier of TIERS) {
+				const qualifying = seedRange.filter(t => q.qualifiesAt(t, tier));
+				if (qualifying.length < MIN_SAMPLE) continue;
+				const avg = qualifying.reduce((s, t) => s + (t.wins - (seedBaselineWins.get(t.seed) ?? 0)), 0) / qualifying.length;
+				if (avg > globalMax) globalMax = avg;
+				if (avg < globalMin) globalMin = avg;
+			}
+		}
+	}
+
+	_globalBoundsCache = { globalMin, globalMax };
+	_globalBoundsCacheTime = Date.now();
+	return _globalBoundsCache;
+}
+
+// ─── March Analysis: Computation ─────────────────────────────────────────
+
+async function getMarchAnalysis(teamKey: string, fullRatings: Record<string, FullRatings>): Promise<MarchAnalysis | null> {
+	const latestSeason = Object.keys(fullRatings).sort().at(-1);
+	if (!latestSeason) return null;
+
+	const ratings = fullRatings[latestSeason] as any;
+	const compRating = ratings.comp_avg_zscore;
+	const compOffRating = ratings.comp_avg_offensive_zscore;
+	const compDefRating = ratings.comp_avg_defensive_zscore;
+	const kpTempo = ratings.kp_adjusted_tempo;
+	const kpSos = ratings.kp_sos_offensive_rating - ratings.kp_sos_defensive_rating;
+
+	if (compRating == null || isNaN(compRating) || compOffRating == null) return null;
+
+	let dataset: TourneyTeamSeason[];
+	let allSeedOutcomes: SeedOutcomeEntry[];
+	try {
+		const result = await getTournamentDataset();
+		dataset = result.dataset;
+		allSeedOutcomes = result.allSeedOutcomes;
+	} catch (e: any) {
+		console.error('getMarchAnalysis: getTournamentDataset error:', e?.message, e?.stack);
+		return null;
+	}
+	if (dataset.length === 0) return null;
+
+	// Projected seed: use Bracket Matrix consensus if available, fallback to rank-based estimate
+	const bmSeeds = await getBracketMatrixSeeds();
+	const bmEntry = bmSeeds.find(b => b.team_key === teamKey);
+	const projectedSeed = bmEntry
+		? Math.round(bmEntry.avg_seed)
+		: rankToSeed(ratings.kp_rank ?? 100);
+
+	// ─── Seed Line Analysis ──────────────────────────────────────────────
+	const seedTeams = dataset.filter(t => t.seed === projectedSeed);
+	const seedRatings = seedTeams.map(t => t.comp_rating).sort((a, b) => a - b);
+	const seedAvg = seedRatings.length > 0 ? seedRatings.reduce((s, v) => s + v, 0) / seedRatings.length : 0;
+	const seedMedian = seedRatings.length > 0 ? seedRatings[Math.floor(seedRatings.length / 2)] : 0;
+	const ratingPercentile = seedRatings.length > 0
+		? Math.round((seedRatings.filter(r => r <= compRating).length / seedRatings.length) * 100)
+		: 50;
+
+	// Implied seed: what seed does their rating most closely match?
+	const seedAvgs = new Map<number, number>();
+	for (let s = 1; s <= 16; s++) {
+		const teams = dataset.filter(t => t.seed === s);
+		if (teams.length > 0) seedAvgs.set(s, teams.reduce((sum, t) => sum + t.comp_rating, 0) / teams.length);
+	}
+	let impliedSeed = projectedSeed;
+	let minDist = Infinity;
+	for (const [s, avg] of seedAvgs) {
+		const dist = Math.abs(compRating - avg);
+		if (dist < minDist) { minDist = dist; impliedSeed = s; }
+	}
+
+	// Seed outcomes: % reaching each round (full 2002+ data)
+	const allSeedTeams = allSeedOutcomes.filter(t => t.seed === projectedSeed);
+	const seedOutcomes = ROUND_LABELS.map((round, i) => ({
+		round,
+		reach_pct: allSeedTeams.length > 0
+			? Math.round((allSeedTeams.filter(t => t.wins >= i + 1).length / allSeedTeams.length) * 100)
+			: 0
+	}));
+
+	// Notable comps at this seed with similar or better ratings
+	const notableComps = seedTeams
+		.filter(t => t.comp_rating >= seedAvg)
+		.sort((a, b) => Math.abs(a.comp_rating - compRating) - Math.abs(b.comp_rating - compRating))
+		.slice(0, 6)
+		.map(t => ({
+			season: t.season, team_key: t.team_key, team_name: t.team_name, kp_rating: t.comp_rating,
+			seed: t.seed, wins: t.wins, deepest_round: t.deepest_round
+		}));
+
+	const seedLine: SeedLineValue = {
+		projected_seed: projectedSeed, avg_seed: bmEntry?.avg_seed ?? null,
+		team_kp_rating: Math.round(compRating * 100) / 100,
+		seed_avg_rating: Math.round(seedAvg * 100) / 100, seed_median_rating: Math.round(seedMedian * 100) / 100,
+		rating_percentile: ratingPercentile, implied_seed: impliedSeed,
+		seed_outcomes: seedOutcomes, notable_comps: notableComps,
+	};
+
+	// ─── Similar Teams ───────────────────────────────────────────────────
+	// Z-score normalization across all tournament teams
+	const simStats = ['comp_rating', 'comp_off_rating', 'comp_def_rating', 'kp_tempo', 'kp_sos', 'bt_3pr'] as const;
+	const weights = [3, 2, 2, 1, 1, 1];
+	const means: number[] = [];
+	const stds: number[] = [];
+
+	for (const stat of simStats) {
+		const values = dataset.map(t => t[stat]).filter(v => v != null) as number[];
+		const mean = values.reduce((s, v) => s + v, 0) / values.length;
+		const std = Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length) || 1;
+		means.push(mean);
+		stds.push(std);
+	}
+
+	const teamStatValues = [compRating, compOffRating, compDefRating, kpTempo, kpSos, ratings.bt_3pr ?? null];
+
+	const similarities = dataset.map(t => {
+		const tStats = [t.comp_rating, t.comp_off_rating, t.comp_def_rating, t.kp_tempo, t.kp_sos, t.bt_3pr];
+		let sumSqDiff = 0, totalWeight = 0;
+		for (let i = 0; i < simStats.length; i++) {
+			if (teamStatValues[i] == null || tStats[i] == null) continue;
+			const diff = (teamStatValues[i]! - tStats[i]!) / stds[i];
+			sumSqDiff += weights[i] * diff * diff;
+			totalWeight += weights[i];
+		}
+		const distance = Math.sqrt(sumSqDiff / totalWeight);
+		return { team: t, similarity: Math.exp(-distance) };
+	});
+
+	const similarTeams: HistoricalComp[] = similarities
+		.sort((a, b) => b.similarity - a.similarity)
+		.slice(0, 12)
+		.map(({ team: t, similarity }) => ({
+			season: t.season, team_key: t.team_key, team_name: t.team_name,
+			seed: t.seed, similarity: Math.round(similarity * 100),
+			kp_net_rating: Math.round(t.comp_rating * 100) / 100,
+			kp_tempo: Math.round(t.kp_tempo * 10) / 10,
+			wins: t.wins, deepest_round: t.deepest_round,
+		}));
+
+	// ─── Style Factors ───────────────────────────────────────────────────
+	const maps = buildSeasonRankMaps(dataset);
+	const qualifiers = buildFactorQualifiers(maps);
+	const teamMeta = getTeamFactorMeta(ratings);
+
+	// Precompute seed-line baseline avg wins (uses full 2002+ data)
+	const seedBaselineWins = new Map<number, number>();
+	for (let s = 1; s <= 16; s++) {
+		const teams = allSeedOutcomes.filter(t => t.seed === s);
+		seedBaselineWins.set(s, teams.length > 0 ? teams.reduce((sum, t) => sum + t.wins, 0) / teams.length : 0);
+	}
+
+	// Filter to ±1 seed of projected seed for style factor analysis
+	const seedRange = dataset.filter(t => Math.abs(t.seed - projectedSeed) <= 1);
+
+	// Evaluate all factors
+	const allEvaluated = qualifiers.map((q, i) => evaluateFactor(q, teamMeta[i], seedRange, seedBaselineWins));
+
+	// Pick top 3 factors by score (tier tightness + magnitude)
+	const applicable = allEvaluated.filter(f => f.applies);
+	applicable.sort((a, b) => factorWeight(b) - factorWeight(a));
+	const styleFactors = applicable.slice(0, 3);
+
+	// ─── March Score ────────────────────────────────────────────────────
+	const { globalMin, globalMax } = await getGlobalScaleBounds();
+
+	// Fill in per-factor percentiles now that we have global bounds
+	for (const f of allEvaluated) {
+		f.percentile = Math.round(winsAboveSeedToPercentile(f.avg_wins_above_seed, globalMin, globalMax));
+	}
+
+	// ─── Style Score (0-100) ─────────────────────────────────────────────
+	let styleScore = 50;
+	if (applicable.length > 0) {
+		let weightedSum = 0, totalWeight = 0;
+		for (const f of applicable) {
+			const w = factorWeight(f);
+			weightedSum += w * f.avg_wins_above_seed;
+			totalWeight += w;
+		}
+		const styleRaw = totalWeight > 0 ? weightedSum / totalWeight : 0;
+		styleScore = Math.round(winsAboveSeedToPercentile(styleRaw, globalMin, globalMax));
+	}
+
+	// ─── Comps Score (0-100) ─────────────────────────────────────────────
+	const seedBaseline = seedBaselineWins.get(projectedSeed) ?? 0;
+	let compsScore = 50;
+	if (similarTeams.length > 0) {
+		const compsAvgWins = similarTeams.reduce((s, t) => s + t.wins, 0) / similarTeams.length;
+		const compsWinsAboveSeed = compsAvgWins - seedBaseline;
+		compsScore = Math.round(winsAboveSeedToPercentile(compsWinsAboveSeed, globalMin, globalMax));
+	}
+
+	// ─── Rating Score (0-100) ────────────────────────────────────────────
+	const ratingScore = Math.round(ratingPercentile);
+
+	// ─── Combined March Score ────────────────────────────────────────────
+	// 40% style factors, 30% historical comps, 30% rating vs seed
+	const marchScore = Math.round(styleScore * 0.4 + compsScore * 0.3 + ratingScore * 0.3);
+
+	// ─── Expected Wins ───────────────────────────────────────────────────
+	const applicableDeltas = styleFactors.map(f => f.avg_wins_above_seed);
+	const styleAdjustment = applicableDeltas.length > 0
+		? applicableDeltas.reduce((s, d) => s + d, 0) * 0.5
+		: 0;
+	const ratingBoost = (ratingPercentile - 50) / 100 * 0.5;
+	const expectedWins = Math.round(Math.max(0, Math.min(6, seedBaseline + styleAdjustment + ratingBoost)) * 100) / 100;
+
+	return {
+		seed_line: seedLine, similar_teams: similarTeams, style_factors: styleFactors,
+		march_score: marchScore, style_score: styleScore, comps_score: compsScore, rating_score: ratingScore,
+		num_qualifying_factors: applicable.length,
+		expected_wins: expectedWins,
+	};
+}
+
+// ─── March Page Data ─────────────────────────────────────────────────────
+
+export interface FactorMatrixCell {
+	factor_key: string;
+	factor_label: string;
+	seed: number;
+	tier: number;
+	sample_size: number;
+	avg_wins_above_seed: number;
+	percentile: number;
+	deep_run_rate: number;
+	round_32_rate: number;
+	final_four_rate: number;
+	current_team_keys: string[];
+}
+
+export interface BracketTeamSummary {
+	team_key: string;
+	team_name: string;
+	projected_seed: number;
+	avg_seed: number | null;
+	march_score: number;
+	march_analysis: MarchAnalysis;
+	color: string;
+	secondary_color: string;
+	logo_url: string;
+}
+
+export interface MarchPageData {
+	factor_matrix: FactorMatrixCell[];
+	global_min: number;
+	global_max: number;
+	bracket_teams: BracketTeamSummary[];
+	seed_baselines: Record<number, number>;
+}
+
+/** Fetch minimal ratings for multiple teams (just the fields getMarchAnalysis needs) */
+async function getBulkLatestRatings(teamKeys: string[]): Promise<Record<string, Record<string, FullRatings>>> {
+	if (teamKeys.length === 0) return {};
+
+	const rows = await db.query<any>(
+		`SELECT
+			k.team_key,
+			k.season,
+			k.rank AS kp_rank,
+			k.adjusted_tempo AS kp_adjusted_tempo,
+			k.adjusted_tempo_rank AS kp_adjusted_tempo_rank,
+			k.sos_offensive_rating AS kp_sos_offensive_rating,
+			k.sos_defensive_rating AS kp_sos_defensive_rating,
+			c.avg_zscore AS comp_avg_zscore,
+			c.avg_zscore_rank AS comp_avg_zscore_rank,
+			c.avg_offensive_zscore AS comp_avg_offensive_zscore,
+			c.avg_offensive_zscore_rank AS comp_avg_offensive_zscore_rank,
+			c.avg_defensive_zscore AS comp_avg_defensive_zscore,
+			c.avg_defensive_zscore_rank AS comp_avg_defensive_zscore_rank,
+			b."3pr" AS bt_3pr, b."3pr_rank" AS bt_3pr_rank,
+			b.ftr AS bt_ftr, b.ftr_rank AS bt_ftr_rank,
+			b.tor AS bt_tor, b.tor_rank AS bt_tor_rank,
+			b.orb AS bt_orb, b.orb_rank AS bt_orb_rank
+		FROM (
+			SELECT DISTINCT ON (team_key) *
+			FROM kenpom_rankings
+			WHERE team_key = ANY($1)
+			ORDER BY team_key, season DESC, date DESC
+		) k
+		LEFT JOIN LATERAL (
+			SELECT avg_zscore, avg_zscore_rank,
+				avg_offensive_zscore, avg_offensive_zscore_rank,
+				avg_defensive_zscore, avg_defensive_zscore_rank
+			FROM composite_rankings
+			WHERE team_key = k.team_key AND sources = 'kp,em,bt'
+			ORDER BY date DESC
+			LIMIT 1
+		) c ON true
+		LEFT JOIN (
+			SELECT DISTINCT ON (team_key) *
+			FROM barttorvik_rankings
+			WHERE team_key = ANY($1)
+			ORDER BY team_key, season DESC, date DESC
+		) b ON b.team_key = k.team_key`,
+		[teamKeys]
+	);
+
+	const result: Record<string, Record<string, FullRatings>> = {};
+	for (const r of rows) {
+		if (!result[r.team_key]) result[r.team_key] = {};
+		result[r.team_key][r.season] = r as any;
+	}
+	return result;
+}
+
+export async function getMarchPageData(): Promise<MarchPageData> {
+	const [{ dataset, allSeedOutcomes }, bmSeeds, { globalMin, globalMax }, allTeamData] = await Promise.all([
+		getTournamentDataset(),
+		getBracketMatrixSeeds(),
+		getGlobalScaleBounds(),
+		(await import('../espn/espn-team-data')).getAllTeamData(),
+	]);
+
+	// Seed baselines
+	const seedBaselineWins = new Map<number, number>();
+	for (let s = 1; s <= 16; s++) {
+		const teams = allSeedOutcomes.filter(t => t.seed === s);
+		seedBaselineWins.set(s, teams.length > 0 ? teams.reduce((sum, t) => sum + t.wins, 0) / teams.length : 0);
+	}
+	const seedBaselines: Record<number, number> = {};
+	for (const [s, v] of seedBaselineWins) seedBaselines[s] = Math.round(v * 100) / 100;
+
+	// Factor matrix
+	const maps = buildSeasonRankMaps(dataset);
+	const qualifiers = buildFactorQualifiers(maps);
+	const factorMatrix: FactorMatrixCell[] = [];
+
+	// Get bracket team keys and their projected seeds for matrix matching
+	const bracketTeamKeys = bmSeeds.map(b => b.team_key);
+	const bulkRatings = await getBulkLatestRatings(bracketTeamKeys);
+
+	// Build per-bracket-team factor meta for matching to matrix cells
+	const bracketTeamMetas = new Map<string, { seed: number; meta: TeamFactorMeta[] }>();
+	for (const bm of bmSeeds) {
+		const teamRatings = bulkRatings[bm.team_key];
+		if (!teamRatings) continue;
+		const latestSeason = Object.keys(teamRatings).sort().at(-1);
+		if (!latestSeason) continue;
+		const r = teamRatings[latestSeason] as any;
+		bracketTeamMetas.set(bm.team_key, { seed: Math.round(bm.avg_seed), meta: getTeamFactorMeta(r) });
+	}
+
+	for (const q of qualifiers) {
+		for (let seed = 1; seed <= 16; seed++) {
+			const seedRange = dataset.filter(t => Math.abs(t.seed - seed) <= 1);
+			for (const tier of TIERS) {
+				const qualifying = seedRange.filter(t => q.qualifiesAt(t, tier));
+				if (qualifying.length < MIN_SAMPLE) continue;
+
+				const { avgWinsAboveSeed, finalFourRate, deepRunRate, round32Rate } = computeWinsAboveSeed(qualifying, seedBaselineWins);
+				const percentile = Math.round(winsAboveSeedToPercentile(avgWinsAboveSeed, globalMin, globalMax));
+
+				// Find current bracket teams that qualify for this cell
+				const currentTeamKeys: string[] = [];
+				for (const [tk, { seed: projSeed, meta }] of bracketTeamMetas) {
+					if (Math.abs(projSeed - seed) > 1) continue;
+					const m = meta.find(m => m.key === q.key);
+					if (!m || m.widestTeamTier == null) continue;
+					if ((m.teamRank ?? 999) <= tier) currentTeamKeys.push(tk);
+				}
+
+				factorMatrix.push({
+					factor_key: q.key, factor_label: q.label,
+					seed, tier, sample_size: qualifying.length,
+					avg_wins_above_seed: Math.round(avgWinsAboveSeed * 100) / 100,
+					percentile, deep_run_rate: deepRunRate, round_32_rate: round32Rate, final_four_rate: finalFourRate,
+					current_team_keys: currentTeamKeys,
+				});
+			}
+		}
+	}
+
+	// Bracket teams with march analysis
+	const bracketTeams: BracketTeamSummary[] = [];
+	await Promise.all(bmSeeds.map(async bm => {
+		const teamRatings = bulkRatings[bm.team_key];
+		if (!teamRatings) return;
+		const analysis = await getMarchAnalysis(bm.team_key, teamRatings as any);
+		if (!analysis) return;
+		const td = allTeamData[bm.team_key];
+		bracketTeams.push({
+			team_key: bm.team_key,
+			team_name: td?.name ?? bm.team_key,
+			projected_seed: 0, // assigned below
+			avg_seed: bm.avg_seed,
+			march_score: analysis.march_score,
+			march_analysis: analysis,
+			color: td?.color ?? '333333',
+			secondary_color: td?.secondary_color ?? '666666',
+			logo_url: td?.espn_id ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${td.espn_id}.png` : '',
+		});
+	}));
+
+	// Assign projected seeds: sort by avg_seed, 4 per seed line (1-16)
+	bracketTeams.sort((a, b) => a.avg_seed! - b.avg_seed!);
+	for (let i = 0; i < bracketTeams.length; i++) {
+		bracketTeams[i].projected_seed = Math.min(16, Math.floor(i / 4) + 1);
+	}
+
+	return { factor_matrix: factorMatrix, global_min: globalMin, global_max: globalMax, bracket_teams: bracketTeams, seed_baselines: seedBaselines };
 }
 
 export async function getTeamProfile(teamKey: string, options?: { enrichedSchedule?: boolean }): Promise<TeamProfile> {
@@ -472,6 +1484,7 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 		);
 	}
 
-	console.log(`getTeamProfile(${teamKey}) took ${Math.round(performance.now() - start)}ms`);
-	return { team_key: teamKey, team_name: teamName, full_ratings: fullRankings, season_snapshots: seasonSnapshots, ratings_history, schedule };
+	const marchAnalysis = await getMarchAnalysis(teamKey, fullRankings);
+
+	return { team_key: teamKey, team_name: teamName, full_ratings: fullRankings, season_snapshots: seasonSnapshots, ratings_history, schedule, march_analysis: marchAnalysis };
 }
