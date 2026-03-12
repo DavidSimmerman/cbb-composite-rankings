@@ -12,11 +12,13 @@ Composite college basketball rankings combining data from KenPom, EvanMiya, Bart
 - **Team Profiles** - Detailed team pages with rating trends, stats, schedule, and season history
 - **Scoreboard & Game Details** - Daily scores with side-by-side matchup comparisons
 - **ML Predictions** - XGBoost win probability and score margin predictions with SHAP explanations
+- **March Madness Analysis** - Style factor analysis, historical comps, seed-line ratings, and combined March Score for tournament teams
+- **Bracket Prediction Tool** - Interactive bracket builder with intelligent auto-fill calibrated against 23 years of tournament data
 - **Historical Data** - Rankings and stats going back to the 2002-03 season
 
 ## Tech Stack
 
-- **Frontend**: Next.js, React, TypeScript, Tailwind CSS
+- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS 4
 - **Database**: PostgreSQL
 - **Scraping**: Playwright (BartTorvik, EvanMiya, NET), KenPom API
 - **ML**: Python XGBoost models served via FastAPI
@@ -31,3 +33,5 @@ Composite college basketball rankings combining data from KenPom, EvanMiya, Bart
 | EvanMiya | BPR, offensive/defensive ratings | ~2010 |
 | NET | NCAA evaluation tool rankings | ~2019 |
 | ESPN | 250+ team stats, game results, box scores | Varies |
+| Bracket Matrix | Consensus projected tournament seedings | Current season |
+| Tournament Games | NCAA bracket results (seeds, rounds, scores) | 2002-2025 |
