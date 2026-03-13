@@ -1,12 +1,11 @@
 'use client';
 
-import { MarchScoreBadge } from '@/components/march/MarchScoreBadge';
 import TeamLogo from '@/components/TeamLogo';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { BracketGame, BracketTeam } from '@/lib/bracket/predictions';
 import { ROUND_NAMES } from '@/lib/bracket/predictions';
 import type { SeedRoundStats } from '@/lib/rankings/profile';
-import { Info } from 'lucide-react';
+import { Eye } from 'lucide-react';
+import Link from 'next/link';
 
 export interface SeedPickCounts {
 	/** Map of `${seed}-${round}` → number of that seed you've picked to win this round */
@@ -22,7 +21,7 @@ interface MatchupCardProps {
 }
 
 export default function MatchupCard({ game, seedPickCounts, seedRoundStats, onPickWinner, compact }: MatchupCardProps) {
-	const { teamA, teamB, winner, prediction } = game;
+	const { teamA, teamB, winner } = game;
 
 	if (!teamA && !teamB) {
 		return (
@@ -32,23 +31,19 @@ export default function MatchupCard({ game, seedPickCounts, seedRoundStats, onPi
 		);
 	}
 
-	return (
-		<div className={`border border-neutral-800 rounded-lg ${compact ? 'p-1' : 'p-1.5'} relative group`}>
-			{/* Seed facts info icon */}
-			{teamA && teamB && seedPickCounts && seedRoundStats && (
-				<SeedFactsTooltip
-					game={game}
-					seedPickCounts={seedPickCounts}
-					seedRoundStats={seedRoundStats}
-					compact={compact}
-				/>
-			)}
+	const hasBothTeams = !!teamA && !!teamB;
 
+	// Compute seed facts inline
+	const seedFacts = hasBothTeams && seedPickCounts && seedRoundStats
+		? getSeedFacts(game, seedPickCounts, seedRoundStats)
+		: null;
+
+	return (
+		<div className={`border border-neutral-800 rounded-lg ${compact ? 'p-1' : 'p-1.5'}`}>
 			<TeamRow
 				team={teamA}
 				isWinner={winner === teamA?.team_key}
 				isLoser={!!winner && winner !== teamA?.team_key}
-				prob={prediction?.probA}
 				onClick={() => teamA && onPickWinner(game.id, teamA.team_key)}
 				compact={compact}
 				round={game.round}
@@ -60,13 +55,38 @@ export default function MatchupCard({ game, seedPickCounts, seedRoundStats, onPi
 				team={teamB}
 				isWinner={winner === teamB?.team_key}
 				isLoser={!!winner && winner !== teamB?.team_key}
-				prob={prediction?.probB}
 				onClick={() => teamB && onPickWinner(game.id, teamB.team_key)}
 				compact={compact}
 				round={game.round}
 			/>
 
-			</div>
+			{/* Bottom bar: seed facts + preview button */}
+			{hasBothTeams && (
+				<div className={`flex items-center border-t border-neutral-800 ${compact ? 'mt-0.5 pt-0.5 px-1 gap-1' : 'mt-1 pt-1 px-1.5 gap-2'}`}>
+					{/* Seed facts */}
+					{seedFacts && seedFacts.length > 0 && (
+						<div className="flex-1 flex items-center gap-1.5 min-w-0 overflow-hidden">
+							{seedFacts.map(({ seed, winPct, picked }) => (
+								<span key={seed} className={`${compact ? 'text-[8px]' : 'text-[10px]'} text-neutral-500 tabular-nums whitespace-nowrap`}>
+									{seed}s: {winPct}%{!compact && ` (${picked}/4)`}
+								</span>
+							))}
+						</div>
+					)}
+					{!seedFacts?.length && <div className="flex-1" />}
+
+					{/* Preview link */}
+					<Link
+						href={`/bracket/${game.id}`}
+						className={`flex items-center gap-0.5 shrink-0 text-neutral-500 hover:text-neutral-300 transition-colors ${compact ? 'text-[8px]' : 'text-[10px]'}`}
+						onClick={(e: React.MouseEvent) => e.stopPropagation()}
+					>
+						<Eye className={compact ? 'size-2.5' : 'size-3'} />
+						{!compact && <span>Preview</span>}
+					</Link>
+				</div>
+			)}
+		</div>
 	);
 }
 
@@ -74,7 +94,6 @@ function TeamRow({
 	team,
 	isWinner,
 	isLoser,
-	prob,
 	onClick,
 	compact,
 	round,
@@ -82,7 +101,6 @@ function TeamRow({
 	team: BracketTeam | null;
 	isWinner: boolean;
 	isLoser: boolean;
-	prob?: number;
 	onClick: () => void;
 	compact?: boolean;
 	round: number;
@@ -120,40 +138,23 @@ function TeamRow({
 			<span className={`${compact ? 'text-[11px]' : 'text-sm'} truncate flex-1 text-left font-medium`}>
 				{displayName}
 			</span>
-			{!compact && <MarchScoreBadge score={team.march_score} size="sm" />}
-			{prob !== undefined && (
-				<span className={`${compact ? 'text-[9px]' : 'text-xs'} text-muted-foreground tabular-nums shrink-0`}>
-					{(prob * 100).toFixed(0)}%
-				</span>
-			)}
 		</button>
 	);
 }
 
-function SeedFactsTooltip({
-	game,
-	seedPickCounts,
-	seedRoundStats,
-	compact,
-}: {
-	game: BracketGame;
-	seedPickCounts: SeedPickCounts;
-	seedRoundStats: SeedRoundStats;
-	compact?: boolean;
-}) {
+function getSeedFacts(
+	game: BracketGame,
+	seedPickCounts: SeedPickCounts,
+	seedRoundStats: SeedRoundStats,
+): { seed: number; winPct: number; picked: number }[] {
 	const { teamA, teamB } = game;
-	if (!teamA || !teamB) return null;
+	if (!teamA || !teamB) return [];
 
 	const roundName = ROUND_NAMES[game.round];
-	const ROUND_SHORT: Record<number, string> = { 1: 'R64', 2: 'R32', 3: 'S16', 4: 'E8', 5: 'FF', 6: 'Champ' };
-	const shortRound = ROUND_SHORT[game.round] ?? roundName;
-
-	// Show each seed's own historical win rate for this round (independent lookup)
 	const seeds = [teamA.seed, teamB.seed];
 	const uniqueSeeds = [...new Set(seeds)].sort((a, b) => a - b);
 
 	const items: { seed: number; winPct: number; picked: number }[] = [];
-
 	for (const seed of uniqueSeeds) {
 		const stat = seedRoundStats[seed]?.[roundName];
 		if (!stat) continue;
@@ -163,34 +164,5 @@ function SeedFactsTooltip({
 			picked: seedPickCounts[`${seed}-${game.round}`] ?? 0,
 		});
 	}
-
-	if (items.length === 0) return null;
-
-	return (
-		<Tooltip>
-			<TooltipTrigger asChild>
-				<div className="absolute -top-1.5 -left-1.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-					<Info className={`${compact ? 'size-3' : 'size-3.5'} text-muted-foreground`} />
-				</div>
-			</TooltipTrigger>
-			<TooltipContent side="top" className="p-0 max-w-72">
-				<div className="divide-y divide-neutral-700">
-					{items.map(({ seed, winPct, picked }) => (
-						<div key={seed} className="px-3 py-2 space-y-0.5">
-							<div className="flex items-center justify-between gap-4">
-								<span className="font-medium">{seed}-seeds in {shortRound}</span>
-								<span className="font-bold tabular-nums">{winPct}%</span>
-							</div>
-							<div className="text-[11px] text-background/60">
-								{game.round === 1
-									? `Win rate per game (all tournaments since '02). You have ${picked} of 4 advancing.`
-									: `Of all ${seed}-seeds, ${winPct}% win the ${roundName}. You have ${picked} of 4 advancing.`
-								}
-							</div>
-						</div>
-					))}
-				</div>
-			</TooltipContent>
-		</Tooltip>
-	);
+	return items;
 }

@@ -13,6 +13,14 @@ export interface BracketTeam {
 	style_score: number;
 	/** 0-100: how the team's rating compares to historical same-seeds */
 	rating_score: number;
+	/** Composite z-score rating */
+	comp_rating: number;
+	/** Composite overall rank */
+	comp_rank: number;
+	/** Composite offensive rank */
+	comp_off_rank: number;
+	/** Composite defensive rank */
+	comp_def_rank: number;
 	color: string;
 	secondary_color: string;
 	logo_url: string;
@@ -1283,6 +1291,10 @@ function toBracketTeam(t: BracketTeamSummary): BracketTeam {
 		comps_score: t.march_analysis.comps_score,
 		style_score: t.march_analysis.style_score,
 		rating_score: t.march_analysis.rating_score,
+		comp_rating: t.comp_rating,
+		comp_rank: t.comp_rank,
+		comp_off_rank: t.comp_off_rank,
+		comp_def_rank: t.comp_def_rank,
 		color: t.color,
 		secondary_color: t.secondary_color,
 		logo_url: t.logo_url,
