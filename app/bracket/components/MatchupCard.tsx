@@ -4,10 +4,9 @@ import { MarchScoreBadge } from '@/components/march/MarchScoreBadge';
 import TeamLogo from '@/components/TeamLogo';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { BracketGame, BracketTeam } from '@/lib/bracket/predictions';
-import type { Warning } from '@/lib/bracket/warnings';
 import { ROUND_NAMES } from '@/lib/bracket/predictions';
 import type { SeedRoundStats } from '@/lib/rankings/profile';
-import { AlertTriangle, Sparkles, OctagonAlert, Info } from 'lucide-react';
+import { Info } from 'lucide-react';
 
 export interface SeedPickCounts {
 	/** Map of `${seed}-${round}` → number of that seed you've picked to win this round */
@@ -16,15 +15,13 @@ export interface SeedPickCounts {
 
 interface MatchupCardProps {
 	game: BracketGame;
-	warning?: Warning | null;
 	seedPickCounts?: SeedPickCounts;
 	seedRoundStats?: SeedRoundStats;
 	onPickWinner: (gameId: string, teamKey: string) => void;
-	onAutoFill: (gameId: string) => void;
 	compact?: boolean;
 }
 
-export default function MatchupCard({ game, warning, seedPickCounts, seedRoundStats, onPickWinner, onAutoFill, compact }: MatchupCardProps) {
+export default function MatchupCard({ game, seedPickCounts, seedRoundStats, onPickWinner, compact }: MatchupCardProps) {
 	const { teamA, teamB, winner, prediction } = game;
 
 	if (!teamA && !teamB) {
@@ -37,21 +34,6 @@ export default function MatchupCard({ game, warning, seedPickCounts, seedRoundSt
 
 	return (
 		<div className={`border border-neutral-800 rounded-lg ${compact ? 'p-1' : 'p-1.5'} relative group`}>
-			{warning && (
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<div className="absolute -top-1.5 -right-1.5 z-10">
-							{warning.level === 'red' ? (
-								<OctagonAlert className="size-4 text-red-500" />
-							) : (
-								<AlertTriangle className="size-4 text-yellow-500" />
-							)}
-						</div>
-					</TooltipTrigger>
-					<TooltipContent side="top">{warning.detail}</TooltipContent>
-				</Tooltip>
-			)}
-
 			{/* Seed facts info icon */}
 			{teamA && teamB && seedPickCounts && seedRoundStats && (
 				<SeedFactsTooltip
@@ -84,21 +66,7 @@ export default function MatchupCard({ game, warning, seedPickCounts, seedRoundSt
 				round={game.round}
 			/>
 
-			{/* Auto-fill button */}
-			{teamA && teamB && !winner && (
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<button
-							onClick={() => onAutoFill(game.id)}
-							className="absolute -bottom-1.5 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-neutral-800 rounded px-1 py-0.5 text-[10px] text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-0.5"
-						>
-							<Sparkles className="size-2.5" />
-						</button>
-					</TooltipTrigger>
-					<TooltipContent side="bottom">Auto-pick</TooltipContent>
-				</Tooltip>
-			)}
-		</div>
+			</div>
 	);
 }
 
@@ -177,35 +145,23 @@ function SeedFactsTooltip({
 	if (!teamA || !teamB) return null;
 
 	const roundName = ROUND_NAMES[game.round];
-	const seeds = [teamA.seed, teamB.seed];
-	// Dedupe seeds (e.g., 8 vs 9 → show both, 1 vs 1 in FF → show once)
-	const uniqueSeeds = [...new Set(seeds)];
-
 	const ROUND_SHORT: Record<number, string> = { 1: 'R64', 2: 'R32', 3: 'S16', 4: 'E8', 5: 'FF', 6: 'Champ' };
 	const shortRound = ROUND_SHORT[game.round] ?? roundName;
 
-	const favSeed = Math.min(teamA.seed, teamB.seed);
-	const undSeed = Math.max(teamA.seed, teamB.seed);
-
-	// Use the favorite's win rate as the canonical stat; underdog is the complement
-	const favStat = seedRoundStats[favSeed]?.[roundName];
-	const favWinPct = favStat ? Math.round(favStat.win_pct * 100) : null;
+	// Show each seed's own historical win rate for this round (independent lookup)
+	const seeds = [teamA.seed, teamB.seed];
+	const uniqueSeeds = [...new Set(seeds)].sort((a, b) => a - b);
 
 	const items: { seed: number; winPct: number; picked: number }[] = [];
 
-	if (favWinPct !== null) {
+	for (const seed of uniqueSeeds) {
+		const stat = seedRoundStats[seed]?.[roundName];
+		if (!stat) continue;
 		items.push({
-			seed: favSeed,
-			winPct: favWinPct,
-			picked: seedPickCounts[`${favSeed}-${game.round}`] ?? 0,
+			seed,
+			winPct: Math.round(stat.win_pct * 100),
+			picked: seedPickCounts[`${seed}-${game.round}`] ?? 0,
 		});
-		if (favSeed !== undSeed) {
-			items.push({
-				seed: undSeed,
-				winPct: 100 - favWinPct,
-				picked: seedPickCounts[`${undSeed}-${game.round}`] ?? 0,
-			});
-		}
 	}
 
 	if (items.length === 0) return null;
@@ -227,8 +183,8 @@ function SeedFactsTooltip({
 							</div>
 							<div className="text-[11px] text-background/60">
 								{game.round === 1
-									? `Historical win rate. You have ${picked} of 4 advancing.`
-									: `Historical advance rate. You have ${picked} in the ${shortRound}.`
+									? `Win rate per game (all tournaments since '02). You have ${picked} of 4 advancing.`
+									: `Of all ${seed}-seeds, ${winPct}% win the ${roundName}. You have ${picked} of 4 advancing.`
 								}
 							</div>
 						</div>

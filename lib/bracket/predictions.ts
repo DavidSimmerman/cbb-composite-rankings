@@ -295,8 +295,8 @@ function cascadeClear(state: BracketState, fromGameId: string, teamKey: string) 
 
 /** Typical deepest round WON by each seed (avg across years). Used as deep-run penalty baseline. */
 const SEED_AVG_DEPTH: Record<number, number> = {
-	1: 4.9, 2: 3.9, 3: 4.0, 4: 2.8, 5: 2.8, 6: 2.6, 7: 2.7, 8: 2.0,
-	9: 1.4, 10: 2.1, 11: 3.0, 12: 2.1, 13: 1.2, 14: 1.0, 15: 1.8, 16: 2.0,
+	1: 4.3, 2: 3.2, 3: 2.9, 4: 2.5, 5: 2.1, 6: 1.8, 7: 1.9, 8: 1.7,
+	9: 1.1, 10: 1.5, 11: 1.6, 12: 1.5, 13: 1.2, 14: 1.1, 15: 1.1, 16: 1.0,
 };
 
 /** Hard caps: the absolute deepest a seed has EVER gone (round number). */
@@ -307,16 +307,16 @@ const SEED_MAX_DEPTH_EVER: Record<number, number> = {
 
 /** Average double-digit seed (10+) winners per round historically. */
 const HISTORICAL_DD_STATS: Record<number, { mean: number; stddev: number }> = {
-	1: { mean: 6.5, stddev: 2.0 },  // R64: ~6.5 of ~28 possible DD seeds win
-	2: { mean: 3.9, stddev: 1.7 },  // R32
-	3: { mean: 1.6, stddev: 0.8 },  // S16
-	4: { mean: 1.1, stddev: 0.4 },  // E8
+	1: { mean: 5.5, stddev: 1.8 },  // R64
+	2: { mean: 2.4, stddev: 1.3 },  // R32
+	3: { mean: 0.8, stddev: 0.7 },  // S16
+	4: { mean: 0.3, stddev: 0.4 },  // E8
 };
 
 /** Minimum total upsets per round (floors from historical data, ~2 sigma below mean). */
 const MIN_UPSETS_PER_ROUND: Record<number, number> = {
-	1: 5,   // R64: 32 games, historically 8.4 avg, min ~4 but 5 ensures variety
-	2: 3,   // R32: 16 games, historically 5.8 avg, min ~3
+	1: 6,   // R64: 32 games, historically 8.4 avg, min ~5 in data
+	2: 4,   // R32: 16 games, historically 5.8 avg, min ~3
 	3: 1,   // S16: 8 games, historically 2.8 avg, min ~1
 	4: 0,   // E8: 4 games, too few to enforce a floor
 	5: 0,   // FF
@@ -346,27 +346,27 @@ const SHRINK_TARGET = 0.45;
 /** Minimum conditional win rate floors by round index. */
 const CONDITIONAL_RATE_FLOORS: Record<number, number> = {
 	0: 0,     // R64: no floor
-	1: 0.15,  // R32
-	2: 0.20,  // S16
-	3: 0.25,  // E8
-	4: 0.30,  // FF
-	5: 0.35,  // Championship
+	1: 0.10,  // R32
+	2: 0.15,  // S16
+	3: 0.20,  // E8
+	4: 0.25,  // FF
+	5: 0.30,  // Championship
 };
 
 /** Deep-run penalty base per round above typical depth. */
-const DEEP_RUN_PENALTY_MODERATE = 0.70;  // Seeds 7-9
-const DEEP_RUN_PENALTY_SEVERE = 0.65;    // Seeds 10+
+const DEEP_RUN_PENALTY_MODERATE = 0.80;  // Seeds 7-9
+const DEEP_RUN_PENALTY_SEVERE = 0.75;    // Seeds 10+
 /** Near-zero probability for seeds that have never reached a given round. */
 const UNPRECEDENTED_DEPTH_PROB = 0.02;
 
 /** Per-game historical favorite win rates (2002-2025). */
 const ROUND_HISTORICAL_FAV_RATE: Record<number, number> = {
-	1: 0.74, 2: 0.64, 3: 0.65, 4: 0.575, 5: 0.60, 6: 0.70,
+	1: 0.74, 2: 0.64, 3: 0.65, 4: 0.60, 5: 0.60, 6: 0.65,
 };
 
 /** Chaos score thresholds for biasing toward fewer upsets. */
-const CHAOS_THRESHOLD_HIGH = 10;
-const CHAOS_THRESHOLD_MODERATE = 7;
+const CHAOS_THRESHOLD_HIGH = 14;
+const CHAOS_THRESHOLD_MODERATE = 10;
 /** Chaos bias values applied when thresholds are exceeded. */
 const CHAOS_BIAS_HIGH = -0.05;
 const CHAOS_BIAS_MODERATE = -0.02;
@@ -390,7 +390,7 @@ const UPSET_ML_WEIGHT = 0.4;
 const UPSET_JITTER = 0.15;
 
 /** Seeds at or below this number don't get deep-run penalties. */
-const DEEP_RUN_EXEMPT_SEED = 6;
+const DEEP_RUN_EXEMPT_SEED = 4;
 /** Seeds at or above this get hard-capped at their historical max depth. */
 const HARD_CAP_SEED = 13;
 
@@ -782,17 +782,32 @@ function sampleSeedLineTargets(
 	for (const [groupKey, games] of seedGroups) {
 		const favSeed = Math.min(games[0].teamA!.seed, games[0].teamB!.seed);
 
+		const undSeed = Math.max(games[0].teamA!.seed, games[0].teamB!.seed);
+
 		if (games.length <= 1) {
 			// Single game: compute matchup-specific upset probability
-			const undSeed = Math.max(games[0].teamA!.seed, games[0].teamB!.seed);
 			const upsetRate = singleGameUpsetRate(favSeed, undSeed, round, roundName, seedRoundStats, crossSeedPatterns, chaosScore);
 			targets.set(groupKey, Math.random() < upsetRate ? 1 : 0);
 			continue;
 		}
 
-		// Multi-game group: sample from historical distribution
+		// Multi-game group: use batch sampling from historical distribution
 		const dist = crossSeedPatterns.distributions[favSeed]?.[roundName];
-		const historicalMean = dist?.mean ?? games.length * 0.75;
+		const historicalMean = dist?.mean ?? games.length * 0.65;
+		const expectedUpsets = games.length - historicalMean;
+
+		// If expected upsets < 1 per group, handle each game individually
+		// to avoid rounding bias (e.g., 1-vs-16 with mean 3.91 out of 4
+		// would always round to 4, eliminating the rare upset entirely)
+		if (expectedUpsets < 1.5) {
+			let totalUpsets = 0;
+			for (const game of games) {
+				const upsetRate = singleGameUpsetRate(favSeed, undSeed, round, roundName, seedRoundStats, crossSeedPatterns, chaosScore);
+				if (Math.random() < upsetRate) totalUpsets++;
+			}
+			targets.set(groupKey, totalUpsets);
+			continue;
+		}
 		const historicalStddev = dist?.stddev ?? 0.5;
 		const historicalMin = dist?.min ?? 0;
 		const historicalMax = dist?.max ?? games.length;
@@ -816,7 +831,7 @@ function sampleSeedLineTargets(
 		const adjustedMean = scaledMean + chaosBiasBatch(chaosScore);
 
 		const targetTotalWins = Math.round(
-			sampleNormal(adjustedMean, historicalStddev * 1.3, scaledMin, scaledMax)
+			sampleNormal(adjustedMean, historicalStddev * 1.5, scaledMin, scaledMax)
 		);
 		const targetBatchWins = Math.max(0, Math.min(games.length, targetTotalWins - alreadyWon));
 		targets.set(groupKey, games.length - targetBatchWins);
@@ -825,7 +840,7 @@ function sampleSeedLineTargets(
 	return targets;
 }
 
-/** Compute upset rate for a single-game matchup using historical rates and calibration. */
+/** Compute upset rate for a single-game matchup using conditional win rates. */
 function singleGameUpsetRate(
 	favSeed: number,
 	undSeed: number,
@@ -837,26 +852,42 @@ function singleGameUpsetRate(
 ): number {
 	let historicalFavWinRate: number;
 
-	// Calculate matchup-specific favorite rate from unconditional win rates
-	const favReach = seedRoundStats[favSeed]?.[roundName]?.win_pct ?? 0;
-	const undReach = seedRoundStats[undSeed]?.[roundName]?.win_pct ?? 0;
+	// Blend conditional and unconditional rates:
+	// - Conditional: P(win | reached this round) — gives underdogs more credit for getting here
+	// - Unconditional: P(reaching this round) — reflects absolute team quality
+	// Early rounds lean conditional (R32+), later rounds lean unconditional (FF/Champ)
+	const favCondRate = conditionalWinRate(favSeed, roundName, seedRoundStats);
+	const undCondRate = conditionalWinRate(undSeed, roundName, seedRoundStats);
+	const favUncondRate = seedRoundStats[favSeed]?.[roundName]?.win_pct ?? 0;
+	const undUncondRate = seedRoundStats[undSeed]?.[roundName]?.win_pct ?? 0;
 
-	if (favReach > 0 || undReach > 0) {
-		const rawRate = (favReach + 0.01) / (favReach + undReach + 0.02);
+	// Blend weight: early rounds lean conditional (helps underdogs who proved themselves),
+	// later rounds lean unconditional (favors top seeds as genuine best teams)
+	const condWeight = round <= 2 ? 0.75 : round <= 3 ? 0.50 : round <= 4 ? 0.35 : 0.25;
+
+	const favRate = favCondRate * condWeight + favUncondRate * (1 - condWeight);
+	const undRate = undCondRate * condWeight + undUncondRate * (1 - condWeight);
+
+	if (favRate > 0 || undRate > 0) {
+		const rawRate = (favRate + 0.01) / (favRate + undRate + 0.02);
 		const seedGap = undSeed - favSeed;
-		const roundDepthFactor = round >= 5 ? 0.04 : 0.05;
-		const seedGapPrior = Math.min(0.85, 0.50 + seedGap * roundDepthFactor);
-		const priorWeight = round >= 5 ? 0.35 : 0.30;
-		historicalFavWinRate = rawRate * (1 - priorWeight) + seedGapPrior * priorWeight;
+		const roundDepthFactor = round >= 5 ? 0.03 : 0.04;
+		const seedGapPrior = Math.min(0.75, 0.50 + seedGap * roundDepthFactor);
+		// Only apply prior as a FLOOR — prevents underestimating favorites in close matchups,
+		// but never pulls down the rate when data already shows a strong favorite (e.g. 2-vs-15).
+		const priorWeight = round >= 5 ? 0.20 : 0.15;
+		historicalFavWinRate = seedGapPrior > rawRate
+			? rawRate * (1 - priorWeight) + seedGapPrior * priorWeight
+			: rawRate;
 	} else {
 		const dist = crossSeedPatterns.distributions[favSeed]?.[roundName];
 		historicalFavWinRate = dist ? dist.mean / 4 : 0.65;
 	}
 
-	// Pull toward round's historical favorite win rate, scaled by seed gap
+	// Light calibration toward round's historical favorite win rate
 	const roundBase = ROUND_HISTORICAL_FAV_RATE[round] ?? 0.65;
 	const seedGap = undSeed - favSeed;
-	const baseCalibWeight = round >= 5 ? 0.35 : round >= 4 ? 0.30 : round >= 3 ? 0.20 : 0.15;
+	const baseCalibWeight = round >= 5 ? 0.20 : round >= 4 ? 0.15 : round >= 3 ? 0.10 : 0.08;
 	const gapScale = Math.max(0.3, 1 - seedGap * 0.12);
 	const calibrationWeight = baseCalibWeight * gapScale;
 	historicalFavWinRate = historicalFavWinRate * (1 - calibrationWeight) + roundBase * calibrationWeight;
@@ -866,7 +897,15 @@ function singleGameUpsetRate(
 	const adjustedFavRate = 1 - (1 - historicalFavWinRate) * drPenalty;
 	const upsetRate = 1 - adjustedFavRate;
 
-	return Math.max(0, Math.min(1, upsetRate + chaosBiasSingle(chaosScore)));
+	let finalRate = Math.max(0, Math.min(1, upsetRate + chaosBiasSingle(chaosScore)));
+
+	// Hard caps for extreme mismatches in R64
+	if (round === 1) {
+		if (favSeed === 1 && undSeed === 16) finalRate = 0;
+		if (favSeed === 2 && undSeed === 15) finalRate = Math.min(finalRate, 0.025);
+	}
+
+	return finalRate;
 }
 
 /**
@@ -1145,6 +1184,90 @@ export function getRegionAssignment(state: BracketState): Record<string, string[
 		regions[region] = teamKeys;
 	}
 	return regions;
+}
+
+/**
+ * "Perfect my bracket" — fill remaining picks to maximize the realism score
+ * while reflecting actual team quality (ML predictions, march scores, etc.).
+ *
+ * Strategy:
+ * 1. Generate N auto-fill candidates (randomized, uses ML + march + viability)
+ * 2. Score each with the evaluator and keep the best
+ * 3. Hill-climb: try flipping individual games to improve the score further
+ */
+export function perfectBracket(
+	state: BracketState,
+	seedRoundStats: SeedRoundStats,
+	crossSeedPatterns: CrossSeedPatterns,
+	evaluate: (games: BracketGame[]) => { realismScore: number },
+	options?: { round?: number },
+): BracketState {
+	const targetRound = options?.round;
+	const manualGameIds = new Set<string>();
+	for (const [id, game] of state) {
+		if (game.isManualPick && game.winner) manualGameIds.add(id);
+	}
+
+	// Phase 1: Generate multiple auto-fill candidates and pick the highest-scoring one.
+	// Auto-fill is randomized and uses ML predictions + march scores + team viability,
+	// so each run produces a different realistic bracket.
+	const NUM_CANDIDATES = 20;
+	let best: BracketState = new Map(state);
+	let bestScore = -1;
+
+	for (let i = 0; i < NUM_CANDIDATES; i++) {
+		const candidate = autoFillBracket(new Map(state), seedRoundStats, crossSeedPatterns, targetRound ? { round: targetRound } : undefined);
+		const score = evaluate([...candidate.values()]).realismScore;
+		if (score > bestScore) {
+			best = candidate;
+			bestScore = score;
+			if (bestScore >= 100) return best;
+		}
+	}
+
+	// Phase 2: Greedy hill-climb — try flipping each non-manual game and keep improvements.
+	// When flipping, re-fill downstream with favorites (chalk) to avoid cascading chaos.
+	const MAX_ITERATIONS = 3;
+	for (let iter = 0; iter < MAX_ITERATIONS && bestScore < 100; iter++) {
+		let improved = false;
+
+		const flippable = [...best.values()]
+			.filter(g => g.winner && g.teamA && g.teamB && !manualGameIds.has(g.id) && (!targetRound || g.round === targetRound))
+			.sort((a, b) => a.round - b.round);
+
+		for (const game of flippable) {
+			const currentWinner = game.winner!;
+			const otherTeam = game.teamA!.team_key === currentWinner ? game.teamB! : game.teamA!;
+
+			let candidate = clearPick(best, game.id);
+			candidate = pickWinner(candidate, game.id, otherTeam.team_key, false);
+
+			// Re-fill downstream games cleared by the flip (pick favorites) — only if not round-scoped
+			if (!targetRound) {
+				for (let round = game.round + 1; round <= 6; round++) {
+					const downstream = [...candidate.values()]
+						.filter(g => g.round === round && !g.winner && g.teamA && g.teamB);
+					for (const g of downstream) {
+						if (manualGameIds.has(g.id)) continue;
+						const fav = g.teamA!.seed <= g.teamB!.seed ? g.teamA! : g.teamB!;
+						candidate = pickWinner(candidate, g.id, fav.team_key, false);
+					}
+				}
+			}
+
+			const candidateScore = evaluate([...candidate.values()]).realismScore;
+			if (candidateScore > bestScore) {
+				best = candidate;
+				bestScore = candidateScore;
+				improved = true;
+				if (bestScore >= 100) break;
+			}
+		}
+
+		if (!improved) break;
+	}
+
+	return best;
 }
 
 // --- Utilities ---

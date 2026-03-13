@@ -6,17 +6,23 @@ import {
 	pickWinner,
 	clearPick,
 	autoFillBracket,
-	autoFillGame as autoFillSingleGame,
+	perfectBracket,
 	getRegionAssignment,
-	ROUND_NAMES,
 	type BracketState,
 } from '@/lib/bracket/predictions';
-import { getAllWarnings } from '@/lib/bracket/warnings';
+import { evaluateBracket, type BracketEvaluation } from '@/lib/bracket/evaluation';
 import BracketView from './BracketView';
 import RoundView from './RoundView';
-import WarningsPanel from './WarningBadge';
+import EvaluationPanel from './EvaluationPanel';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Sparkles, RotateCcw, Shuffle } from 'lucide-react';
+import { ChevronDown, RotateCcw, Shuffle, ClipboardCheck, Crown, Dices } from 'lucide-react';
+import {
+	DropdownMenu,
+	DropdownMenuTrigger,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 interface BracketClientProps {
 	data: BracketPageData;
@@ -37,6 +43,7 @@ export default function BracketClient({ data }: BracketClientProps) {
 
 	const [selectedRound, setSelectedRound] = useState(1);
 	const [predictionCache, setPredictionCache] = useState<Map<string, { probA: number; probB: number }>>(new Map());
+	const [evaluation, setEvaluation] = useState<BracketEvaluation | null>(null);
 	const fetchingRef = useRef(new Set<string>());
 
 	// Save bracket state to localStorage
@@ -135,15 +142,6 @@ export default function BracketClient({ data }: BracketClientProps) {
 		return mergeWithPredictionCache(bracketState);
 	}, [bracketState, mergeWithPredictionCache]);
 
-	// Compute warnings
-	const { gameWarnings, crossWarnings } = useMemo(() => {
-		return getAllWarnings(
-			[...gamesWithPredictions.values()],
-			data.seed_round_stats,
-			data.cross_seed_patterns,
-		);
-	}, [gamesWithPredictions, data.seed_round_stats, data.cross_seed_patterns]);
-
 	// Count total picks
 	const totalPicks = useMemo(() => {
 		return [...bracketState.values()].filter(g => g.winner).length;
@@ -159,6 +157,11 @@ export default function BracketClient({ data }: BracketClientProps) {
 			counts[key] = (counts[key] ?? 0) + 1;
 		}
 		return counts;
+	}, [bracketState]);
+
+	// Close evaluation when bracket changes
+	useEffect(() => {
+		setEvaluation(null);
 	}, [bracketState]);
 
 	// Handlers
@@ -182,30 +185,7 @@ export default function BracketClient({ data }: BracketClientProps) {
 		});
 	}, []);
 
-	const handleAutoFillSingle = useCallback((gameId: string) => {
-		setBracketState(prev => {
-			const game = prev.get(gameId);
-			if (!game || !game.teamA || !game.teamB) return prev;
-
-			const merged = mergeWithPredictionCache(prev);
-			const allGames = [...merged.values()];
-			const gameWithPred = merged.get(gameId)!;
-			const winnerKey = autoFillSingleGame(
-				gameWithPred,
-				allGames,
-				data.seed_round_stats,
-				data.cross_seed_patterns,
-				data.seed_matchup_stats,
-			);
-
-			if (winnerKey) {
-				return pickWinner(prev, gameId, winnerKey, false);
-			}
-			return prev;
-		});
-	}, [data, mergeWithPredictionCache]);
-
-	const handleAutoFillAll = useCallback(() => {
+	const handleSimulate = useCallback(() => {
 		setBracketState(prev => {
 			return autoFillBracket(
 				mergeWithPredictionCache(prev),
@@ -215,13 +195,36 @@ export default function BracketClient({ data }: BracketClientProps) {
 		});
 	}, [data, mergeWithPredictionCache]);
 
-	const handleAutoFillRegion = useCallback((region: string) => {
+	const handlePerfect = useCallback(() => {
+		setBracketState(prev => {
+			return perfectBracket(
+				mergeWithPredictionCache(prev),
+				data.seed_round_stats,
+				data.cross_seed_patterns,
+				(games) => evaluateBracket(games, data.seed_round_stats, data.cross_seed_patterns),
+			);
+		});
+	}, [data, mergeWithPredictionCache]);
+
+	const handleSimulateRound = useCallback((round: number) => {
 		setBracketState(prev => {
 			return autoFillBracket(
 				mergeWithPredictionCache(prev),
 				data.seed_round_stats,
 				data.cross_seed_patterns,
-				{ region },
+				{ round },
+			);
+		});
+	}, [data, mergeWithPredictionCache]);
+
+	const handlePerfectRound = useCallback((round: number) => {
+		setBracketState(prev => {
+			return perfectBracket(
+				mergeWithPredictionCache(prev),
+				data.seed_round_stats,
+				data.cross_seed_patterns,
+				(games) => evaluateBracket(games, data.seed_round_stats, data.cross_seed_patterns),
+				{ round },
 			);
 		});
 	}, [data, mergeWithPredictionCache]);
@@ -237,16 +240,57 @@ export default function BracketClient({ data }: BracketClientProps) {
 		setBracketState(initializeBracket(data.bracket_teams));
 	}, [data.bracket_teams]);
 
+	const handleEvaluate = useCallback(() => {
+		const result = evaluateBracket(
+			[...gamesWithPredictions.values()],
+			data.seed_round_stats,
+			data.cross_seed_patterns,
+		);
+		setEvaluation(result);
+	}, [gamesWithPredictions, data.seed_round_stats, data.cross_seed_patterns]);
+
 	return (
 		<div className="flex flex-col h-full">
 			{/* Toolbar */}
 			<div className="flex items-center gap-2 px-3 py-2 border-b border-neutral-800 shrink-0 flex-wrap">
+				{/* Auto-fill dropdown */}
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-accent hover:bg-accent/80 text-accent-foreground transition-colors cursor-pointer">
+							<ChevronDown className="size-3.5" />
+							Auto-fill
+						</button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="start" className="w-72">
+						<DropdownMenuItem onClick={handleSimulate} className="flex-col items-start gap-0 py-2.5 cursor-pointer">
+							<div className="flex items-center gap-2 text-sm font-medium">
+								<Dices className="size-4 text-blue-400 shrink-0" />
+								Simulate
+							</div>
+							<p className="text-xs text-muted-foreground mt-1 ml-6">
+								Randomized bracket using ML predictions, team ratings, and historical seed patterns.
+							</p>
+						</DropdownMenuItem>
+						<DropdownMenuSeparator />
+						<DropdownMenuItem onClick={handlePerfect} className="flex-col items-start gap-0 py-2.5 cursor-pointer">
+							<div className="flex items-center gap-2 text-sm font-medium">
+								<Crown className="size-4 text-amber-500 shrink-0" />
+								Perfect My Bracket
+							</div>
+							<p className="text-xs text-muted-foreground mt-1 ml-6">
+								Optimizes for the most realistic bracket based on historical trends.
+							</p>
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+
 				<button
-					onClick={handleAutoFillAll}
-					className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-accent hover:bg-accent/80 text-accent-foreground transition-colors cursor-pointer"
+					onClick={handleEvaluate}
+					disabled={totalPicks < 10}
+					className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
 				>
-					<Sparkles className="size-3.5" />
-					Auto-fill Bracket
+					<ClipboardCheck className="size-3.5" />
+					Evaluate
 				</button>
 				<button
 					onClick={handleReset}
@@ -270,10 +314,13 @@ export default function BracketClient({ data }: BracketClientProps) {
 				</div>
 			</div>
 
-			{/* Cross-bracket warnings */}
-			{crossWarnings.length > 0 && (
+			{/* Evaluation panel */}
+			{evaluation && (
 				<div className="px-3 py-2 shrink-0">
-					<WarningsPanel warnings={crossWarnings} />
+					<EvaluationPanel
+						evaluation={evaluation}
+						onClose={() => setEvaluation(null)}
+					/>
 				</div>
 			)}
 
@@ -281,12 +328,11 @@ export default function BracketClient({ data }: BracketClientProps) {
 			<div className="hidden md:flex flex-1 min-h-0 overflow-auto">
 				<BracketView
 					games={gamesWithPredictions}
-					gameWarnings={gameWarnings}
 					seedPickCounts={seedPickCounts}
 					seedRoundStats={data.seed_round_stats}
 					onPickWinner={handlePickWinner}
-					onAutoFill={handleAutoFillSingle}
-					onAutoFillRegion={handleAutoFillRegion}
+					onSimulateRound={handleSimulateRound}
+					onPerfectRound={handlePerfectRound}
 				/>
 			</div>
 
@@ -294,13 +340,13 @@ export default function BracketClient({ data }: BracketClientProps) {
 			<div className="md:hidden flex-1 min-h-0">
 				<RoundView
 					games={gamesWithPredictions}
-					gameWarnings={gameWarnings}
 					seedPickCounts={seedPickCounts}
 					seedRoundStats={data.seed_round_stats}
 					selectedRound={selectedRound}
 					onSelectRound={setSelectedRound}
 					onPickWinner={handlePickWinner}
-					onAutoFill={handleAutoFillSingle}
+					onSimulateRound={handleSimulateRound}
+					onPerfectRound={handlePerfectRound}
 				/>
 			</div>
 		</div>
