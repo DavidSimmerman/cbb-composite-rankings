@@ -1,8 +1,9 @@
-import { getTeamProfile } from '@/lib/rankings/profile';
+import { PostgresService } from '@/lib/database';
 import { getTeamRanksMap } from '@/lib/rankings/ranks-map';
 import type { TeamRanks } from '@/lib/rankings/ranks-map';
-import type { EspnGameEnriched } from '@/lib/espn/schedule';
 import { NextRequest, NextResponse } from 'next/server';
+
+const db = PostgresService.getInstance();
 
 const MAX_RANK = 363;
 const MIN_SCORE = 60;
@@ -92,14 +93,22 @@ interface SimilarGameResult {
 	won: boolean | undefined;
 	game_score: string | undefined;
 	home_away: 'home' | 'away' | 'neutral';
+	away_team_key: string;
+	home_team_key: string;
+	away_score: number | null;
+	home_score: number | null;
+	away_won: boolean | null;
 }
 
-interface CategoryResult {
-	key: string;
-	label: string;
-	games: SimilarGameResult[];
-	wins: number;
-	losses: number;
+interface DbGame {
+	game_id: string;
+	home_team_key: string;
+	away_team_key: string;
+	home_score: number | null;
+	away_score: number | null;
+	home_won: boolean | null;
+	away_won: boolean | null;
+	status: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -111,21 +120,28 @@ export async function GET(request: NextRequest) {
 	}
 
 	try {
-		const [profileA, profileB, ranksMap] = await Promise.all([
-			getTeamProfile(teamAKey),
-			getTeamProfile(teamBKey),
+		const [gamesA, gamesB, ranksMap] = await Promise.all([
+			db.query<DbGame>(
+				`SELECT game_id, home_team_key, away_team_key, home_score, away_score, home_won, away_won, status
+				FROM espn_games
+				WHERE (home_team_key = $1 OR away_team_key = $1)
+					AND season = (SELECT MAX(season) FROM espn_games)
+					AND status = 'final'`,
+				[teamAKey]
+			),
+			db.query<DbGame>(
+				`SELECT game_id, home_team_key, away_team_key, home_score, away_score, home_won, away_won, status
+				FROM espn_games
+				WHERE (home_team_key = $1 OR away_team_key = $1)
+					AND season = (SELECT MAX(season) FROM espn_games)
+					AND status = 'final'`,
+				[teamBKey]
+			),
 			getTeamRanksMap(),
 		]);
 
-		if (!profileA || !profileB) {
-			return NextResponse.json({ error: 'Team profile not found' }, { status: 404 });
-		}
-
-		const schedA = (profileA.schedule ?? []) as unknown as EspnGameEnriched[];
-		const schedB = (profileB.schedule ?? []) as unknown as EspnGameEnriched[];
-
-		const oppRanksA = ranksMap[teamBKey]; // A plays B, so B is A's opponent
-		const oppRanksB = ranksMap[teamAKey]; // B plays A, so A is B's opponent
+		const oppRanksA = ranksMap[teamBKey];
+		const oppRanksB = ranksMap[teamAKey];
 
 		if (!oppRanksA || !oppRanksB) {
 			return NextResponse.json({ error: 'Ranks not available' }, { status: 404 });
@@ -134,7 +150,7 @@ export async function GET(request: NextRequest) {
 		const allCategories = [ratingCategory, overallCategory, ...categories];
 
 		const teamAResults = allCategories.map(cat => {
-			const games = scoreSimilarGames(schedA, teamAKey, oppRanksA, ranksMap, cat.fieldWeights);
+			const games = scoreSimilarGames(gamesA, teamAKey, oppRanksA, ranksMap, cat.fieldWeights);
 			return {
 				key: cat.key,
 				label: cat.label,
@@ -145,7 +161,7 @@ export async function GET(request: NextRequest) {
 		});
 
 		const teamBResults = allCategories.map(cat => {
-			const games = scoreSimilarGames(schedB, teamBKey, oppRanksB, ranksMap, cat.fieldWeights);
+			const games = scoreSimilarGames(gamesB, teamBKey, oppRanksB, ranksMap, cat.fieldWeights);
 			return {
 				key: cat.key,
 				label: cat.label,
@@ -166,7 +182,7 @@ export async function GET(request: NextRequest) {
 }
 
 function scoreSimilarGames(
-	schedule: EspnGameEnriched[],
+	games: DbGame[],
 	teamKey: string,
 	currentOppRanks: TeamRanks,
 	ranksMap: Record<string, TeamRanks>,
@@ -177,14 +193,12 @@ function scoreSimilarGames(
 	const targetValues = fieldWeights.map(fw => currentOppRanks[fw.field]);
 
 	const results: SimilarGameResult[] = [];
-	const enriched = schedule.filter(g => g.game);
 
-	for (const eg of enriched) {
-		const teams = Object.values(eg.game.teams);
-		const oppTeam = teams.find(t => t.team_key !== teamKey);
-		if (!oppTeam) continue;
+	for (const game of games) {
+		const isHome = game.home_team_key === teamKey;
+		const oppTeamKey = isHome ? game.away_team_key : game.home_team_key;
 
-		const oppRanks = ranksMap[oppTeam.team_key];
+		const oppRanks = ranksMap[oppTeamKey];
 		if (!oppRanks) continue;
 
 		let weightedDiff = 0;
@@ -207,14 +221,24 @@ function scoreSimilarGames(
 		const score = Math.round(100 * (1 - weightedDiff));
 		if (score < MIN_SCORE) continue;
 
+		const won = isHome ? game.home_won : game.away_won;
+		const teamScore = isHome ? game.home_score : game.away_score;
+		const oppScore = isHome ? game.away_score : game.home_score;
+		const gameScore = teamScore != null && oppScore != null ? `${teamScore}-${oppScore}` : undefined;
+
 		results.push({
-			game_id: eg.game_id,
-			opp_team_key: oppTeam.team_key,
-			opp_abbreviation: oppTeam.team_key,
+			game_id: game.game_id,
+			opp_team_key: oppTeamKey,
+			opp_abbreviation: oppTeamKey,
 			score,
-			won: eg.won,
-			game_score: eg.score,
-			home_away: eg.homeAway,
+			won: won ?? undefined,
+			game_score: gameScore,
+			home_away: isHome ? 'home' : 'away',
+			away_team_key: game.away_team_key,
+			home_team_key: game.home_team_key,
+			away_score: game.away_score,
+			home_score: game.home_score,
+			away_won: game.away_won,
 		});
 	}
 

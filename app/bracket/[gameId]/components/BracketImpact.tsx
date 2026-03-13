@@ -19,9 +19,11 @@ export default function BracketImpact({ game, gameId, bracketState, seedPickCoun
 
 	const { teamA, teamB } = game;
 
-	// Find how many of each seed the user has picked across all rounds
+	// Find how many of each seed the user has picked/lost across all rounds
 	const seedAPicksByRound = getPicksByRound(teamA.seed, bracketState);
 	const seedBPicksByRound = getPicksByRound(teamB.seed, bracketState);
+	const seedALossesByRound = getLossesByRound(teamA.seed, bracketState);
+	const seedBLossesByRound = getLossesByRound(teamB.seed, bracketState);
 
 	// Find the next game this winner feeds into
 	const nextGameId = getNextGameId(gameId, game.round);
@@ -43,11 +45,13 @@ export default function BracketImpact({ game, gameId, bracketState, seedPickCoun
 				<SeedPickSummary
 					team={teamA}
 					picksByRound={seedAPicksByRound}
+					lossesByRound={seedALossesByRound}
 					currentRound={game.round}
 				/>
 				<SeedPickSummary
 					team={teamB}
 					picksByRound={seedBPicksByRound}
+					lossesByRound={seedBLossesByRound}
 					currentRound={game.round}
 				/>
 			</div>
@@ -88,12 +92,22 @@ export default function BracketImpact({ game, gameId, bracketState, seedPickCoun
 function SeedPickSummary({
 	team,
 	picksByRound,
+	lossesByRound,
 	currentRound,
 }: {
 	team: BracketTeam;
 	picksByRound: Record<number, number>;
+	lossesByRound: Record<number, number>;
 	currentRound: number;
 }) {
+	// Compute cumulative losses through each round
+	const cumulativeLosses: Record<number, number> = {};
+	let totalLosses = 0;
+	for (const round of [1, 2, 3, 4, 5, 6]) {
+		totalLosses += lossesByRound[round] ?? 0;
+		cumulativeLosses[round] = totalLosses;
+	}
+
 	return (
 		<div className="border border-neutral-800 rounded-md p-3">
 			<div className="text-sm font-bold mb-2" style={{ color: getSeedColor(team.seed) }}>
@@ -101,23 +115,43 @@ function SeedPickSummary({
 			</div>
 			<div className="flex flex-col gap-1">
 				{[1, 2, 3, 4, 5, 6].map(round => {
-					const count = picksByRound[round] ?? 0;
-					const maxPossible = round <= 2 ? 4 : round === 3 ? 4 : round === 4 ? 4 : round === 5 ? 2 : 1;
+					const wins = picksByRound[round] ?? 0;
+					const losses = lossesByRound[round] ?? 0;
+					const originalMax = round <= 4 ? 4 : round === 5 ? 2 : 1;
+					// How many of this seed could possibly be in this round
+					// = 4 minus teams eliminated before this round, capped by bracket structure
+					const prevLosses = round === 1 ? 0 : cumulativeLosses[round - 1];
+					const couldEnter = Math.min(originalMax, Math.max(0, 4 - prevLosses));
+					// Undecided = could enter minus wins minus losses in this round
+					const undecided = Math.max(0, couldEnter - wins - losses);
+					// X slots = original display slots minus those that are fills/empty/losses
+					const xSlots = originalMax - wins - losses - undecided;
 					const isCurrentRound = round === currentRound;
 
 					return (
 						<div key={round} className={`flex items-center gap-2 ${isCurrentRound ? 'text-white' : 'text-neutral-500'}`}>
 							<span className="text-xs w-10 text-right tabular-nums">{ROUND_SHORT_NAMES[round]}</span>
 							<div className="flex gap-0.5">
-								{Array.from({ length: Math.min(maxPossible, 4) }, (_, i) => (
+								{/* Filled dots (wins) */}
+								{Array.from({ length: wins }, (_, i) => (
 									<div
-										key={i}
-										className={`w-3 h-3 rounded-sm ${i < count ? '' : 'bg-neutral-800'}`}
-										style={i < count ? { backgroundColor: getSeedColor(team.seed), opacity: 0.8 } : undefined}
+										key={`pick-${i}`}
+										className="w-3 h-3 rounded-sm"
+										style={{ backgroundColor: getSeedColor(team.seed), opacity: 0.8 }}
 									/>
 								))}
+								{/* Empty dots (undecided games) */}
+								{Array.from({ length: undecided }, (_, i) => (
+									<div key={`empty-${i}`} className="w-3 h-3 rounded-sm bg-neutral-800" />
+								))}
+								{/* X marks (losses in this round + eliminated from prior rounds) */}
+								{Array.from({ length: Math.max(0, losses + xSlots) }, (_, i) => (
+									<div key={`x-${i}`} className="w-3 h-3 rounded-sm flex items-center justify-center text-red-500/60 text-[9px] font-bold leading-none">
+										✕
+									</div>
+								))}
 							</div>
-							<span className="text-[10px] tabular-nums">{count}/{Math.min(maxPossible, 4)}</span>
+							<span className="text-[10px] tabular-nums">{wins}/{couldEnter}</span>
 						</div>
 					);
 				})}
@@ -177,6 +211,18 @@ function getPicksByRound(seed: number, bracketState: BracketState): Record<numbe
 		}
 	}
 	return picks;
+}
+
+function getLossesByRound(seed: number, bracketState: BracketState): Record<number, number> {
+	const losses: Record<number, number> = {};
+	for (const game of bracketState.values()) {
+		if (!game.winner || !game.teamA || !game.teamB) continue;
+		const loserTeam = game.teamA.team_key === game.winner ? game.teamB : game.teamA;
+		if (loserTeam.seed === seed) {
+			losses[game.round] = (losses[game.round] ?? 0) + 1;
+		}
+	}
+	return losses;
 }
 
 function getNextGameId(gameId: string, round: number): string | null {

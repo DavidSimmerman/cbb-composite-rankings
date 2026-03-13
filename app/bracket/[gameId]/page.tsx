@@ -55,7 +55,7 @@ export default function GamePreviewPage() {
 
 	return (
 		<div className="h-full overflow-auto">
-			<div className="max-w-4xl mx-auto px-4 py-4 space-y-6">
+			<div className="max-w-340 w-full mx-auto px-2 md:px-4 py-4 space-y-6">
 				{/* Header */}
 				<div className="flex items-center gap-3">
 					<Link
@@ -157,10 +157,14 @@ function MatchupHeader({
 			<div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
 				{/* Team A */}
 				<div className="flex flex-col items-center gap-2">
-					<TeamLogo teamKey={teamA.team_key} size={80} className="size-16 md:size-20" />
+					<Link href={`/${teamA.team_key}`} className="hover:opacity-80 transition-opacity">
+						<TeamLogo teamKey={teamA.team_key} size={80} className="size-16 md:size-20" />
+					</Link>
 					<div className="text-center">
 						<div className="text-xs text-neutral-400">#{teamA.seed} seed</div>
-						<div className="text-lg font-bold">{teamA.team_name}</div>
+						<Link href={`/${teamA.team_key}`} className="text-lg font-bold hover:underline">
+							{teamA.team_name}
+						</Link>
 					</div>
 					{/* Ratings row */}
 					<div className="flex items-center gap-3">
@@ -178,10 +182,14 @@ function MatchupHeader({
 
 				{/* Team B */}
 				<div className="flex flex-col items-center gap-2">
-					<TeamLogo teamKey={teamB.team_key} size={80} className="size-16 md:size-20" />
+					<Link href={`/${teamB.team_key}`} className="hover:opacity-80 transition-opacity">
+						<TeamLogo teamKey={teamB.team_key} size={80} className="size-16 md:size-20" />
+					</Link>
 					<div className="text-center">
 						<div className="text-xs text-neutral-400">#{teamB.seed} seed</div>
-						<div className="text-lg font-bold">{teamB.team_name}</div>
+						<Link href={`/${teamB.team_key}`} className="text-lg font-bold hover:underline">
+							{teamB.team_name}
+						</Link>
 					</div>
 					{/* Ratings row */}
 					<div className="flex items-center gap-3">

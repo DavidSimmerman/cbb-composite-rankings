@@ -5,7 +5,7 @@ import BracketView from './BracketView';
 import RoundView from './RoundView';
 import EvaluationPanel from './EvaluationPanel';
 import { useState } from 'react';
-import { ChevronDown, RotateCcw, Shuffle, ClipboardCheck, Crown, Dices } from 'lucide-react';
+import { ChevronDown, RotateCcw, ClipboardCheck, Crown, Dices } from 'lucide-react';
 import {
 	DropdownMenu,
 	DropdownMenuTrigger,
@@ -27,7 +27,6 @@ export default function BracketClient() {
 		handleSimulateRound,
 		handlePerfectRound,
 		handleReset,
-		handleReRandomize,
 		handleEvaluate,
 		setEvaluation,
 	} = useBracket();
@@ -84,15 +83,7 @@ export default function BracketClient() {
 					<RotateCcw className="size-3.5" />
 					Reset
 				</button>
-				<button
-					onClick={handleReRandomize}
-					className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer"
-				>
-					<Shuffle className="size-3.5" />
-					Re-randomize
-				</button>
-
-				<div className="ml-auto flex items-center gap-3">
+					<div className="ml-auto flex items-center gap-3">
 					<span className="text-xs text-muted-foreground">
 						{totalPicks}/63 picks
 					</span>

@@ -56,34 +56,42 @@ export default function BracketView({ games, seedPickCounts, seedRoundStats, onP
 			</div>
 
 			{/* Center: Final Four + Championship — spans both rows, centered */}
-			<div className="col-start-2 row-start-1 row-span-2 flex flex-col items-center justify-center gap-3 w-52 shrink-0">
+			<div className="col-start-2 row-start-1 row-span-2 flex flex-col items-center justify-center gap-3 w-56 shrink-0">
 				<div className="flex items-center gap-2">
 					<span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Final Four</span>
 					<RoundAutoFillButton round={5} games={games} onSimulateRound={onSimulateRound} onPerfectRound={onPerfectRound} />
 				</div>
-				<MatchupCard
-					game={games.get('r5-FF-0')!}
-					seedPickCounts={seedPickCounts}
-					seedRoundStats={seedRoundStats}
-					onPickWinner={onPickWinner}
-				/>
+				<div className="w-44">
+					<MatchupCard
+						game={games.get('r5-FF-0')!}
+						seedPickCounts={seedPickCounts}
+						seedRoundStats={seedRoundStats}
+						onPickWinner={onPickWinner}
+						compact
+					/>
+				</div>
 				<div className="flex items-center gap-2">
-					<span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-2">Championship</span>
+					<span className="text-sm text-muted-foreground font-semibold uppercase tracking-wide mt-2">Championship</span>
 					<RoundAutoFillButton round={6} games={games} onSimulateRound={onSimulateRound} onPerfectRound={onPerfectRound} />
 				</div>
-				<MatchupCard
-					game={games.get('r6-FF-0')!}
-					seedPickCounts={seedPickCounts}
-					seedRoundStats={seedRoundStats}
-					onPickWinner={onPickWinner}
-				/>
+				<div className="w-full">
+					<MatchupCard
+						game={games.get('r6-FF-0')!}
+						seedPickCounts={seedPickCounts}
+						seedRoundStats={seedRoundStats}
+						onPickWinner={onPickWinner}
+					/>
+				</div>
 				<div className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-2">Final Four</div>
-				<MatchupCard
-					game={games.get('r5-FF-1')!}
-					seedPickCounts={seedPickCounts}
-					seedRoundStats={seedRoundStats}
-					onPickWinner={onPickWinner}
-				/>
+				<div className="w-44">
+					<MatchupCard
+						game={games.get('r5-FF-1')!}
+						seedPickCounts={seedPickCounts}
+						seedRoundStats={seedRoundStats}
+						onPickWinner={onPickWinner}
+						compact
+					/>
+				</div>
 			</div>
 
 			{/* Top-right: WEST (E8 ← R64) */}

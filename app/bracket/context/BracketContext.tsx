@@ -62,7 +62,24 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 		if (saved) {
 			try {
 				const parsed = JSON.parse(saved);
-				return initializeBracket(data.bracket_teams, parsed.regions);
+				let state = initializeBracket(data.bracket_teams, parsed.regions);
+				// Restore picks in round order so later rounds have teams propagated
+				if (parsed.picks && Object.keys(parsed.picks).length > 0) {
+					for (let round = 1; round <= 6; round++) {
+						const roundPicks = Object.entries(parsed.picks as Record<string, { winner: string; isManual: boolean }>)
+							.filter(([id]) => {
+								const game = state.get(id);
+								return game?.round === round;
+							});
+						for (const [id, { winner, isManual }] of roundPicks) {
+							const game = state.get(id);
+							if (game?.teamA && game?.teamB) {
+								state = pickWinner(state, id, winner, isManual);
+							}
+						}
+					}
+				}
+				return state;
 			} catch { /* fall through */ }
 		}
 		return initializeBracket(data.bracket_teams);
@@ -92,34 +109,6 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 		}
 		localStorage.setItem('bracket-state', JSON.stringify({ regions, picks }));
 	}, [bracketState]);
-
-	// Restore picks from localStorage on mount
-	useEffect(() => {
-		const saved = localStorage.getItem('bracket-state');
-		if (!saved) return;
-		try {
-			const { picks } = JSON.parse(saved);
-			if (!picks || Object.keys(picks).length === 0) return;
-
-			setBracketState((prev: BracketState) => {
-				let state: BracketState = new Map(prev);
-				for (let round = 1; round <= 6; round++) {
-					const roundPicks = Object.entries(picks as Record<string, { winner: string; isManual: boolean }>)
-						.filter(([id]) => {
-							const game = state.get(id);
-							return game?.round === round;
-						});
-					for (const [id, { winner, isManual }] of roundPicks) {
-						const game = state.get(id);
-						if (game?.teamA && game?.teamB) {
-							state = pickWinner(state, id, winner, isManual);
-						}
-					}
-				}
-				return state;
-			});
-		} catch { /* ignore */ }
-	}, []);
 
 	// Fetch ML predictions for games that have both teams
 	useEffect(() => {
