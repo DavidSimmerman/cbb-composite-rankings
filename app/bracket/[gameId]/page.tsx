@@ -11,6 +11,19 @@ import { ArrowLeft, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import SeedMatchupStats from './components/SeedMatchupStats';
 import BracketImpact from './components/BracketImpact';
+import BracketGamePrediction from './components/BracketGamePrediction';
+import BracketTeamComparison from './components/BracketTeamComparison';
+import SimilarlyRatedTeams from './components/SimilarlyRatedTeams';
+
+function getRankColor(rank: number): string {
+	if (!rank || isNaN(rank)) return 'oklch(0.4 0 0)';
+	if (rank <= 36) return 'oklch(0.70 0.22 145)';
+	if (rank <= 73) return 'oklch(0.65 0.19 135)';
+	if (rank <= 109) return 'oklch(0.62 0.17 120)';
+	if (rank <= 146) return 'oklch(0.60 0.16 100)';
+	if (rank <= 182) return 'oklch(0.58 0.15 85)';
+	return 'oklch(0.58 0.16 70)';
+}
 
 export default function GamePreviewPage() {
 	const params = useParams();
@@ -63,6 +76,19 @@ export default function GamePreviewPage() {
 					teamB={game.teamB}
 					winner={game.winner}
 					onPick={onPick}
+				/>
+
+				{/* Game Prediction */}
+				<BracketGamePrediction teamA={game.teamA} teamB={game.teamB} />
+
+				{/* Team Comparison */}
+				<BracketTeamComparison teamA={game.teamA} teamB={game.teamB} />
+
+				{/* Similarly Rated Teams */}
+				<SimilarlyRatedTeams
+					teamA={game.teamA}
+					teamB={game.teamB}
+					allTeams={data.bracket_teams}
 				/>
 
 				{/* Seed Matchup Stats */}
@@ -121,18 +147,31 @@ function MatchupHeader({
 	winner: string | null;
 	onPick: (teamKey: string) => void;
 }) {
-
 	return (
-		<div className="border border-neutral-800 rounded-lg p-4">
+		<div
+			className="rounded-lg p-4 relative overflow-hidden"
+			style={{
+				background: `linear-gradient(135deg, #${teamA.color}25 0%, #${teamA.color}08 30%, #${teamB.color}08 70%, #${teamB.color}25 100%)`,
+				border: `1px solid color-mix(in srgb, #${teamA.color} 30%, #${teamB.color} 30%)`,
+			}}
+		>
 			<div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
 				{/* Team A */}
 				<div className="flex flex-col items-center gap-2">
 					<TeamLogo teamKey={teamA.team_key} size={80} className="size-16 md:size-20" />
 					<div className="text-center">
-						<div className="text-xs text-neutral-500">#{teamA.seed} seed</div>
+						<div className="text-xs text-neutral-400">#{teamA.seed} seed</div>
 						<div className="text-lg font-bold">{teamA.team_name}</div>
 					</div>
-					<MarchScoreBadge score={teamA.march_score} size="md" />
+					{/* Ratings row */}
+					<div className="flex items-center gap-3">
+						<MarchScoreBadge score={teamA.march_score} size="md" />
+						<div className="flex flex-col gap-0.5">
+							<RatingLabel label="Rating" rank={teamA.comp_rank} />
+							<RatingLabel label="Off" rank={teamA.comp_off_rank} />
+							<RatingLabel label="Def" rank={teamA.comp_def_rank} />
+						</div>
+					</div>
 				</div>
 
 				{/* VS */}
@@ -142,10 +181,18 @@ function MatchupHeader({
 				<div className="flex flex-col items-center gap-2">
 					<TeamLogo teamKey={teamB.team_key} size={80} className="size-16 md:size-20" />
 					<div className="text-center">
-						<div className="text-xs text-neutral-500">#{teamB.seed} seed</div>
+						<div className="text-xs text-neutral-400">#{teamB.seed} seed</div>
 						<div className="text-lg font-bold">{teamB.team_name}</div>
 					</div>
-					<MarchScoreBadge score={teamB.march_score} size="md" />
+					{/* Ratings row */}
+					<div className="flex items-center gap-3">
+						<MarchScoreBadge score={teamB.march_score} size="md" />
+						<div className="flex flex-col gap-0.5">
+							<RatingLabel label="Rating" rank={teamB.comp_rank} />
+							<RatingLabel label="Off" rank={teamB.comp_off_rank} />
+							<RatingLabel label="Def" rank={teamB.comp_def_rank} />
+						</div>
+					</div>
 				</div>
 			</div>
 
@@ -188,6 +235,18 @@ function MatchupHeader({
 					Click again to clear pick
 				</div>
 			)}
+		</div>
+	);
+}
+
+function RatingLabel({ label, rank }: { label: string; rank: number }) {
+	if (!rank) return null;
+	return (
+		<div className="flex items-center gap-1.5">
+			<span className="text-[10px] text-neutral-500 w-8">{label}</span>
+			<span className="text-xs font-medium tabular-nums" style={{ color: getRankColor(rank) }}>
+				#{rank}
+			</span>
 		</div>
 	);
 }

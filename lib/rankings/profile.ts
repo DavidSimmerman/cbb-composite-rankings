@@ -1182,6 +1182,10 @@ export interface BracketTeamSummary {
 	avg_seed: number | null;
 	march_score: number;
 	march_analysis: MarchAnalysis;
+	comp_rating: number;
+	comp_rank: number;
+	comp_off_rank: number;
+	comp_def_rank: number;
 	color: string;
 	secondary_color: string;
 	logo_url: string;
@@ -1325,6 +1329,8 @@ export async function getMarchPageData(): Promise<MarchPageData> {
 		const analysis = await getMarchAnalysis(bm.team_key, teamRatings as any);
 		if (!analysis) return;
 		const td = allTeamData[bm.team_key];
+		const latestSeason = Object.keys(teamRatings).sort().at(-1)!;
+		const latestRatings = teamRatings[latestSeason] as any;
 		bracketTeams.push({
 			team_key: bm.team_key,
 			team_name: td?.short_name ?? td?.name ?? bm.team_key,
@@ -1334,6 +1340,10 @@ export async function getMarchPageData(): Promise<MarchPageData> {
 			avg_seed: bm.avg_seed,
 			march_score: analysis.march_score,
 			march_analysis: analysis,
+			comp_rating: latestRatings?.comp_avg_zscore ?? 0,
+			comp_rank: latestRatings?.comp_avg_zscore_rank ?? 0,
+			comp_off_rank: latestRatings?.comp_avg_offensive_zscore_rank ?? 0,
+			comp_def_rank: latestRatings?.comp_avg_defensive_zscore_rank ?? 0,
 			color: td?.color ?? '333333',
 			secondary_color: td?.secondary_color ?? '666666',
 			logo_url: td?.espn_id ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${td.espn_id}.png` : '',
