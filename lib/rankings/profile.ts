@@ -4,6 +4,7 @@ import { ApPollTeam } from '../espn/ap-poll';
 import { getPartialGame } from '../espn/espn-game';
 import { EspnStats } from '../espn/espn-stats';
 import { EspnGame, getSchedule, getScheduleEnriched, ParsedEspnGame } from '../espn/schedule';
+import { ESPN_TEAM_IDS } from '../espn/espn-team-ids';
 import { BartTorvikRanking } from './barttorvik';
 import { CompositeRanking } from './composite';
 import { EvanMiyaRanking } from './evanmiya';
@@ -460,6 +461,7 @@ const BM_NAME_OVERRIDES: Record<string, string> = {
 	'Cal State Fullerton': 'cal_st_fullerton', 'Fairleigh Dickinson': 'fairleigh_dickinson',
 	'UC Santa Barbara': 'uc_santa_barbara', 'Grand Canyon': 'grand_canyon',
 	'New Mexico State': 'new_mexico_st',
+	'McNeese St': 'mcneese', 'McNeese State': 'mcneese',
 };
 
 function bmNameToTeamKey(name: string): string {
@@ -1331,10 +1333,11 @@ export async function getMarchPageData(): Promise<MarchPageData> {
 		const td = allTeamData[bm.team_key];
 		const latestSeason = Object.keys(teamRatings).sort().at(-1)!;
 		const latestRatings = teamRatings[latestSeason] as any;
+		const espnId = td?.espn_id ?? ESPN_TEAM_IDS[bm.team_key];
 		bracketTeams.push({
 			team_key: bm.team_key,
-			team_name: td?.short_name ?? td?.name ?? bm.team_key,
-			short_name: td?.short_name ?? td?.name ?? bm.team_key,
+			team_name: td?.short_name ?? td?.name ?? bm.team_name,
+			short_name: td?.short_name ?? td?.name ?? bm.team_name,
 			abbreviation: td?.abbreviation ?? bm.team_key.toUpperCase().slice(0, 4),
 			projected_seed: 0, // assigned below
 			avg_seed: bm.avg_seed,
@@ -1346,7 +1349,7 @@ export async function getMarchPageData(): Promise<MarchPageData> {
 			comp_def_rank: latestRatings?.comp_avg_defensive_zscore_rank ?? 0,
 			color: td?.color ?? '333333',
 			secondary_color: td?.secondary_color ?? '666666',
-			logo_url: td?.espn_id ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${td.espn_id}.png` : '',
+			logo_url: espnId ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${espnId}.png` : '',
 		});
 	}));
 
