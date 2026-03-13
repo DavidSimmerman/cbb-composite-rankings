@@ -13,7 +13,7 @@ import SeedMatchupStats from './components/SeedMatchupStats';
 import BracketImpact from './components/BracketImpact';
 import BracketGamePrediction from './components/BracketGamePrediction';
 import BracketTeamComparison from './components/BracketTeamComparison';
-import SimilarlyRatedTeams from './components/SimilarlyRatedTeams';
+import BracketSimilarOpponents from './components/BracketSimilarOpponents';
 
 function getRankColor(rank: number): string {
 	if (!rank || isNaN(rank)) return 'oklch(0.4 0 0)';
@@ -84,11 +84,10 @@ export default function GamePreviewPage() {
 				{/* Team Comparison */}
 				<BracketTeamComparison teamA={game.teamA} teamB={game.teamB} />
 
-				{/* Similarly Rated Teams */}
-				<SimilarlyRatedTeams
+				{/* Similar Opponents */}
+				<BracketSimilarOpponents
 					teamA={game.teamA}
 					teamB={game.teamB}
-					allTeams={data.bracket_teams}
 				/>
 
 				{/* Seed Matchup Stats */}
@@ -151,8 +150,8 @@ function MatchupHeader({
 		<div
 			className="rounded-lg p-4 relative overflow-hidden"
 			style={{
-				background: `linear-gradient(135deg, #${teamA.color}25 0%, #${teamA.color}08 30%, #${teamB.color}08 70%, #${teamB.color}25 100%)`,
-				border: `1px solid color-mix(in srgb, #${teamA.color} 30%, #${teamB.color} 30%)`,
+				background: `linear-gradient(135deg, #${teamA.color}40 0%, #${teamA.color}15 30%, #${teamB.color}15 70%, #${teamB.color}40 100%)`,
+				border: `1px solid color-mix(in srgb, #${teamA.color} 40%, #${teamB.color} 40%)`,
 			}}
 		>
 			<div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">

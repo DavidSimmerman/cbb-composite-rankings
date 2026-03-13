@@ -70,9 +70,9 @@ export default function BracketGamePrediction({ teamA, teamB }: BracketGamePredi
 
 	if (!prediction) return null;
 
-	// teamA = away (first param), teamB = home (second param)
-	const pctA = Math.round(prediction.away.win_probability * 100);
-	const pctB = Math.round(prediction.home.win_probability * 100);
+	// teamA = home (first param), teamB = away (second param) in the API call
+	const pctA = Math.round(prediction.home.win_probability * 100);
+	const pctB = Math.round(prediction.away.win_probability * 100);
 
 	return (
 		<div className="border border-neutral-800 rounded-lg p-3 md:p-4">
@@ -95,7 +95,7 @@ export default function BracketGamePrediction({ teamA, teamB }: BracketGamePredi
 				<div className="text-center">
 					<div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Predicted Score</div>
 					<div className="text-xl font-bold text-white tabular-nums">
-						{prediction.away.predicted_score} - {prediction.home.predicted_score}
+						{prediction.home.predicted_score} - {prediction.away.predicted_score}
 					</div>
 				</div>
 			</div>
@@ -126,12 +126,12 @@ export default function BracketGamePrediction({ teamA, teamB }: BracketGamePredi
 					<div className="flex flex-col md:flex-row md:w-full gap-4 md:gap-8">
 						<div className={`flex-1 ${mobileTeam !== 'a' ? 'hidden md:block' : ''}`}>
 							<div className="hidden md:block text-sm font-semibold text-neutral-400 mb-2">{teamA.team_name}</div>
-							<KeysList keys={prediction.away.keys_to_game} />
+							<KeysList keys={prediction.home.keys_to_game} />
 						</div>
 						<div className="hidden md:block md:h-auto md:w-px bg-neutral-800" />
 						<div className={`flex-1 ${mobileTeam !== 'b' ? 'hidden md:block' : ''}`}>
 							<div className="hidden md:block text-sm font-semibold text-neutral-400 mb-2">{teamB.team_name}</div>
-							<KeysList keys={prediction.home.keys_to_game} />
+							<KeysList keys={prediction.away.keys_to_game} />
 						</div>
 					</div>
 				</div>

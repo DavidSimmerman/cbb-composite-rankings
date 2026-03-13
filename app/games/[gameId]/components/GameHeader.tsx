@@ -10,8 +10,18 @@ import { useMemo } from 'react';
 export default function GameHeader() {
 	const { game } = useGame();
 
+	const awayColor = game.teams.away.metadata?.color;
+	const homeColor = game.teams.home.metadata?.color;
+	const hasColors = awayColor && homeColor;
+
 	return (
-		<Card className="mt-4 md:mt-8 p-2 md:p-4 md:px-6">
+		<Card
+			className="mt-4 md:mt-8 p-2 md:p-4 md:px-6"
+			style={hasColors ? {
+				background: `linear-gradient(135deg, #${awayColor}40 0%, #${awayColor}15 30%, #${homeColor}15 70%, #${homeColor}40 100%)`,
+				borderColor: `color-mix(in srgb, #${awayColor} 40%, #${homeColor} 40%)`,
+			} : undefined}
+		>
 			<CardContent className="flex items-center gap-2 md:gap-0">
 				<div className="flex-1 flex justify-start">
 					<TeamHeader team={game.teams.away} />
