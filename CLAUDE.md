@@ -1,5 +1,8 @@
 # CBB Composite Rankings
 
+## Git
+- When creating git commits, always use: `--author="David Simmerman <davidsimmermancs@gmail.com>"`
+
 ## Tech Stack
 - **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS 4
 - **Database**: PostgreSQL (DATABASE_URL in .env, host 192.168.1.56:3120)
@@ -19,7 +22,7 @@ app/
       TeamStats.tsx           # Full stats table
       TeamSchedule.tsx        # Schedule with game results
       TeamHistory.tsx         # Season history bar charts (dynamic import, client-only)
-      MarchProfile.tsx        # March tournament analysis (dynamic import, client-only)
+      MarchProfile.tsx        # March tournament analysis (hidden if avg_seed is null, dynamic import)
       BottomSection.tsx       # Stacks TeamHistory + MarchProfile vertically
   games/
     page.tsx                  # Scoreboard
@@ -30,14 +33,27 @@ app/
         GamePrediction.tsx    # ML prediction display
         SimilarGames.tsx      # Similar historical games (dynamic import, client-only)
   bracket/
+    layout.tsx                # Server layout, fetches BracketPageData
     page.tsx                  # Bracket prediction tool (server component)
+    context/
+      BracketContext.tsx      # Bracket state, localStorage persistence, prediction caching, auto-fill handlers
     components/
-      BracketClient.tsx       # Main bracket logic, auto-fill orchestration, localStorage state
+      BracketClient.tsx       # Main bracket UI, toolbar, auto-fill orchestration
+      BracketLayoutClient.tsx # Client wrapper, dynamically imports BracketProvider (no SSR)
       BracketPageClient.tsx   # Client wrapper for bracket page
       BracketView.tsx         # Desktop bracket tree visualization
       RoundView.tsx           # Mobile round-by-round view
       MatchupCard.tsx         # Individual game card with teams, seeds, scores
       WarningBadge.tsx        # Yellow/red warning indicators for unlikely picks
+      EvaluationPanel.tsx     # Bracket realism score display with findings
+    [gameId]/
+      page.tsx                # Game preview page (matchup banner, predictions, stats)
+      components/
+        BracketGamePrediction.tsx   # ML prediction wrapper for bracket games
+        BracketTeamComparison.tsx   # Side-by-side ratings comparison
+        BracketSimilarOpponents.tsx # Similar opponent history
+        SeedMatchupStats.tsx        # Historical seed vs seed win rates
+        BracketImpact.tsx           # Seed pick tracking, next opponent, path to title
   context/
     RankingsContext.tsx        # Global rankings data
     TeamProfileContext.tsx     # Team profile data provider
@@ -52,10 +68,14 @@ app/
       page.tsx                # Dedicated style factors route (/march/factors)
   api/
     games/predict/route.ts    # Proxies to FastAPI ML server (general game predictions)
+    games/similar/route.ts    # Similar opponent finder (returns categorized game lists)
+    teams/ratings/route.ts    # Team ratings lookup across all sources
     bracket/predict/route.ts  # Proxies to FastAPI tournament-specific predictions
 components/
   ui/                         # shadcn/ui components (Radix-based)
   Header.tsx                  # Global header with search
+  games/
+    SimilarOpponents.tsx      # Shared similar-opponent game cards (used by game detail + bracket preview)
   march/
     MarchCards.tsx             # Shared March profile cards (SeedLineCard, SimilarTeamsCard, StyleFactorsCard)
     MarchScoreBadge.tsx        # Score badge + getMarchScoreColor() color gradient
@@ -64,6 +84,7 @@ lib/
     profile.ts                # getTeamProfile(), getSeasonSnapshots(), getMarchPageData(), getBracketPageData()
   bracket/
     predictions.ts            # Auto-fill algorithm: initializeBracket(), autoFillBracket(), computeBlendedProbability()
+    evaluation.ts             # Bracket realism scoring (0-100), style tiers, finding severity levels
     warnings.ts               # Warning system for unlikely bracket picks
   espn/
     espn-stats.ts             # EspnStats interface (250+ columns)
@@ -159,7 +180,10 @@ ml/
 ## Bracket Prediction System
 - Route: `/bracket` with desktop bracket tree (`BracketView`) + mobile round-by-round (`RoundView`)
 - Uses Bracket Matrix projected seedings, randomly assigns to 4 regions
-- State persisted in localStorage (region assignments + picks)
+- State managed in `BracketContext` with localStorage persistence (region assignments + picks)
+- Initialization + pick restoration in `useState` lazy initializer (avoids useEffect race conditions)
+- ML predictions fetched and cached per-matchup, merged into state for auto-fill
+- Game preview at `/bracket/[gameId]` with matchup banner, predictions, seed stats, similar opponents, bracket impact
 - UI uses shadcn `DropdownMenu` for all auto-fill menus (toolbar, per-round)
 
 ### Auto-Fill UI

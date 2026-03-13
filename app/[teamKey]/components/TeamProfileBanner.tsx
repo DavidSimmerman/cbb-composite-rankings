@@ -4,6 +4,7 @@ import { useRankings } from '@/app/context/RankingsContext';
 import { useTeamProfile } from '@/app/context/TeamProfileContext';
 import TeamLogo from '@/components/TeamLogo';
 import { Card, CardContent } from '@/components/ui/card';
+import type { TeamData } from '@/lib/espn/espn-team-data';
 import { getRankHeatMap } from '@/lib/utils';
 import { useMemo } from 'react';
 import { twMerge } from 'tailwind-merge';
@@ -14,8 +15,43 @@ export default function TeamProfileBanner() {
 
 	const team = useMemo(() => rankings.find(r => r.team_key === profile.team_key)!, [profile.team_key]);
 
+	const metadata = (team as unknown as { metadata?: TeamData }).metadata;
+
+	const pickColor = () => {
+		if (!metadata?.color) return undefined;
+		const primary = metadata.color;
+		const secondary = metadata.secondary_color || primary;
+
+		const isNearBlack = (hex: string) => {
+			const r = parseInt(hex.slice(0, 2), 16);
+			const g = parseInt(hex.slice(2, 4), 16);
+			const b = parseInt(hex.slice(4, 6), 16);
+			return r + g + b < 80;
+		};
+		const isNearWhite = (hex: string) => {
+			const r = parseInt(hex.slice(0, 2), 16);
+			const g = parseInt(hex.slice(2, 4), 16);
+			const b = parseInt(hex.slice(4, 6), 16);
+			return r + g + b > 680;
+		};
+
+		if (isNearBlack(primary)) return secondary;
+		if (isNearWhite(primary)) {
+			return !isNearBlack(secondary) ? secondary : primary;
+		}
+		return primary;
+	};
+
+	const bannerColor = pickColor();
+
 	return (
-		<Card className="w-full mt-4 md:mt-8 py-3">
+		<Card
+			className="w-full mt-4 md:mt-8 py-3"
+			style={bannerColor ? {
+				background: `linear-gradient(135deg, #${bannerColor}40 0%, #${bannerColor}20 50%, transparent 100%)`,
+				borderColor: `#${bannerColor}60`,
+			} : undefined}
+		>
 			<CardContent className="flex flex-col md:flex-row gap-3 md:gap-4 items-center px-4">
 				<div className="flex gap-3 md:gap-4 items-center w-full md:w-auto">
 					<TeamLogo teamKey={profile.team_key} className="h-14 md:h-22" />
