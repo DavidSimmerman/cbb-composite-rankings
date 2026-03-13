@@ -1,12 +1,12 @@
 'use client';
 
-import { MarchScoreBadge } from '@/components/march/MarchScoreBadge';
 import TeamLogo from '@/components/TeamLogo';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { BracketGame, BracketTeam } from '@/lib/bracket/predictions';
 import { ROUND_NAMES } from '@/lib/bracket/predictions';
 import type { SeedRoundStats } from '@/lib/rankings/profile';
-import { Info } from 'lucide-react';
+import { Info, Eye } from 'lucide-react';
+import Link from 'next/link';
 
 export interface SeedPickCounts {
 	/** Map of `${seed}-${round}` → number of that seed you've picked to win this round */
@@ -22,7 +22,7 @@ interface MatchupCardProps {
 }
 
 export default function MatchupCard({ game, seedPickCounts, seedRoundStats, onPickWinner, compact }: MatchupCardProps) {
-	const { teamA, teamB, winner, prediction } = game;
+	const { teamA, teamB, winner } = game;
 
 	if (!teamA && !teamB) {
 		return (
@@ -31,6 +31,8 @@ export default function MatchupCard({ game, seedPickCounts, seedRoundStats, onPi
 			</div>
 		);
 	}
+
+	const hasBothTeams = !!teamA && !!teamB;
 
 	return (
 		<div className={`border border-neutral-800 rounded-lg ${compact ? 'p-1' : 'p-1.5'} relative group`}>
@@ -44,11 +46,23 @@ export default function MatchupCard({ game, seedPickCounts, seedRoundStats, onPi
 				/>
 			)}
 
+			{/* Preview button */}
+			{hasBothTeams && (
+				<Link
+					href={`/bracket/${game.id}`}
+					className="absolute -top-1.5 -right-1.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+					onClick={(e: React.MouseEvent) => e.stopPropagation()}
+				>
+					<div className="bg-neutral-800 border border-neutral-700 rounded-full p-0.5 hover:bg-neutral-700 transition-colors">
+						<Eye className={`${compact ? 'size-2.5' : 'size-3'} text-neutral-300`} />
+					</div>
+				</Link>
+			)}
+
 			<TeamRow
 				team={teamA}
 				isWinner={winner === teamA?.team_key}
 				isLoser={!!winner && winner !== teamA?.team_key}
-				prob={prediction?.probA}
 				onClick={() => teamA && onPickWinner(game.id, teamA.team_key)}
 				compact={compact}
 				round={game.round}
@@ -60,7 +74,6 @@ export default function MatchupCard({ game, seedPickCounts, seedRoundStats, onPi
 				team={teamB}
 				isWinner={winner === teamB?.team_key}
 				isLoser={!!winner && winner !== teamB?.team_key}
-				prob={prediction?.probB}
 				onClick={() => teamB && onPickWinner(game.id, teamB.team_key)}
 				compact={compact}
 				round={game.round}
@@ -74,7 +87,6 @@ function TeamRow({
 	team,
 	isWinner,
 	isLoser,
-	prob,
 	onClick,
 	compact,
 	round,
@@ -82,7 +94,6 @@ function TeamRow({
 	team: BracketTeam | null;
 	isWinner: boolean;
 	isLoser: boolean;
-	prob?: number;
 	onClick: () => void;
 	compact?: boolean;
 	round: number;
@@ -120,12 +131,6 @@ function TeamRow({
 			<span className={`${compact ? 'text-[11px]' : 'text-sm'} truncate flex-1 text-left font-medium`}>
 				{displayName}
 			</span>
-			{!compact && <MarchScoreBadge score={team.march_score} size="sm" />}
-			{prob !== undefined && (
-				<span className={`${compact ? 'text-[9px]' : 'text-xs'} text-muted-foreground tabular-nums shrink-0`}>
-					{(prob * 100).toFixed(0)}%
-				</span>
-			)}
 		</button>
 	);
 }
