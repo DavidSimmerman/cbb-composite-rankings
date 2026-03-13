@@ -4,6 +4,7 @@ import { useRankings } from '@/app/context/RankingsContext';
 import { useTeamProfile } from '@/app/context/TeamProfileContext';
 import TeamLogo from '@/components/TeamLogo';
 import { Card, CardContent } from '@/components/ui/card';
+import type { TeamData } from '@/lib/espn/espn-team-data';
 import { getRankHeatMap } from '@/lib/utils';
 import { useMemo } from 'react';
 import { twMerge } from 'tailwind-merge';
@@ -14,8 +15,18 @@ export default function TeamProfileBanner() {
 
 	const team = useMemo(() => rankings.find(r => r.team_key === profile.team_key)!, [profile.team_key]);
 
+	const metadata = (team as unknown as { metadata?: TeamData }).metadata;
+	const color = metadata?.color;
+	const secondaryColor = metadata?.secondary_color || color;
+
 	return (
-		<Card className="w-full mt-4 md:mt-8 py-3">
+		<Card
+			className="w-full mt-4 md:mt-8 py-3"
+			style={color ? {
+				background: `linear-gradient(135deg, #${color}40 0%, #${color}15 40%, #${secondaryColor}15 60%, #${secondaryColor}40 100%)`,
+				borderColor: `#${color}60`,
+			} : undefined}
+		>
 			<CardContent className="flex flex-col md:flex-row gap-3 md:gap-4 items-center px-4">
 				<div className="flex gap-3 md:gap-4 items-center w-full md:w-auto">
 					<TeamLogo teamKey={profile.team_key} className="h-14 md:h-22" />
