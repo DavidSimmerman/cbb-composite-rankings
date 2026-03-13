@@ -15,8 +15,10 @@ from pydantic import BaseModel
 
 from ml.config import ML_PORT
 from ml.inference.predict import Predictor
+from ml.inference.predict_tournament import TournamentPredictor
 
 predictor = Predictor()
+tourney_predictor = TournamentPredictor()
 _train_lock = threading.Lock()
 
 
@@ -39,6 +41,11 @@ async def lifespan(app: FastAPI):
     except FileNotFoundError:
         print("No models found. Training on startup...")
         _train_and_load()
+
+    try:
+        tourney_predictor.load()
+    except FileNotFoundError:
+        print("No tournament models found. Train with: python -m ml.training.train_tournament")
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(_train_and_load, "cron", hour=5, minute=0)
@@ -119,6 +126,32 @@ async def reload_model():
         return {"status": "ok", "version": predictor.metadata["version"]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class TournamentPredictionRequest(BaseModel):
+    team_a_key: str
+    team_b_key: str
+    seed_a: int
+    seed_b: int
+    round_number: int
+
+
+@app.post("/predict/tournament")
+def predict_tournament(req: TournamentPredictionRequest):
+    """Predict a tournament matchup using tournament-specific model."""
+    if tourney_predictor.win_model is None:
+        raise HTTPException(status_code=503, detail="Tournament model not loaded. Train with: python -m ml.training.train_tournament")
+
+    try:
+        result = tourney_predictor.predict(
+            req.team_a_key, req.team_b_key,
+            req.seed_a, req.seed_b, req.round_number,
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Tournament prediction error: {str(e)}")
 
 
 if __name__ == "__main__":

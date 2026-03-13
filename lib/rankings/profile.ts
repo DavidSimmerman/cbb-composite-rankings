@@ -418,6 +418,7 @@ interface TourneyCompositeRow {
 }
 
 interface SeedOutcomeEntry { seed: number; wins: number }
+interface SeasonSeedOutcome { season: number; seed: number; wins: number; maxDepth: number }
 
 interface TourneyTeamSeason {
 	season: number; team_key: string; team_name: string;
@@ -527,12 +528,13 @@ function rankToSeed(rank: number): number {
 
 let _datasetCache: TourneyTeamSeason[] | null = null;
 let _seedOutcomesCache: SeedOutcomeEntry[] | null = null;
+let _seasonSeedOutcomesCache: SeasonSeedOutcome[] | null = null;
 let _datasetCacheTime = 0;
 const CACHE_TTL = 3600_000;
 
-async function getTournamentDataset(): Promise<{ dataset: TourneyTeamSeason[]; allSeedOutcomes: SeedOutcomeEntry[] }> {
-	if (_datasetCache && _seedOutcomesCache && Date.now() - _datasetCacheTime < CACHE_TTL) {
-		return { dataset: _datasetCache, allSeedOutcomes: _seedOutcomesCache };
+async function getTournamentDataset(): Promise<{ dataset: TourneyTeamSeason[]; allSeedOutcomes: SeedOutcomeEntry[]; seasonSeedOutcomes: SeasonSeedOutcome[] }> {
+	if (_datasetCache && _seedOutcomesCache && _seasonSeedOutcomesCache && Date.now() - _datasetCacheTime < CACHE_TTL) {
+		return { dataset: _datasetCache, allSeedOutcomes: _seedOutcomesCache, seasonSeedOutcomes: _seasonSeedOutcomesCache };
 	}
 
 	// Teams with composite data (2010+)
@@ -612,18 +614,25 @@ async function getTournamentDataset(): Promise<{ dataset: TourneyTeamSeason[]; a
 
 			const isHome = g.home_team_key === teamKey;
 			const won = isHome ? g.home_score > g.away_score : g.away_score > g.home_score;
-			if (won) ts.wins++;
-
-			const depth = ROUND_DEPTH[g.round] ?? 0;
-			if (depth > ts.maxDepth) ts.maxDepth = depth;
+			if (won) {
+				ts.wins++;
+				// Detect mislabeled First Four games: same-seed "Final Four" matchups are play-in games
+				const isFirstFour = g.round === 'First Four' ||
+					(g.round === 'Final Four' && g.team_a_seed === g.team_b_seed && g.season >= 2011);
+				const depth = isFirstFour ? 0 : (ROUND_DEPTH[g.round] ?? 0);
+				if (depth > ts.maxDepth) ts.maxDepth = depth;
+			}
 			if (oppSeed < ts.oppBestSeed) ts.oppBestSeed = oppSeed;
 		}
 	}
 
 	// All seed outcomes (2002+) for historical seed outcome bars
 	const allSeedOutcomes: SeedOutcomeEntry[] = [];
-	for (const ts of teamSeasons.values()) {
+	const seasonSeedOutcomes: SeasonSeedOutcome[] = [];
+	for (const [key, ts] of teamSeasons) {
 		allSeedOutcomes.push({ seed: ts.seed, wins: ts.wins });
+		const season = parseInt(key.split('-', 1)[0]);
+		seasonSeedOutcomes.push({ season, seed: ts.seed, wins: ts.wins, maxDepth: ts.maxDepth });
 	}
 
 	// Build lookup maps
@@ -667,8 +676,9 @@ async function getTournamentDataset(): Promise<{ dataset: TourneyTeamSeason[]; a
 
 	_datasetCache = dataset;
 	_seedOutcomesCache = allSeedOutcomes;
+	_seasonSeedOutcomesCache = seasonSeedOutcomes;
 	_datasetCacheTime = Date.now();
-	return { dataset, allSeedOutcomes };
+	return { dataset, allSeedOutcomes, seasonSeedOutcomes };
 }
 
 // ─── Shared Factor Infrastructure ────────────────────────────────────────
@@ -1128,8 +1138,8 @@ async function getMarchAnalysis(teamKey: string, fullRatings: Record<string, Ful
 	const ratingScore = Math.round(ratingPercentile);
 
 	// ─── Combined March Score ────────────────────────────────────────────
-	// 40% style factors, 30% historical comps, 30% rating vs seed
-	const marchScore = Math.round(styleScore * 0.4 + compsScore * 0.3 + ratingScore * 0.3);
+	// 45% historical comps, 30% style factors, 25% rating vs seed
+	const marchScore = Math.round(compsScore * 0.45 + styleScore * 0.30 + ratingScore * 0.25);
 
 	// ─── Expected Wins ───────────────────────────────────────────────────
 	const applicableDeltas = styleFactors.map(f => f.avg_wins_above_seed);
@@ -1166,10 +1176,16 @@ export interface FactorMatrixCell {
 export interface BracketTeamSummary {
 	team_key: string;
 	team_name: string;
+	short_name: string;
+	abbreviation: string;
 	projected_seed: number;
 	avg_seed: number | null;
 	march_score: number;
 	march_analysis: MarchAnalysis;
+	comp_rating: number;
+	comp_rank: number;
+	comp_off_rank: number;
+	comp_def_rank: number;
 	color: string;
 	secondary_color: string;
 	logo_url: string;
@@ -1313,13 +1329,21 @@ export async function getMarchPageData(): Promise<MarchPageData> {
 		const analysis = await getMarchAnalysis(bm.team_key, teamRatings as any);
 		if (!analysis) return;
 		const td = allTeamData[bm.team_key];
+		const latestSeason = Object.keys(teamRatings).sort().at(-1)!;
+		const latestRatings = teamRatings[latestSeason] as any;
 		bracketTeams.push({
 			team_key: bm.team_key,
-			team_name: td?.name ?? bm.team_key,
+			team_name: td?.short_name ?? td?.name ?? bm.team_key,
+			short_name: td?.short_name ?? td?.name ?? bm.team_key,
+			abbreviation: td?.abbreviation ?? bm.team_key.toUpperCase().slice(0, 4),
 			projected_seed: 0, // assigned below
 			avg_seed: bm.avg_seed,
 			march_score: analysis.march_score,
 			march_analysis: analysis,
+			comp_rating: latestRatings?.comp_avg_zscore ?? 0,
+			comp_rank: latestRatings?.comp_avg_zscore_rank ?? 0,
+			comp_off_rank: latestRatings?.comp_avg_offensive_zscore_rank ?? 0,
+			comp_def_rank: latestRatings?.comp_avg_defensive_zscore_rank ?? 0,
 			color: td?.color ?? '333333',
 			secondary_color: td?.secondary_color ?? '666666',
 			logo_url: td?.espn_id ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${td.espn_id}.png` : '',
@@ -1333,6 +1357,151 @@ export async function getMarchPageData(): Promise<MarchPageData> {
 	}
 
 	return { factor_matrix: factorMatrix, global_min: globalMin, global_max: globalMax, bracket_teams: bracketTeams, seed_baselines: seedBaselines };
+}
+
+// --- Bracket Page Data ---
+
+export interface SeedRoundStat {
+	win_pct: number;
+	sample_size: number;
+	/** How many of the 4 same-seeded teams won this round, per year — e.g. [4, 4, 3, 4, 4, 3, ...] */
+	wins_per_year: number[];
+}
+
+export type SeedRoundStats = Record<number, Record<string, SeedRoundStat>>;
+
+export interface CrossSeedPatterns {
+	/** For seed S, round R, count C: has it ever happened that exactly C of 4 S-seeds won round R? */
+	unprecedented: { seed: number; round: string; count: number }[];
+	/** Per seed per round: mean and stddev of wins-of-4-per-year */
+	distributions: Record<number, Record<string, { mean: number; stddev: number; min: number; max: number }>>;
+}
+
+export interface SeedMatchupStat {
+	higher_seed: number;
+	lower_seed: number;
+	round: string;
+	higher_seed_win_pct: number;
+	sample_size: number;
+}
+
+export interface BracketPageData {
+	bracket_teams: BracketTeamSummary[];
+	seed_baselines: Record<number, number>;
+	seed_round_stats: SeedRoundStats;
+	cross_seed_patterns: CrossSeedPatterns;
+	seed_matchup_stats: SeedMatchupStat[];
+}
+
+const BRACKET_ROUNDS = ['Round of 64', 'Round of 32', 'Sweet 16', 'Elite 8', 'Final Four', 'Championship'];
+
+export async function getBracketPageData(): Promise<BracketPageData> {
+	const [marchData, { allSeedOutcomes, seasonSeedOutcomes }] = await Promise.all([
+		getMarchPageData(),
+		getTournamentDataset(),
+	]);
+
+	// Compute seed-round stats from seasonSeedOutcomes
+	// For each seed (1-16) and round, compute: win rate, per-year distribution
+	// Use maxDepth (deepest round reached) instead of win count to avoid First Four inflation
+	const seedRoundStats: SeedRoundStats = {};
+	const roundDepthThresholds: Record<string, number> = {
+		'Round of 64': 1, 'Round of 32': 2, 'Sweet 16': 3,
+		'Elite 8': 4, 'Final Four': 5, 'Championship': 6,
+	};
+
+	// Get unique seasons
+	const seasons = [...new Set(seasonSeedOutcomes.map(s => s.season))].sort();
+
+	for (let seed = 1; seed <= 16; seed++) {
+		seedRoundStats[seed] = {};
+		const seedOutcomes = seasonSeedOutcomes.filter(s => s.seed === seed);
+
+		for (const [roundName, minDepth] of Object.entries(roundDepthThresholds)) {
+			const total = seedOutcomes.length;
+			const won = seedOutcomes.filter(s => s.maxDepth >= minDepth).length;
+
+			// Per-year: how many of the 4 same-seeded teams won this round
+			const winsPerYear: number[] = [];
+			for (const season of seasons) {
+				const seasonTeams = seedOutcomes.filter(s => s.season === season);
+				if (seasonTeams.length === 0) continue;
+				const winsThisYear = seasonTeams.filter(s => s.maxDepth >= minDepth).length;
+				winsPerYear.push(winsThisYear);
+			}
+
+			seedRoundStats[seed][roundName] = {
+				win_pct: total > 0 ? won / total : 0,
+				sample_size: total,
+				wins_per_year: winsPerYear,
+			};
+		}
+	}
+
+	// Compute cross-seed patterns
+	const unprecedented: CrossSeedPatterns['unprecedented'] = [];
+	const distributions: CrossSeedPatterns['distributions'] = {};
+
+	for (let seed = 1; seed <= 16; seed++) {
+		distributions[seed] = {};
+		for (const roundName of BRACKET_ROUNDS) {
+			const stat = seedRoundStats[seed]?.[roundName];
+			if (!stat || stat.wins_per_year.length === 0) continue;
+
+			const arr = stat.wins_per_year;
+			const mean = arr.reduce((s, v) => s + v, 0) / arr.length;
+			const variance = arr.reduce((s, v) => s + (v - mean) ** 2, 0) / arr.length;
+			const stddev = Math.sqrt(variance);
+			const min = Math.min(...arr);
+			const max = Math.max(...arr);
+
+			distributions[seed][roundName] = { mean, stddev, min, max };
+
+			// Check for unprecedented counts (0 through 4)
+			const occurredCounts = new Set(arr);
+			for (let c = 0; c <= 4; c++) {
+				if (!occurredCounts.has(c)) {
+					unprecedented.push({ seed, round: roundName, count: c });
+				}
+			}
+		}
+	}
+
+	// Compute seed-vs-seed matchup stats from tournament_games
+	const matchupStats = computeSeedMatchupStats(seasonSeedOutcomes);
+
+	return {
+		bracket_teams: marchData.bracket_teams,
+		seed_baselines: marchData.seed_baselines,
+		seed_round_stats: seedRoundStats,
+		cross_seed_patterns: { unprecedented, distributions },
+		seed_matchup_stats: matchupStats,
+	};
+}
+
+function computeSeedMatchupStats(seasonSeedOutcomes: SeasonSeedOutcome[]): SeedMatchupStat[] {
+	// Use the standard bracket matchups and historical win rates
+	// For bracket: 1v16, 2v15, 3v14, 4v13, 5v12, 6v11, 7v10, 8v9 in R64
+	// Use maxDepth instead of wins to avoid First Four inflation
+	const stats: SeedMatchupStat[] = [];
+
+	const r64Pairs: [number, number][] = [[1,16],[2,15],[3,14],[4,13],[5,12],[6,11],[7,10],[8,9]];
+
+	for (const [high, low] of r64Pairs) {
+		const highOutcomes = seasonSeedOutcomes.filter(s => s.seed === high);
+		if (highOutcomes.length === 0) continue;
+		// Higher seed wins R64 = reached at least depth 1 (won R64 game)
+		const highWins = highOutcomes.filter(s => s.maxDepth >= 1).length;
+		stats.push({
+			higher_seed: high,
+			lower_seed: low,
+			round: 'Round of 64',
+			higher_seed_win_pct: highWins / highOutcomes.length,
+			sample_size: highOutcomes.length,
+		});
+	}
+
+	return stats;
 }
 
 export async function getTeamProfile(teamKey: string, options?: { enrichedSchedule?: boolean }): Promise<TeamProfile> {

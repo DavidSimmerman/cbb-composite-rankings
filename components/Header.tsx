@@ -14,7 +14,8 @@ import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
 const NAV_LINKS = [
 	{ href: '/', label: 'Rankings' },
 	{ href: '/games', label: 'Scoreboard' },
-	{ href: '/march', label: 'March Profiles' }
+	{ href: '/march', label: 'March Profiles' },
+	{ href: '/bracket', label: 'Bracket' }
 ];
 
 export default function Header() {
