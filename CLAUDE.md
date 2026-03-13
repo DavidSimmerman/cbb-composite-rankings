@@ -160,6 +160,14 @@ ml/
 - Route: `/bracket` with desktop bracket tree (`BracketView`) + mobile round-by-round (`RoundView`)
 - Uses Bracket Matrix projected seedings, randomly assigns to 4 regions
 - State persisted in localStorage (region assignments + picks)
+- UI uses shadcn `DropdownMenu` for all auto-fill menus (toolbar, per-round)
+
+### Auto-Fill UI
+- **Toolbar dropdown**: "Auto-fill" button with two options — Simulate and Perfect My Bracket
+- **Round-level auto-fill**: Desktop shows "Auto-fill" buttons above each round column (SOUTH/WEST regions only); mobile shows "Auto-fill round" bar between round tabs and games. Both use shadcn DropdownMenu with same Simulate/Perfect options scoped to that round
+- **Simulate** (`autoFillBracket`): Randomized bracket using ML predictions, team ratings, and historical seed patterns. Supports `options?: { round?: number }` for round-scoping
+- **Perfect My Bracket** (`perfectBracket`): Generates 20 auto-fill candidates, picks highest realism score, then hill-climbs by flipping non-manual games. Supports `options?: { round?: number }`. Evaluator passed as callback to avoid circular dependency with `evaluation.ts`
+- No per-game or per-region auto-fill buttons — only whole-bracket and per-round
 
 ### Auto-Fill Algorithm (`lib/bracket/predictions.ts`)
 - **6-phase round-by-round process**: Phase 1 (target upsets per seed group), Phase 2 (assign upsets by scoring), Phase 3 (double-digit seed cap), Phase 3.5 (minimum upset floor), Phase 4 (warning avoidance), Apply
@@ -169,9 +177,15 @@ ml/
 - **Tournament viability**: Sigmoid on weighted comps (45%) + style (30%) + rating (25%) scores
 - **Conditional win rates**: `P(win round R | reached R)` with sample-size shrinkage toward 0.45 prior (weight = sampleAtStage / (sampleAtStage + 20))
 - **Deep-run penalty**: Seeds 7-9 get 0.70x per round above avg depth; seeds 10+ get 0.60x with hard caps from `SEED_MAX_DEPTH_EVER`
+- **Hard caps**: 16-over-1 upset rate forced to 0%; 15-over-2 capped at 2.5%
 - **Phase 4 warning thresholds**: R64/R32 use unconditional rate < 5% (red); S16+ use conditional rate < 10% (to avoid blocking plausible deep-run upsets)
 - **Chaos tracking**: Cumulative score from seed-diff >= 5 upsets; bias only at extreme levels (>7: -0.02, >10: -0.05)
 - **Minimum upset floors**: R64 >= 5, R32 >= 3, S16 >= 1
+
+### Evaluation System (`lib/bracket/evaluation.ts`)
+- **Realism score**: 100 minus accumulated penalties for unlikely picks
+- **Bracket style tiers**: 97+ "This Is the One", 90+ "Almost Perfect", 75+ "Mostly Realistic", 55+ "Bold Picks", 30+ "Chaos Bracket", <30 "March Madness Fantasy"
+- Penalties for: deep runs by low seeds, double-digit seed advances, upset group frequency, chalk bracket (no upsets)
 
 ### Warning System (`lib/bracket/warnings.ts`)
 - Per-game warnings: yellow (< 20% historical) and red (< 5% historical) based on seed win rates
