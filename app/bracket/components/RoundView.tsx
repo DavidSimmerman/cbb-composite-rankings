@@ -247,7 +247,7 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 			</div>
 
 			{/* Next/Back navigation */}
-			<div className="flex items-center justify-between px-3 py-2 border-t border-neutral-800 shrink-0">
+			<div className="flex items-center justify-between px-3 py-1 border-t border-neutral-800 shrink-0">
 				{selectedRound > 1 ? (
 					<button
 						onClick={() => navigateRound('right')}
