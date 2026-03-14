@@ -4,7 +4,7 @@ import { useBracket } from '../context/BracketContext';
 import BracketView from './BracketView';
 import RoundView from './RoundView';
 import EvaluationPanel from './EvaluationPanel';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, RotateCcw, ClipboardCheck, Crown, Dices } from 'lucide-react';
 import {
 	DropdownMenu,
@@ -32,6 +32,15 @@ export default function BracketClient() {
 	} = useBracket();
 
 	const [selectedRound, setSelectedRound] = useState(1);
+	const prevTotalPicks = useRef(totalPicks);
+
+	// Jump to championship on full-bracket auto-fill
+	useEffect(() => {
+		if (totalPicks === 63 && prevTotalPicks.current < 63) {
+			setSelectedRound(6);
+		}
+		prevTotalPicks.current = totalPicks;
+	}, [totalPicks]);
 
 	return (
 		<div className="flex flex-col h-full">

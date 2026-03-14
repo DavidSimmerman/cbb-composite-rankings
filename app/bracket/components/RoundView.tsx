@@ -4,7 +4,7 @@ import type { BracketGame } from '@/lib/bracket/predictions';
 import { ROUND_SHORT_NAMES } from '@/lib/bracket/predictions';
 import type { SeedRoundStats } from '@/lib/rankings/profile';
 import MatchupCard, { type SeedPickCounts } from './MatchupCard';
-import { ChevronDown, Crown, Dices } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Crown, Dices } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	DropdownMenu,
@@ -31,6 +31,18 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 	const rounds = [1, 2, 3, 4, 5, 6];
 	const [slideDirection, setSlideDirection] = useState<SlideDirection>(null);
 	const prevRoundRef = useRef(selectedRound);
+
+	// Tab bar scroll
+	const tabBarRef = useRef<HTMLDivElement>(null);
+	const activeTabRef = useRef<HTMLButtonElement>(null);
+
+	useEffect(() => {
+		const tab = activeTabRef.current;
+		const bar = tabBarRef.current;
+		if (!tab || !bar) return;
+		const tabCenter = tab.offsetLeft + tab.offsetWidth / 2;
+		bar.scrollTo({ left: tabCenter - bar.offsetWidth / 2, behavior: 'smooth' });
+	}, [selectedRound]);
 
 	// Track swipe gestures
 	const touchStartX = useRef(0);
@@ -152,10 +164,11 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 	return (
 		<div className="flex flex-col h-full" ref={containerRef}>
 			{/* Round selector tabs */}
-			<div className="flex items-center gap-1 px-3 py-2 border-b border-neutral-800 overflow-x-auto shrink-0">
+			<div ref={tabBarRef} className="flex items-center gap-1 px-3 py-2 border-b border-neutral-800 overflow-x-auto shrink-0">
 				{roundProgress.map(({ round, completed, total }) => (
 					<button
 						key={round}
+						ref={round === selectedRound ? activeTabRef : undefined}
 						onClick={() => onSelectRound(round)}
 						className={`px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors cursor-pointer ${
 							selectedRound === round
@@ -231,6 +244,28 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 						</div>
 					</div>
 				))}
+			</div>
+
+			{/* Next/Back navigation */}
+			<div className="flex items-center justify-between px-3 py-2 border-t border-neutral-800 shrink-0">
+				{selectedRound > 1 ? (
+					<button
+						onClick={() => navigateRound('right')}
+						className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer"
+					>
+						<ChevronLeft className="size-4" />
+						{ROUND_SHORT_NAMES[selectedRound - 1]}
+					</button>
+				) : <div />}
+				{selectedRound < 6 ? (
+					<button
+						onClick={() => navigateRound('left')}
+						className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer"
+					>
+						{ROUND_SHORT_NAMES[selectedRound + 1]}
+						<ChevronRight className="size-4" />
+					</button>
+				) : <div />}
 			</div>
 		</div>
 	);
