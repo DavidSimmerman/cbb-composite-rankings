@@ -1,10 +1,10 @@
+import { GoogleAnalytics } from '@next/third-parties/google';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Geist, Geist_Mono, Inter } from 'next/font/google';
 import localFont from 'next/font/local';
 import { cookies } from 'next/headers';
 import PathnameKey from '@/components/PathnameKey';
 import RankingsLoader from './components/RankingsLoader';
-import TrackingBeacon from './components/TrackingBeacon';
 import { CookieProvider } from './context/CookieContext';
 import './globals.css';
 
@@ -65,35 +65,18 @@ export default async function RootLayout({
 	children: React.ReactNode;
 }>) {
 	const cookieStore = await cookies();
-	const trackingCookie = cookieStore.get('__tracking')?.value;
-	let trackingData: Record<string, string> | null = null;
-	if (trackingCookie) {
-		try {
-			trackingData = JSON.parse(trackingCookie);
-		} catch {}
-	}
 
 	return (
 		<html lang="en" className="dark">
 			<body className={`${geistSans.variable} ${geistMono.variable} ${kanit.variable} ${inter.variable} antialiased`}>
 				<CookieProvider cookies={Object.fromEntries(cookieStore.getAll().map(c => [c.name, c.value]))}>
-					<RankingsLoader isNewSession={trackingCookie ? JSON.parse(trackingCookie).isNewSession : false}>
+					<RankingsLoader>
 						<TooltipProvider>
 							<PathnameKey>{children}</PathnameKey>
 						</TooltipProvider>
 					</RankingsLoader>
 				</CookieProvider>
-				{trackingData && (
-					<TrackingBeacon
-						visitorId={trackingData.visitorId}
-						sessionId={trackingData.sessionId}
-						pageUrl={trackingData.pageUrl}
-						queryString={trackingData.queryString}
-						referrer={trackingData.referrer}
-						geoCity={trackingData.geoCity}
-						geoState={trackingData.geoState}
-					/>
-				)}
+				{process.env.NEXT_PUBLIC_GA_ID && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />}
 			</body>
 		</html>
 	);
