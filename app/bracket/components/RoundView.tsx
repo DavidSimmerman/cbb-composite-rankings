@@ -32,6 +32,18 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 	const [slideDirection, setSlideDirection] = useState<SlideDirection>(null);
 	const prevRoundRef = useRef(selectedRound);
 
+	// Tab bar scroll
+	const tabBarRef = useRef<HTMLDivElement>(null);
+	const activeTabRef = useRef<HTMLButtonElement>(null);
+
+	useEffect(() => {
+		const tab = activeTabRef.current;
+		const bar = tabBarRef.current;
+		if (!tab || !bar) return;
+		const tabCenter = tab.offsetLeft + tab.offsetWidth / 2;
+		bar.scrollTo({ left: tabCenter - bar.offsetWidth / 2, behavior: 'smooth' });
+	}, [selectedRound]);
+
 	// Track swipe gestures
 	const touchStartX = useRef(0);
 	const touchStartY = useRef(0);
@@ -152,10 +164,11 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 	return (
 		<div className="flex flex-col h-full" ref={containerRef}>
 			{/* Round selector tabs */}
-			<div className="flex items-center gap-1 px-3 py-2 border-b border-neutral-800 overflow-x-auto shrink-0">
+			<div ref={tabBarRef} className="flex items-center gap-1 px-3 py-2 border-b border-neutral-800 overflow-x-auto shrink-0">
 				{roundProgress.map(({ round, completed, total }) => (
 					<button
 						key={round}
+						ref={round === selectedRound ? activeTabRef : undefined}
 						onClick={() => onSelectRound(round)}
 						className={`px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors cursor-pointer ${
 							selectedRound === round
