@@ -10,6 +10,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - KP_API_KEY=${KP_API_KEY}
       - ML_API_URL=http://ml:8100
+      - NEXT_PUBLIC_GA_ID=${NEXT_PUBLIC_GA_ID}
     depends_on:
       - ml
     networks:
