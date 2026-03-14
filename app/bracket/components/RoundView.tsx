@@ -4,7 +4,7 @@ import type { BracketGame } from '@/lib/bracket/predictions';
 import { ROUND_SHORT_NAMES } from '@/lib/bracket/predictions';
 import type { SeedRoundStats } from '@/lib/rankings/profile';
 import MatchupCard, { type SeedPickCounts } from './MatchupCard';
-import { ChevronDown, Crown, Dices } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Crown, Dices } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
 	DropdownMenu,
@@ -231,6 +231,28 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 						</div>
 					</div>
 				))}
+			</div>
+
+			{/* Next/Back navigation */}
+			<div className="flex items-center justify-between px-3 py-2 border-t border-neutral-800 shrink-0">
+				{selectedRound > 1 ? (
+					<button
+						onClick={() => navigateRound('right')}
+						className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer"
+					>
+						<ChevronLeft className="size-4" />
+						{ROUND_SHORT_NAMES[selectedRound - 1]}
+					</button>
+				) : <div />}
+				{selectedRound < 6 ? (
+					<button
+						onClick={() => navigateRound('left')}
+						className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer"
+					>
+						{ROUND_SHORT_NAMES[selectedRound + 1]}
+						<ChevronRight className="size-4" />
+					</button>
+				) : <div />}
 			</div>
 		</div>
 	);
