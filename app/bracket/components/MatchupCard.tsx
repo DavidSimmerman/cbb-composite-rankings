@@ -7,6 +7,17 @@ import type { SeedRoundStats } from '@/lib/rankings/profile';
 import { Eye } from 'lucide-react';
 import Link from 'next/link';
 
+/** Use secondary_color if the primary is too close to black to be visible on dark backgrounds. */
+function getVisibleColor(team: BracketTeam): string {
+	const hex = team.color;
+	const r = parseInt(hex.slice(0, 2), 16);
+	const g = parseInt(hex.slice(2, 4), 16);
+	const b = parseInt(hex.slice(4, 6), 16);
+	// Relative luminance approximation
+	const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+	return luminance < 0.15 ? team.secondary_color : hex;
+}
+
 export interface SeedPickCounts {
 	/** Map of `${seed}-${round}` → number of that seed you've picked to win this round */
 	[key: string]: number;
@@ -115,6 +126,7 @@ function TeamRow({
 
 	// R64: show short_name, R32+: show abbreviation
 	const displayName = round === 1 ? team.short_name : team.abbreviation;
+	const accentColor = getVisibleColor(team);
 
 	return (
 		<button
@@ -127,8 +139,8 @@ function TeamRow({
 						: 'hover:bg-neutral-800/50'
 			}`}
 			style={isWinner ? {
-				backgroundColor: `#${team.color}20`,
-				borderLeft: `2px solid #${team.color}`,
+				backgroundColor: `#${accentColor}20`,
+				borderLeft: `2px solid #${accentColor}`,
 			} : undefined}
 		>
 			<span className={`${compact ? 'text-[10px]' : 'text-xs'} text-muted-foreground tabular-nums w-4 text-right shrink-0`}>
