@@ -1,7 +1,18 @@
+import type { Metadata } from 'next';
 import Header from '@/components/Header';
 import { getScoreboard, type ScoreboardGame, type ScoreboardGameEnriched } from '@/lib/espn/scoreboard';
 import { getRankings } from '@/lib/rankings/rankings';
 import ScoreboardView from './components/ScoreboardView';
+
+export const metadata: Metadata = {
+	title: 'College Basketball Scoreboard — NCAA Game Scores & Predictions',
+	description:
+		'Live college basketball scoreboard with NCAA game scores, AI-powered predictions, and matchup analysis. Powered by KenPom, Evan Miya, Bart Torvik, and NET ratings.',
+	openGraph: {
+		title: 'College Basketball Scoreboard',
+		description: 'NCAA basketball scores with AI game predictions and composite ratings analysis.',
+	},
+};
 
 export const dynamic = 'force-dynamic';
 
@@ -61,6 +72,7 @@ export default async function GamesPage({ searchParams }: { searchParams: { date
 	return (
 		<div className="h-dvh flex flex-col">
 			<Header />
+			<h1 className="sr-only">College Basketball Scoreboard — NCAA Game Scores & Predictions</h1>
 			<div className="max-w-340 w-full mx-auto px-2 md:px-4 pb-4 md:pb-8">
 				<ScoreboardView games={enrichedGames} currentDate={dateParam} />
 			</div>

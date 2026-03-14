@@ -43,20 +43,45 @@ const kanit = localFont({
 
 export const metadata = {
 	metadataBase: new URL('https://cbbcomposite.com'),
-	title: 'CBB Composite Rankings',
-	description: 'Composite college basketball rankings from KenPom, EvanMiya, BartTorvik, and NET',
+	title: {
+		default: 'CBB Composite Rankings — KenPom, EvanMiya, BartTorvik & NET Combined',
+		template: '%s | CBB Composite Rankings',
+	},
+	description:
+		'Composite NCAA college basketball rankings combining KenPom, Evan Miya, Bart Torvik, and NET into one unified ranking. AI-powered bracket predictions, March Madness tournament analysis, and game predictions.',
+	keywords: [
+		'kenpom',
+		'kenpom rankings',
+		'evan miya',
+		'evanmiya',
+		'bart torvik',
+		'barttorvik',
+		'NET rankings',
+		'college basketball rankings',
+		'ncaa basketball',
+		'march madness',
+		'ncaa tournament',
+		'bracket predictor',
+		'bracket ai',
+		'bracket suggestions',
+		'tournament bracket',
+		'college basketball stats',
+	],
 	openGraph: {
-		title: 'CBB Composite Rankings',
-		description: 'Composite college basketball rankings from KenPom, EvanMiya, BartTorvik, and NET',
+		title: 'CBB Composite Rankings — KenPom, EvanMiya, BartTorvik & NET Combined',
+		description:
+			'Composite NCAA college basketball rankings combining KenPom, Evan Miya, Bart Torvik, and NET. AI bracket predictions and March Madness analysis.',
 		images: [{ url: '/open-graph-image.png', width: 1200, height: 630 }],
-		type: 'website'
+		type: 'website',
+		siteName: 'CBB Composite Rankings',
 	},
 	twitter: {
 		card: 'summary_large_image',
-		title: 'CBB Composite Rankings',
-		description: 'Composite college basketball rankings',
-		images: [{ url: '/open-graph-image.png', width: 1200, height: 630 }]
-	}
+		title: 'CBB Composite Rankings — KenPom, EvanMiya, BartTorvik & NET',
+		description:
+			'Composite NCAA basketball rankings combining KenPom, Evan Miya, Bart Torvik, and NET. AI bracket predictions and tournament analysis.',
+		images: [{ url: '/open-graph-image.png', width: 1200, height: 630 }],
+	},
 };
 
 export default async function RootLayout({
@@ -69,6 +94,24 @@ export default async function RootLayout({
 	return (
 		<html lang="en" className="dark">
 			<body className={`${geistSans.variable} ${geistMono.variable} ${kanit.variable} ${inter.variable} antialiased`}>
+				<script
+					type="application/ld+json"
+					dangerouslySetInnerHTML={{
+						__html: JSON.stringify({
+							'@context': 'https://schema.org',
+							'@type': 'WebSite',
+							name: 'CBB Composite Rankings',
+							url: 'https://cbbcomposite.com',
+							description:
+								'Composite NCAA college basketball rankings combining KenPom, EvanMiya, BartTorvik, and NET ratings. AI-powered bracket predictions and March Madness analysis.',
+							potentialAction: {
+								'@type': 'SearchAction',
+								target: 'https://cbbcomposite.com/{team_key}',
+								'query-input': 'required name=team_key',
+							},
+						}),
+					}}
+				/>
 				<CookieProvider cookies={Object.fromEntries(cookieStore.getAll().map(c => [c.name, c.value]))}>
 					<RankingsLoader>
 						<TooltipProvider>

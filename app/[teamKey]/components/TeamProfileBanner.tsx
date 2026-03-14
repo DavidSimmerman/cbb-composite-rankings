@@ -56,12 +56,12 @@ export default function TeamProfileBanner() {
 				<div className="flex gap-3 md:gap-4 items-center w-full md:w-auto">
 					<TeamLogo teamKey={profile.team_key} className="h-14 md:h-22" />
 					<div className="flex flex-col gap-1 md:gap-2">
-						<div className="text-3xl md:text-5xl font-kanit font-medium">
+						<h1 className="text-3xl md:text-5xl font-kanit font-medium">
 							{team.ap_rank && (
 								<span className="text-muted-foreground text-2xl md:text-4xl mr-1">{team.ap_rank}</span>
 							)}
 							{profile.team_name}
-						</div>
+						</h1>
 						<div className="flex flex-wrap gap-2 md:gap-3 text-sm md:text-base items-center">
 							<div className="text-xs md:text-xl text-muted-foreground whitespace-nowrap">{team.record}</div>
 							<div className="flex gap-2 md:gap-3">
