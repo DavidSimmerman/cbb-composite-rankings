@@ -515,6 +515,40 @@ async function getBracketMatrixSeeds(): Promise<BracketMatrixEntry[]> {
 	}
 }
 
+// ─── ESPN Tournament Seeds ──────────────────────────────────────────────
+
+type EspnTournamentSeed = { team_key: string; seed: number; region: string };
+
+let _espnSeedCache: EspnTournamentSeed[] | null = null;
+let _espnSeedCacheTime = 0;
+
+async function getEspnTournamentSeeds(season: number): Promise<EspnTournamentSeed[]> {
+	if (_espnSeedCache && Date.now() - _espnSeedCacheTime < BM_CACHE_TTL) return _espnSeedCache;
+
+	const rows = await db.query<{ team_key: string; seed: number; region: string }>(
+		`SELECT DISTINCT team_key, seed, region FROM (
+			SELECT team_a_key AS team_key, team_a_seed AS seed, region
+			FROM tournament_games
+			WHERE season = $1 AND round = 'Round of 64' AND team_a_key IS NOT NULL
+			UNION
+			SELECT team_b_key AS team_key, team_b_seed AS seed, region
+			FROM tournament_games
+			WHERE season = $1 AND round = 'Round of 64' AND team_b_key IS NOT NULL
+		) t
+		ORDER BY seed, team_key`,
+		[season]
+	);
+
+	if (rows.length >= 64) {
+		_espnSeedCache = rows;
+		_espnSeedCacheTime = Date.now();
+		return rows;
+	}
+
+	// Not enough data yet (bracket not fully scraped)
+	return [];
+}
+
 // Fallback: rank-based seed estimate when Bracket Matrix is unavailable
 const SEED_RANK_MAP: [number, number][] = [
 	[1, 4], [2, 8], [3, 12], [4, 16], [5, 24], [6, 32], [7, 40], [8, 48],
@@ -1191,6 +1225,8 @@ export interface BracketTeamSummary {
 	color: string;
 	secondary_color: string;
 	logo_url: string;
+	/** Actual ESPN region assignment (only set when using real bracket data) */
+	region?: string;
 }
 
 export interface MarchPageData {
@@ -1257,12 +1293,24 @@ async function getBulkLatestRatings(teamKeys: string[]): Promise<Record<string, 
 }
 
 export async function getMarchPageData(): Promise<MarchPageData> {
-	const [{ dataset, allSeedOutcomes }, bmSeeds, { globalMin, globalMax }, allTeamData] = await Promise.all([
+	const currentSeason = 2026;
+	const [{ dataset, allSeedOutcomes }, espnSeeds, bmSeeds, { globalMin, globalMax }, allTeamData] = await Promise.all([
 		getTournamentDataset(),
+		getEspnTournamentSeeds(currentSeason),
 		getBracketMatrixSeeds(),
 		getGlobalScaleBounds(),
 		(await import('../espn/espn-team-data')).getAllTeamData(),
 	]);
+
+	// Use ESPN actual seeds if available, otherwise fall back to Bracket Matrix
+	const useEspn = espnSeeds.length >= 64;
+	const espnRegionMap = new Map<string, string>(); // team_key → region
+	const seedEntries: { team_key: string; seed: number; team_name: string }[] = useEspn
+		? espnSeeds.map(e => {
+			espnRegionMap.set(e.team_key, e.region);
+			return { team_key: e.team_key, seed: e.seed, team_name: e.team_key };
+		})
+		: bmSeeds.map(b => ({ team_key: b.team_key, seed: b.avg_seed, team_name: b.team_name }));
 
 	// Seed baselines
 	const seedBaselineWins = new Map<number, number>();
@@ -1279,18 +1327,18 @@ export async function getMarchPageData(): Promise<MarchPageData> {
 	const factorMatrix: FactorMatrixCell[] = [];
 
 	// Get bracket team keys and their projected seeds for matrix matching
-	const bracketTeamKeys = bmSeeds.map(b => b.team_key);
+	const bracketTeamKeys = seedEntries.map(b => b.team_key);
 	const bulkRatings = await getBulkLatestRatings(bracketTeamKeys);
 
 	// Build per-bracket-team factor meta for matching to matrix cells
 	const bracketTeamMetas = new Map<string, { seed: number; meta: TeamFactorMeta[] }>();
-	for (const bm of bmSeeds) {
-		const teamRatings = bulkRatings[bm.team_key];
+	for (const entry of seedEntries) {
+		const teamRatings = bulkRatings[entry.team_key];
 		if (!teamRatings) continue;
 		const latestSeason = Object.keys(teamRatings).sort().at(-1);
 		if (!latestSeason) continue;
 		const r = teamRatings[latestSeason] as any;
-		bracketTeamMetas.set(bm.team_key, { seed: Math.round(bm.avg_seed), meta: getTeamFactorMeta(r) });
+		bracketTeamMetas.set(entry.team_key, { seed: Math.round(entry.seed), meta: getTeamFactorMeta(r) });
 	}
 
 	for (const q of qualifiers) {
@@ -1325,22 +1373,22 @@ export async function getMarchPageData(): Promise<MarchPageData> {
 
 	// Bracket teams with march analysis
 	const bracketTeams: BracketTeamSummary[] = [];
-	await Promise.all(bmSeeds.map(async bm => {
-		const teamRatings = bulkRatings[bm.team_key];
+	await Promise.all(seedEntries.map(async entry => {
+		const teamRatings = bulkRatings[entry.team_key];
 		if (!teamRatings) return;
-		const analysis = await getMarchAnalysis(bm.team_key, teamRatings as any);
+		const analysis = await getMarchAnalysis(entry.team_key, teamRatings as any);
 		if (!analysis) return;
-		const td = allTeamData[bm.team_key];
+		const td = allTeamData[entry.team_key];
 		const latestSeason = Object.keys(teamRatings).sort().at(-1)!;
 		const latestRatings = teamRatings[latestSeason] as any;
-		const espnId = td?.espn_id ?? ESPN_TEAM_IDS[bm.team_key];
+		const espnId = td?.espn_id ?? ESPN_TEAM_IDS[entry.team_key];
 		bracketTeams.push({
-			team_key: bm.team_key,
-			team_name: td?.short_name ?? td?.name ?? bm.team_name,
-			short_name: td?.short_name ?? td?.name ?? bm.team_name,
-			abbreviation: td?.abbreviation ?? bm.team_key.toUpperCase().slice(0, 4),
-			projected_seed: 0, // assigned below
-			avg_seed: bm.avg_seed,
+			team_key: entry.team_key,
+			team_name: td?.short_name ?? td?.name ?? entry.team_name,
+			short_name: td?.short_name ?? td?.name ?? entry.team_name,
+			abbreviation: td?.abbreviation ?? entry.team_key.toUpperCase().slice(0, 4),
+			projected_seed: useEspn ? entry.seed : 0, // ESPN seeds are final; BM assigned below
+			avg_seed: useEspn ? entry.seed : entry.seed,
 			march_score: analysis.march_score,
 			march_analysis: analysis,
 			comp_rating: latestRatings?.comp_avg_zscore ?? 0,
@@ -1350,13 +1398,16 @@ export async function getMarchPageData(): Promise<MarchPageData> {
 			color: td?.color ?? '333333',
 			secondary_color: td?.secondary_color ?? '666666',
 			logo_url: espnId ? `https://a.espncdn.com/i/teamlogos/ncaa/500/${espnId}.png` : '',
+			region: espnRegionMap.get(entry.team_key),
 		});
 	}));
 
-	// Assign projected seeds: sort by avg_seed, 4 per seed line (1-16)
-	bracketTeams.sort((a, b) => a.avg_seed! - b.avg_seed!);
-	for (let i = 0; i < bracketTeams.length; i++) {
-		bracketTeams[i].projected_seed = Math.min(16, Math.floor(i / 4) + 1);
+	if (!useEspn) {
+		// Assign projected seeds from Bracket Matrix: sort by avg_seed, 4 per seed line (1-16)
+		bracketTeams.sort((a, b) => a.avg_seed! - b.avg_seed!);
+		for (let i = 0; i < bracketTeams.length; i++) {
+			bracketTeams[i].projected_seed = Math.min(16, Math.floor(i / 4) + 1);
+		}
 	}
 
 	return { factor_matrix: factorMatrix, global_min: globalMin, global_max: globalMax, bracket_teams: bracketTeams, seed_baselines: seedBaselines };

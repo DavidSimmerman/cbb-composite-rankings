@@ -78,9 +78,12 @@ export function initializeBracket(bracketTeams: BracketTeamSummary[], existingRe
 		seedGroups.get(seed)!.push(team);
 	}
 
-	// Assign to regions: either use existing or shuffle
+	// Assign to regions: use existing (restore), actual ESPN regions, or random shuffle
 	const regionAssignment: Record<string, BracketTeam[]> = {};
 	for (const r of REGIONS) regionAssignment[r] = [];
+
+	// Check if teams have actual region assignments from ESPN
+	const hasActualRegions = bracketTeams.some(t => t.region && REGIONS.includes(t.region as any));
 
 	if (existingRegions) {
 		// Restore from saved state
@@ -89,6 +92,14 @@ export function initializeBracket(bracketTeams: BracketTeamSummary[], existingRe
 			for (const key of keys) {
 				const t = teamMap.get(key);
 				if (t) regionAssignment[region].push(toBracketTeam(t));
+			}
+		}
+	} else if (hasActualRegions) {
+		// Use actual ESPN region assignments
+		for (const team of bracketTeams) {
+			const region = team.region as string;
+			if (region && REGIONS.includes(region as any)) {
+				regionAssignment[region].push(toBracketTeam(team));
 			}
 		}
 	} else {
