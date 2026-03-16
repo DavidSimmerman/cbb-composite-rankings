@@ -513,6 +513,7 @@ function findBracketShape(
 	if (decidedGames >= 32) {
 		const HIST_AVG_UPSETS = 20;
 		const HIST_MIN_UPSETS = 11;
+		const HIST_LOW_UPSETS = 16; // ~1 sigma below average
 
 		if (totalUpsets > 26) {
 			findings.push({
@@ -534,6 +535,36 @@ function findBracketShape(
 					: `Very chalk — tournaments average ~${HIST_AVG_UPSETS} upsets. Even the chalkiest years (2007, 2025) have ${HIST_MIN_UPSETS}-12.`,
 			});
 			penalty += chalkPenalty;
+		} else if (totalUpsets < HIST_LOW_UPSETS) {
+			// Graduated penalty for below-average upset counts — prevents hill-climb
+			// from stripping upsets down to just above the minimum threshold
+			const lowPenalty = Math.round((HIST_LOW_UPSETS - totalUpsets) * 0.8);
+			findings.push({
+				severity: 'info',
+				title: `Only ${totalUpsets} total upsets`,
+				detail: `Below the historical average of ~${HIST_AVG_UPSETS} per tournament. Most years have at least ${HIST_LOW_UPSETS}.`,
+			});
+			penalty += lowPenalty;
+		}
+
+		// Per-round R64 chalk check: R64 averages ~8.4 upsets, penalize if too few
+		const r64Games = allGames.filter(g => g.round === 1 && g.winner && g.teamA && g.teamB);
+		if (r64Games.length >= 16) {
+			let r64Upsets = 0;
+			for (const g of r64Games) {
+				const winnerSeed = g.teamA!.team_key === g.winner ? g.teamA!.seed : g.teamB!.seed;
+				const loserSeed = g.teamA!.team_key === g.winner ? g.teamB!.seed : g.teamA!.seed;
+				if (winnerSeed > loserSeed) r64Upsets++;
+			}
+			const HIST_R64_LOW = 6; // ~2 sigma below R64 average of 8.4
+			if (r64Upsets < HIST_R64_LOW) {
+				findings.push({
+					severity: 'info',
+					title: `Only ${r64Upsets} first-round upsets`,
+					detail: `The Round of 64 averages ~8-9 upsets per tournament. Having fewer than ${HIST_R64_LOW} is unusually chalky.`,
+				});
+				penalty += Math.round((HIST_R64_LOW - r64Upsets) * 1.5);
+			}
 		}
 	}
 

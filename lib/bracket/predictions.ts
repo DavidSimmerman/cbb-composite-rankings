@@ -402,7 +402,7 @@ const HISTORICAL_DD_STATS: Record<number, { mean: number; stddev: number }> = {
 
 /** Minimum total upsets per round (floors from historical data, ~2 sigma below mean). */
 const MIN_UPSETS_PER_ROUND: Record<number, number> = {
-	1: 6,   // R64: 32 games, historically 8.4 avg, min ~5 in data
+	1: 7,   // R64: 32 games, historically 8.4 avg, min ~5 in data
 	2: 4,   // R32: 16 games, historically 5.8 avg, min ~3
 	3: 1,   // S16: 8 games, historically 2.8 avg, min ~1
 	4: 0,   // E8: 4 games, too few to enforce a floor
@@ -419,10 +419,16 @@ const SIGMOID_CENTER = 50;
 /** Sigmoid divisor — controls separation (70 → 0.69, 30 → 0.31). */
 const SIGMOID_DIVISOR = 25;
 
-/** Blending weights when ML prediction is available. */
-const BLEND_WITH_ML = { ml: 0.40, seedHistory: 0.30, marchDiff: 0.20, viability: 0.10 } as const;
-/** Blending weights when ML prediction is unavailable. */
-const BLEND_WITHOUT_ML = { seedHistory: 0.45, marchDiff: 0.40, viability: 0.15 } as const;
+/** Blending weights when ML prediction is available (by round). */
+const BLEND_WITH_ML: Record<string, { ml: number; seedHistory: number; marchDiff: number; viability: number }> = {
+	'Round of 64': { ml: 0.35, seedHistory: 0.40, marchDiff: 0.15, viability: 0.10 },
+	default:       { ml: 0.40, seedHistory: 0.30, marchDiff: 0.20, viability: 0.10 },
+};
+/** Blending weights when ML prediction is unavailable (by round). */
+const BLEND_WITHOUT_ML: Record<string, { seedHistory: number; marchDiff: number; viability: number }> = {
+	'Round of 64': { seedHistory: 0.55, marchDiff: 0.30, viability: 0.15 },
+	default:       { seedHistory: 0.45, marchDiff: 0.40, viability: 0.15 },
+};
 /** Regression toward 50/50 to dampen compounding correlation. */
 const UNCERTAINTY_REGRESSION = 0.25;
 
@@ -585,10 +591,10 @@ export function computeBlendedProbability(
 
 	let blended: number;
 	if (hasML) {
-		const w = BLEND_WITH_ML;
+		const w = BLEND_WITH_ML[roundName] ?? BLEND_WITH_ML.default;
 		blended = mlProbA * w.ml + seedHistoryProbA * w.seedHistory + marchProbA * w.marchDiff + viabilityProbA * w.viability;
 	} else {
-		const w = BLEND_WITHOUT_ML;
+		const w = BLEND_WITHOUT_ML[roundName] ?? BLEND_WITHOUT_ML.default;
 		blended = seedHistoryProbA * w.seedHistory + marchProbA * w.marchDiff + viabilityProbA * w.viability;
 	}
 
