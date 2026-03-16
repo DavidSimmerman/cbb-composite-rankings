@@ -32,7 +32,20 @@ export default function BracketClient() {
 	} = useBracket();
 
 	const hasFirstFour = [...bracketState.values()].some(g => g.round === 0);
-	const [selectedRound, setSelectedRound] = useState(hasFirstFour ? 0 : 1);
+	const [selectedRound, setSelectedRound] = useState(() => {
+		if (typeof window !== 'undefined') {
+			const saved = sessionStorage.getItem('bracket-round');
+			if (saved !== null) {
+				const parsed = Number(saved);
+				if (parsed >= 0 && parsed <= 6) return parsed;
+			}
+		}
+		return hasFirstFour ? 0 : 1;
+	});
+
+	useEffect(() => {
+		sessionStorage.setItem('bracket-round', String(selectedRound));
+	}, [selectedRound]);
 	const prevTotalPicks = useRef(totalPicks);
 	const maxPicks = 63 + [...bracketState.values()].filter(g => g.round === 0).length;
 
