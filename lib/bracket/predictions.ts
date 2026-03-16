@@ -804,6 +804,11 @@ function autoFillRoundBatch(
 	// Phase 5: Flip upsets that would trigger red warnings
 	avoidRedWarnings(decisions, round, roundName, newState, seedRoundStats);
 
+	// Phase 6: Limit deep-run upsets in S16+ to avoid stacking evaluation penalties
+	if (round >= 3) {
+		limitDeepRunUpsets(decisions, round, roundName, newState, seedRoundStats);
+	}
+
 	// Apply all decisions and update chaos score
 	return applyDecisions(decisions, newState, chaosScore);
 }
@@ -1195,6 +1200,76 @@ function avoidRedWarnings(
 	}
 }
 
+/**
+ * Phase 6: Limit the number of penalty-causing deep-run upsets in S16+ rounds.
+ * The evaluation penalizes seeds 5-9 reaching deep rounds (3-5 pts each) and
+ * DD seeds in S16+ (3-5 pts each). Allow at most a limited number of these
+ * per round to keep total penalty manageable.
+ */
+function limitDeepRunUpsets(
+	decisions: RoundDecision[],
+	round: number,
+	roundName: string,
+	state: BracketState,
+	seedRoundStats: SeedRoundStats,
+): void {
+	// Count upsets where the underdog advancing would trigger a deep-run penalty
+	// in evaluation. This mirrors findDeepRuns logic: seeds 5+ reaching S16+ with
+	// reachPct < 0.20 get penalized.
+	const ROUND_ORDER = ['Round of 64', 'Round of 32', 'Sweet 16', 'Elite 8', 'Final Four', 'Championship'];
+
+	const penaltyUpsets: { d: RoundDecision; reachPct: number; penalty: number }[] = [];
+
+	for (const d of decisions) {
+		if (!d.isUpset) continue;
+		if (d.underdogSeed <= 4) continue; // Top-4 seeds never get deep-run penalties
+
+		// The underdog is winning this round, so they "reach" the next round
+		const reachedRound = round + 1;
+		// Check the win rate for this seed at the current round (= reaching next round)
+		const wonRoundName = ROUND_ORDER[round - 1];
+		const stat = seedRoundStats[d.underdogSeed]?.[wonRoundName];
+		const reachPct = stat?.win_pct ?? 0;
+
+		// Estimate the evaluation penalty this would cause
+		let estPenalty = 0;
+		if (d.underdogSeed < 10) {
+			// Seeds 5-9: individual penalties
+			if (reachPct === 0) estPenalty = 6;
+			else if (reachPct < 0.02) estPenalty = 5;
+			else if (reachPct < 0.05) estPenalty = 4;
+			else if (reachPct < 0.10 && reachedRound >= 4) estPenalty = 3;
+			else if (reachPct < 0.20 && reachedRound >= 5) estPenalty = 2;
+		} else {
+			// Seeds 10+: grouped DD penalties
+			if (reachPct === 0) estPenalty = 6;
+			else if (reachPct < 0.02) estPenalty = 5;
+			else if (reachPct < 0.05) estPenalty = 4;
+			else if (reachPct < 0.10) estPenalty = 3;
+		}
+
+		if (estPenalty > 0) {
+			penaltyUpsets.push({ d, reachPct, penalty: estPenalty });
+		}
+	}
+
+	if (penaltyUpsets.length <= 1) return; // 0-1 penalty upsets per round is fine
+
+	// Allow at most 1 penalty-causing deep-run upset per round in S16+.
+	// Keep the one with the highest historical reach rate (least penalizing).
+	penaltyUpsets.sort((a, b) => b.reachPct - a.reachPct);
+
+	for (let i = 1; i < penaltyUpsets.length; i++) {
+		const { d } = penaltyUpsets[i];
+		const game = state.get(d.gameId)!;
+		if (game.teamA && game.teamB) {
+			const favTeam = game.teamA.seed <= game.teamB.seed ? game.teamA : game.teamB;
+			d.winnerKey = favTeam.team_key;
+			d.isUpset = false;
+		}
+	}
+}
+
 /** Apply all round decisions to the bracket state and accumulate chaos score. */
 function applyDecisions(
 	decisions: RoundDecision[],
@@ -1228,32 +1303,30 @@ export function autoFillBracket(
 	options?: { region?: string; round?: number },
 ): BracketState {
 	let newState = new Map(state);
+	let chaosScore = 0;
 
 	for (let round = 0; round <= 6; round++) {
 		if (options?.round && round !== options.round) continue;
 
-		const roundGames = [...newState.values()].filter(
-			g => g.round === round && g.teamA && g.teamB && !g.winner
-		);
-
-		for (const game of roundGames) {
-			if (!game.teamA || !game.teamB) continue;
-
-			let winnerKey: string;
-			if (game.prediction) {
-				// Use ML prediction with randomness
-				winnerKey = Math.random() < game.prediction.probA
-					? game.teamA.team_key
-					: game.teamB.team_key;
-			} else {
-				// Random pick
-				winnerKey = Math.random() < 0.5
-					? game.teamA.team_key
-					: game.teamB.team_key;
+		if (round === 0) {
+			// First Four: simple coin flip (no seed-line logic needed)
+			const ffGames = [...newState.values()].filter(
+				g => g.round === 0 && g.teamA && g.teamB && !g.winner
+			);
+			for (const game of ffGames) {
+				if (!game.teamA || !game.teamB) continue;
+				const winnerKey = game.prediction
+					? (Math.random() < game.prediction.probA ? game.teamA.team_key : game.teamB.team_key)
+					: (Math.random() < 0.5 ? game.teamA.team_key : game.teamB.team_key);
+				newState = pickWinner(newState, game.id, winnerKey, false);
 			}
-
-			newState = pickWinner(newState, game.id, winnerKey, false);
+			continue;
 		}
+
+		// Use batch auto-fill with seed-line targeting, deep-run penalties, chaos budget
+		const result = autoFillRoundBatch(newState, round, seedRoundStats, crossSeedPatterns, chaosScore, options?.region ? { region: options.region } : undefined);
+		newState = result.state;
+		chaosScore = result.chaosScore;
 	}
 
 	return newState;
