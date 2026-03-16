@@ -47,12 +47,14 @@ export default function BracketImpact({ game, gameId, bracketState, seedPickCoun
 					picksByRound={seedAPicksByRound}
 					lossesByRound={seedALossesByRound}
 					currentRound={game.round}
+					seedRoundStats={seedRoundStats}
 				/>
 				<SeedPickSummary
 					team={teamB}
 					picksByRound={seedBPicksByRound}
 					lossesByRound={seedBLossesByRound}
 					currentRound={game.round}
+					seedRoundStats={seedRoundStats}
 				/>
 			</div>
 
@@ -94,12 +96,19 @@ function SeedPickSummary({
 	picksByRound,
 	lossesByRound,
 	currentRound,
+	seedRoundStats,
 }: {
 	team: BracketTeam;
 	picksByRound: Record<number, number>;
 	lossesByRound: Record<number, number>;
 	currentRound: number;
+	seedRoundStats: SeedRoundStats;
 }) {
+	const ROUND_LABEL_MAP: Record<number, string> = {
+		1: 'Round of 64', 2: 'Round of 32', 3: 'Sweet 16',
+		4: 'Elite 8', 5: 'Final Four', 6: 'Championship',
+	};
+
 	// Compute cumulative losses through each round
 	const cumulativeLosses: Record<number, number> = {};
 	let totalLosses = 0;
@@ -127,6 +136,8 @@ function SeedPickSummary({
 					// X slots = original display slots minus those that are fills/empty/losses
 					const xSlots = originalMax - wins - losses - undecided;
 					const isCurrentRound = round === currentRound;
+					const roundStat = seedRoundStats[team.seed]?.[ROUND_LABEL_MAP[round]];
+					const winPct = roundStat ? Math.round(roundStat.win_pct * 100) : null;
 
 					return (
 						<div key={round} className={`flex items-center gap-2 ${isCurrentRound ? 'text-white' : 'text-neutral-500'}`}>
@@ -152,6 +163,9 @@ function SeedPickSummary({
 								))}
 							</div>
 							<span className="text-[10px] tabular-nums">{wins}/{couldEnter}</span>
+							{winPct !== null && (
+								<span className="text-[10px] tabular-nums text-neutral-600">{winPct}%</span>
+							)}
 						</div>
 					);
 				})}
