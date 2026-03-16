@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next';
 import { getAllTeamData } from '@/lib/espn/espn-team-data';
 
+export const dynamic = 'force-dynamic';
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 	const baseUrl = 'https://cbbcomposite.com';
 	const now = new Date();
