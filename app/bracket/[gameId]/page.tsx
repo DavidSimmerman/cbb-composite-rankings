@@ -10,7 +10,6 @@ import { MarchScoreBadge } from '@/components/march/MarchScoreBadge';
 import { ArrowLeft, Trophy } from 'lucide-react';
 import Link from 'next/link';
 import SeedMatchupStats from './components/SeedMatchupStats';
-import BracketImpact from './components/BracketImpact';
 import BracketGamePrediction from './components/BracketGamePrediction';
 import BracketTeamComparison from './components/BracketTeamComparison';
 import BracketSimilarOpponents from './components/BracketSimilarOpponents';
@@ -28,7 +27,7 @@ function getRankColor(rank: number): string {
 export default function GamePreviewPage() {
 	const params = useParams();
 	const gameId = params.gameId as string;
-	const { bracketState, data, handlePickWinner, getTeamByKey, seedPickCounts } = useBracket();
+	const { bracketState, data, handlePickWinner, getTeamByKey } = useBracket();
 
 	const game = bracketState.get(gameId);
 
@@ -90,22 +89,16 @@ export default function GamePreviewPage() {
 					teamB={game.teamB}
 				/>
 
-				{/* Seed Matchup Stats */}
+				{/* Seed Matchup Stats + Your Picks */}
 				<SeedMatchupStats
 					seedA={game.teamA.seed}
 					seedB={game.teamB.seed}
 					round={game.round}
 					seedMatchupStats={data.seed_matchup_stats}
 					seedRoundStats={data.seed_round_stats}
-				/>
-
-				{/* Bracket Impact Analysis */}
-				<BracketImpact
-					game={game}
-					gameId={gameId}
 					bracketState={bracketState}
-					seedPickCounts={seedPickCounts}
-					seedRoundStats={data.seed_round_stats}
+					teamA={game.teamA}
+					teamB={game.teamB}
 				/>
 
 				{/* March Profiles */}
