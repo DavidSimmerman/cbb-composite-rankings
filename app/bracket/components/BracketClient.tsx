@@ -31,16 +31,18 @@ export default function BracketClient() {
 		setEvaluation,
 	} = useBracket();
 
-	const [selectedRound, setSelectedRound] = useState(1);
+	const hasFirstFour = [...bracketState.values()].some(g => g.round === 0);
+	const [selectedRound, setSelectedRound] = useState(hasFirstFour ? 0 : 1);
 	const prevTotalPicks = useRef(totalPicks);
+	const maxPicks = 63 + [...bracketState.values()].filter(g => g.round === 0).length;
 
 	// Jump to championship on full-bracket auto-fill
 	useEffect(() => {
-		if (totalPicks === 63 && prevTotalPicks.current < 63) {
+		if (totalPicks === maxPicks && prevTotalPicks.current < maxPicks) {
 			setSelectedRound(6);
 		}
 		prevTotalPicks.current = totalPicks;
-	}, [totalPicks]);
+	}, [totalPicks, maxPicks]);
 
 	return (
 		<div className="flex flex-col h-full">
@@ -94,7 +96,7 @@ export default function BracketClient() {
 				</button>
 					<div className="ml-auto flex items-center gap-3">
 					<span className="text-xs text-muted-foreground">
-						{totalPicks}/63 picks
+						{totalPicks}/{maxPicks} picks
 					</span>
 				</div>
 			</div>

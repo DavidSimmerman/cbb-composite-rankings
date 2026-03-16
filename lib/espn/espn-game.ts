@@ -191,7 +191,8 @@ function fetchFromEspn(gameId: string): Promise<PartialGame> {
 	const start = performance.now();
 
 	return fetch(
-		`https://site.web.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event=${gameId}`
+		`https://site.web.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event=${gameId}`,
+		{ signal: AbortSignal.timeout(15000) }
 	)
 		.then(r => r.json())
 		.then(data => {
@@ -220,12 +221,12 @@ function fetchFromEspn(gameId: string): Promise<PartialGame> {
 				timeZoneName: 'short'
 			});
 
-			data.boxscore.teams.map((t: any) => {
+			(data.boxscore?.teams ?? []).map((t: any) => {
 				const teamKey = ESPN_TO_TEAM_KEY[t.team.id];
 				const teamStats = {} as Record<string, number>;
 				const compTeam = competition.competitors.find((ct: any) => ct.team.id === t.team.id);
 
-				t.statistics.forEach((s: any) => {
+				(t.statistics ?? []).forEach((s: any) => {
 					if (s.name.includes('-')) {
 						const [n1, n2] = s.name.split('-');
 						const [v1, v2] = s.displayValue.split('-');
@@ -260,14 +261,31 @@ function fetchFromEspn(gameId: string): Promise<PartialGame> {
 				};
 			});
 
-			Object.entries(game.teams).forEach(([key, team]) => {
-				const opp = Object.entries(game.teams).find(([tk]) => tk !== key)![1];
-				team.stats.rebound_rate = team.stats.total_rebounds / (team.stats.total_rebounds + opp.stats.total_rebounds);
-				team.stats.defensive_rebound_rate =
-					team.stats.defensive_rebounds / (team.stats.defensive_rebounds + opp.stats.offensive_rebounds);
-				team.stats.offensive_rebound_rate =
-					team.stats.offensive_rebounds / (team.stats.offensive_rebounds + opp.stats.defensive_rebounds);
-			});
+			// Fallback: if boxscore had no teams (pre-game), populate from competition header
+			if (Object.keys(game.teams).length === 0) {
+				for (const comp of competition.competitors) {
+					const teamKey = ESPN_TO_TEAM_KEY[comp.team.id];
+					game.teams[comp.homeAway] = {
+						team_key: teamKey,
+						name: comp.team.displayName || comp.team.shortDisplayName || comp.team.name || '',
+						stats: {} as GameTeamStats,
+						score: parseInt(comp.score) || 0,
+						home_away: comp.homeAway,
+						won: comp.winner ?? false,
+					};
+				}
+			}
+
+			if (Object.keys(game.teams).length >= 2) {
+				Object.entries(game.teams).forEach(([key, team]) => {
+					const opp = Object.entries(game.teams).find(([tk]) => tk !== key)![1];
+					team.stats.rebound_rate = team.stats.total_rebounds / (team.stats.total_rebounds + opp.stats.total_rebounds);
+					team.stats.defensive_rebound_rate =
+						team.stats.defensive_rebounds / (team.stats.defensive_rebounds + opp.stats.offensive_rebounds);
+					team.stats.offensive_rebound_rate =
+						team.stats.offensive_rebounds / (team.stats.offensive_rebounds + opp.stats.defensive_rebounds);
+				});
+			}
 
 			console.log(`Getting game ${gameId} took ${Math.round((performance.now() - start) / 10) / 100}s`);
 

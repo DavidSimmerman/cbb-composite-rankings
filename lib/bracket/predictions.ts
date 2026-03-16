@@ -1,4 +1,4 @@
-import type { BracketTeamSummary, SeedRoundStats, CrossSeedPatterns, SeedMatchupStat } from '@/lib/rankings/profile';
+import type { BracketTeamSummary, SeedRoundStats, CrossSeedPatterns, SeedMatchupStat, FirstFourGame } from '@/lib/rankings/profile';
 
 export interface BracketTeam {
 	team_key: string;
@@ -28,7 +28,7 @@ export interface BracketTeam {
 
 export interface BracketGame {
 	id: string;
-	round: number; // 1=R64, 2=R32, 3=S16, 4=E8, 5=FF, 6=Championship
+	round: number; // 0=First Four, 1=R64, 2=R32, 3=S16, 4=E8, 5=FF, 6=Championship
 	region: string;
 	position: number; // position within round+region (for determining next-round slot)
 	teamA: BracketTeam | null;
@@ -60,15 +60,28 @@ export const ROUND_NAMES: Record<number, string> = {
 };
 
 export const ROUND_SHORT_NAMES: Record<number, string> = {
-	1: 'R64', 2: 'R32', 3: 'S16', 4: 'E8', 5: 'FF', 6: 'Champ',
+	0: 'First Four', 1: 'R64', 2: 'R32', 3: 'S16', 4: 'E8', 5: 'FF', 6: 'Champ',
 };
 
 /**
  * Build the initial bracket state from 64 teams.
- * Randomly assigns teams to regions and creates all 63 games.
+ * Uses real region assignments when available (tournament_games data),
+ * otherwise randomly assigns teams to regions.
  */
-export function initializeBracket(bracketTeams: BracketTeamSummary[], existingRegions?: Record<string, string[]>): BracketState {
+export function initializeBracket(bracketTeams: BracketTeamSummary[], existingRegions?: Record<string, string[]>, firstFourGames?: FirstFourGame[]): BracketState {
 	let state: BracketState = new Map();
+
+	// Check if teams have real region assignments from tournament_games
+	const hasRealRegions = bracketTeams.some(t => t.region && REGIONS.includes(t.region as Region));
+
+	// Build set of First Four team keys (these get round 0 games, not R64 slots)
+	const firstFourTeamKeys = new Set<string>();
+	if (firstFourGames) {
+		for (const ffg of firstFourGames) {
+			firstFourTeamKeys.add(ffg.team_a.team_key);
+			firstFourTeamKeys.add(ffg.team_b.team_key);
+		}
+	}
 
 	// Group teams by projected seed
 	const seedGroups = new Map<number, BracketTeamSummary[]>();
@@ -78,23 +91,31 @@ export function initializeBracket(bracketTeams: BracketTeamSummary[], existingRe
 		seedGroups.get(seed)!.push(team);
 	}
 
-	// Assign to regions: either use existing or shuffle
+	// Assign to regions
 	const regionAssignment: Record<string, BracketTeam[]> = {};
 	for (const r of REGIONS) regionAssignment[r] = [];
 
-	if (existingRegions) {
+	if (hasRealRegions) {
+		// Use actual tournament region assignments, skip First Four teams
+		for (const team of bracketTeams) {
+			const region = team.region as string;
+			if (REGIONS.includes(region as Region) && !firstFourTeamKeys.has(team.team_key)) {
+				regionAssignment[region].push(toBracketTeam(team));
+			}
+		}
+	} else if (existingRegions) {
 		// Restore from saved state
 		const teamMap = new Map(bracketTeams.map(t => [t.team_key, t]));
 		for (const [region, keys] of Object.entries(existingRegions)) {
 			for (const key of keys) {
 				const t = teamMap.get(key);
-				if (t) regionAssignment[region].push(toBracketTeam(t));
+				if (t && !firstFourTeamKeys.has(key)) regionAssignment[region].push(toBracketTeam(t));
 			}
 		}
 	} else {
 		// Shuffle each seed line and assign one per region
 		for (let seed = 1; seed <= 16; seed++) {
-			const teams = seedGroups.get(seed) ?? [];
+			const teams = (seedGroups.get(seed) ?? []).filter(t => !firstFourTeamKeys.has(t.team_key));
 			shuffle(teams);
 			for (let i = 0; i < Math.min(teams.length, 4); i++) {
 				regionAssignment[REGIONS[i]].push(toBracketTeam(teams[i]));
@@ -119,6 +140,51 @@ export function initializeBracket(bracketTeams: BracketTeamSummary[], existingRe
 				position: i,
 				teamA: bySeed.get(highSeed) ?? null,
 				teamB: bySeed.get(lowSeed) ?? null,
+				winner: null,
+				prediction: null,
+				isManualPick: false,
+			});
+		}
+	}
+
+	// Create First Four games (round 0) by finding empty R64 slots
+	if (firstFourGames && firstFourGames.length > 0) {
+		const teamLookup = new Map(bracketTeams.map(t => [t.team_key, t]));
+
+		// Find R64 games missing teamB — these are the slots waiting for First Four winners
+		const emptySlots: { region: string; position: number; seed: number }[] = [];
+		for (const [gameId, game] of state) {
+			if (game.round === 1 && game.teamA && !game.teamB) {
+				const pos = game.position;
+				const [, lowSeed] = R64_MATCHUP_ORDER[pos];
+				emptySlots.push({ region: game.region, position: pos, seed: lowSeed });
+			}
+		}
+
+		for (const ffg of firstFourGames) {
+			const seed = ffg.team_a.seed;
+			// Determine target region: use explicit target_region, or look up from bracketTeams
+			const targetRegion = ffg.target_region
+				?? teamLookup.get(ffg.team_a.team_key)?.region
+				?? teamLookup.get(ffg.team_b.team_key)?.region;
+			// Match by region + seed if we have a region, fall back to seed-only
+			let slotIdx = targetRegion
+				? emptySlots.findIndex(s => s.region === targetRegion && s.seed === seed)
+				: -1;
+			if (slotIdx === -1) slotIdx = emptySlots.findIndex(s => s.seed === seed);
+			if (slotIdx === -1) continue;
+			const slot = emptySlots.splice(slotIdx, 1)[0];
+
+			const gameId = `r0-${slot.region}-${slot.position}`;
+			const teamA = teamLookup.get(ffg.team_a.team_key);
+			const teamB = teamLookup.get(ffg.team_b.team_key);
+			state.set(gameId, {
+				id: gameId,
+				round: 0,
+				region: slot.region,
+				position: slot.position,
+				teamA: teamA ? toBracketTeam(teamA) : null,
+				teamB: teamB ? toBracketTeam(teamB) : null,
 				winner: null,
 				prediction: null,
 				isManualPick: false,
@@ -154,9 +220,13 @@ export function initializeBracket(bracketTeams: BracketTeamSummary[], existingRe
 	// Championship
 	state.set('r6-FF-0', { id: 'r6-FF-0', round: 6, region: 'FF', position: 0, teamA: null, teamB: null, winner: null, prediction: null, isManualPick: false });
 
-	// Auto-advance byes: if a R64 game has only one team, that team gets a bye
+	// Auto-advance byes: if a R64 game has only one team AND no First Four feeds into it
+	const firstFourTargetIds = new Set(
+		[...state.values()].filter(g => g.round === 0).map(g => `r1-${g.region}-${g.position}`)
+	);
 	for (const [gameId, game] of [...state]) {
 		if (game.round !== 1) continue;
+		if (firstFourTargetIds.has(gameId)) continue; // Waiting for First Four winner
 		if (game.teamA && !game.teamB) {
 			state = pickWinner(state, gameId, game.teamA.team_key, false);
 		} else if (!game.teamA && game.teamB) {
@@ -176,6 +246,11 @@ export function getNextGameId(gameId: string): string | null {
 	const pos = parseInt(posStr);
 
 	if (round === 6) return null; // Championship has no next game
+
+	if (round === 0) {
+		// First Four winner goes to R64 game in same region at same position
+		return `r1-${region}-${pos}`;
+	}
 
 	if (round <= 3) {
 		// Within region: next round, position = floor(pos/2)
@@ -205,6 +280,10 @@ export function getNextGameSlot(gameId: string): 'A' | 'B' {
 	const round = parseInt(roundStr.slice(1));
 	const pos = parseInt(posStr);
 
+	if (round === 0) {
+		// First Four winners always fill the lower seed slot (teamB) in R64
+		return 'B';
+	}
 	if (round <= 3) {
 		return pos % 2 === 0 ? 'A' : 'B';
 	}
@@ -725,6 +804,11 @@ function autoFillRoundBatch(
 	// Phase 5: Flip upsets that would trigger red warnings
 	avoidRedWarnings(decisions, round, roundName, newState, seedRoundStats);
 
+	// Phase 6: Limit deep-run upsets in S16+ to avoid stacking evaluation penalties
+	if (round >= 3) {
+		limitDeepRunUpsets(decisions, round, roundName, newState, seedRoundStats);
+	}
+
 	// Apply all decisions and update chaos score
 	return applyDecisions(decisions, newState, chaosScore);
 }
@@ -1116,6 +1200,76 @@ function avoidRedWarnings(
 	}
 }
 
+/**
+ * Phase 6: Limit the number of penalty-causing deep-run upsets in S16+ rounds.
+ * The evaluation penalizes seeds 5-9 reaching deep rounds (3-5 pts each) and
+ * DD seeds in S16+ (3-5 pts each). Allow at most a limited number of these
+ * per round to keep total penalty manageable.
+ */
+function limitDeepRunUpsets(
+	decisions: RoundDecision[],
+	round: number,
+	roundName: string,
+	state: BracketState,
+	seedRoundStats: SeedRoundStats,
+): void {
+	// Count upsets where the underdog advancing would trigger a deep-run penalty
+	// in evaluation. This mirrors findDeepRuns logic: seeds 5+ reaching S16+ with
+	// reachPct < 0.20 get penalized.
+	const ROUND_ORDER = ['Round of 64', 'Round of 32', 'Sweet 16', 'Elite 8', 'Final Four', 'Championship'];
+
+	const penaltyUpsets: { d: RoundDecision; reachPct: number; penalty: number }[] = [];
+
+	for (const d of decisions) {
+		if (!d.isUpset) continue;
+		if (d.underdogSeed <= 4) continue; // Top-4 seeds never get deep-run penalties
+
+		// The underdog is winning this round, so they "reach" the next round
+		const reachedRound = round + 1;
+		// Check the win rate for this seed at the current round (= reaching next round)
+		const wonRoundName = ROUND_ORDER[round - 1];
+		const stat = seedRoundStats[d.underdogSeed]?.[wonRoundName];
+		const reachPct = stat?.win_pct ?? 0;
+
+		// Estimate the evaluation penalty this would cause
+		let estPenalty = 0;
+		if (d.underdogSeed < 10) {
+			// Seeds 5-9: individual penalties
+			if (reachPct === 0) estPenalty = 6;
+			else if (reachPct < 0.02) estPenalty = 5;
+			else if (reachPct < 0.05) estPenalty = 4;
+			else if (reachPct < 0.10 && reachedRound >= 4) estPenalty = 3;
+			else if (reachPct < 0.20 && reachedRound >= 5) estPenalty = 2;
+		} else {
+			// Seeds 10+: grouped DD penalties
+			if (reachPct === 0) estPenalty = 6;
+			else if (reachPct < 0.02) estPenalty = 5;
+			else if (reachPct < 0.05) estPenalty = 4;
+			else if (reachPct < 0.10) estPenalty = 3;
+		}
+
+		if (estPenalty > 0) {
+			penaltyUpsets.push({ d, reachPct, penalty: estPenalty });
+		}
+	}
+
+	if (penaltyUpsets.length <= 1) return; // 0-1 penalty upsets per round is fine
+
+	// Allow at most 1 penalty-causing deep-run upset per round in S16+.
+	// Keep the one with the highest historical reach rate (least penalizing).
+	penaltyUpsets.sort((a, b) => b.reachPct - a.reachPct);
+
+	for (let i = 1; i < penaltyUpsets.length; i++) {
+		const { d } = penaltyUpsets[i];
+		const game = state.get(d.gameId)!;
+		if (game.teamA && game.teamB) {
+			const favTeam = game.teamA.seed <= game.teamB.seed ? game.teamA : game.teamB;
+			d.winnerKey = favTeam.team_key;
+			d.isUpset = false;
+		}
+	}
+}
+
 /** Apply all round decisions to the bracket state and accumulate chaos score. */
 function applyDecisions(
 	decisions: RoundDecision[],
@@ -1151,25 +1305,26 @@ export function autoFillBracket(
 	let newState = new Map(state);
 	let chaosScore = 0;
 
-	// Calculate initial chaos from any existing picks (only significant upsets)
-	for (const game of newState.values()) {
-		if (!game.winner || !game.teamA || !game.teamB) continue;
-		const winnerSeed = game.teamA.team_key === game.winner ? game.teamA.seed : game.teamB.seed;
-		const loserSeed = game.teamA.team_key === game.winner ? game.teamB.seed : game.teamA.seed;
-		if (winnerSeed - loserSeed >= CHAOS_MIN_SEED_GAP) {
-			chaosScore += chaosPoints(winnerSeed);
-		}
-	}
-
-	for (let round = 1; round <= 6; round++) {
+	for (let round = 0; round <= 6; round++) {
 		if (options?.round && round !== options.round) continue;
 
-		const result = autoFillRoundBatch(
-			newState, round,
-			seedRoundStats, crossSeedPatterns,
-			chaosScore,
-			options,
-		);
+		if (round === 0) {
+			// First Four: simple coin flip (no seed-line logic needed)
+			const ffGames = [...newState.values()].filter(
+				g => g.round === 0 && g.teamA && g.teamB && !g.winner
+			);
+			for (const game of ffGames) {
+				if (!game.teamA || !game.teamB) continue;
+				const winnerKey = game.prediction
+					? (Math.random() < game.prediction.probA ? game.teamA.team_key : game.teamB.team_key)
+					: (Math.random() < 0.5 ? game.teamA.team_key : game.teamB.team_key);
+				newState = pickWinner(newState, game.id, winnerKey, false);
+			}
+			continue;
+		}
+
+		// Use batch auto-fill with seed-line targeting, deep-run penalties, chaos budget
+		const result = autoFillRoundBatch(newState, round, seedRoundStats, crossSeedPatterns, chaosScore, options?.region ? { region: options.region } : undefined);
 		newState = result.state;
 		chaosScore = result.chaosScore;
 	}

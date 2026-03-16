@@ -41,6 +41,12 @@ export interface GamePredictionProps {
 	isFinal?: boolean;
 	/** Optional color picker to resolve clashing team colors */
 	pickColors?: (aColor: string, bColor: string) => [string, string];
+	/** Pre-calculated prediction data — renders instantly without API call */
+	preCalculated?: {
+		probA: number; probB: number; margin: number;
+		scoreA?: number | null; scoreB?: number | null;
+		keysA?: KeyToGame[] | null; keysB?: KeyToGame[] | null;
+	};
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────
@@ -56,9 +62,10 @@ export default function GamePrediction({
 	teamBColor,
 	isFinal,
 	pickColors,
+	preCalculated,
 }: GamePredictionProps) {
 	const [prediction, setPrediction] = useState<PredictionData | null>(null);
-	const [loading, setLoading] = useState(true);
+	const [loading, setLoading] = useState(!preCalculated);
 	const [error, setError] = useState<string | null>(null);
 	const [mobileTeam, setMobileTeam] = useState<'a' | 'b'>('a');
 
@@ -68,31 +75,36 @@ export default function GamePrediction({
 
 	useEffect(() => {
 		if (!teamAKey || !teamBKey) return;
+		// Skip API call entirely if we have full pre-calculated data with keys
+		if (preCalculated?.keysA) return;
 
 		const fetchPrediction = async () => {
 			try {
 				const res = await fetch(`/api/games/predict?home=${teamAKey}&away=${teamBKey}`);
 				if (!res.ok) {
-					setError('Prediction unavailable');
+					if (!preCalculated) setError('Prediction unavailable');
 					return;
 				}
 				const data = await res.json();
 				if (data.error) {
-					setError(data.error);
+					if (!preCalculated) setError(data.error);
 					return;
 				}
 				setPrediction(data);
 			} catch {
-				setError('Prediction service unavailable');
+				if (!preCalculated) setError('Prediction service unavailable');
 			} finally {
 				setLoading(false);
 			}
 		};
 
 		fetchPrediction();
-	}, [teamAKey, teamBKey]);
+	}, [teamAKey, teamBKey, preCalculated]);
 
-	if (loading) {
+	// Use pre-calculated data while full prediction loads
+	const hasData = prediction || preCalculated;
+
+	if (loading && !preCalculated) {
 		return (
 			<div className="border border-neutral-800 rounded-lg p-3 md:p-4">
 				<div className="text-2xl font-bold text-neutral-600 mb-4">Game Prediction</div>
@@ -108,11 +120,15 @@ export default function GamePrediction({
 		);
 	}
 
-	if (error || !prediction) return null;
+	if (error || !hasData) return null;
 
 	// teamA = home (first param), teamB = away (second param) in the API call
-	const pctA = Math.round(prediction.home.win_probability * 100);
-	const pctB = Math.round(prediction.away.win_probability * 100);
+	const pctA = prediction
+		? Math.round(prediction.home.win_probability * 100)
+		: Math.round(preCalculated!.probA * 100);
+	const pctB = prediction
+		? Math.round(prediction.away.win_probability * 100)
+		: Math.round(preCalculated!.probB * 100);
 
 	return (
 		<div className="border border-neutral-800 rounded-lg p-3 md:p-4">
@@ -137,51 +153,62 @@ export default function GamePrediction({
 				<div className="text-center">
 					<div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Predicted Score</div>
 					<div className="text-xl font-bold text-white tabular-nums">
-						{prediction.home.predicted_score} - {prediction.away.predicted_score}
+						{prediction
+							? `${prediction.home.predicted_score} - ${prediction.away.predicted_score}`
+							: preCalculated!.scoreA != null && preCalculated!.scoreB != null
+								? `${preCalculated!.scoreA} - ${preCalculated!.scoreB}`
+								: `${teamAAbbr} ${preCalculated!.margin > 0 ? '+' : ''}${preCalculated!.margin}`}
 					</div>
 				</div>
 			</div>
 
 			{/* Keys to the Game */}
-			{(prediction.away.keys_to_game.length > 0 || prediction.home.keys_to_game.length > 0) && (
-				<div className="border-t border-neutral-800 pt-4">
-					<div className="text-lg font-bold text-neutral-500 mb-3">Keys to the Game</div>
+			{(() => {
+				const keysA = prediction?.home.keys_to_game ?? preCalculated?.keysA;
+				const keysB = prediction?.away.keys_to_game ?? preCalculated?.keysB;
+				if (!keysA?.length && !keysB?.length) return null;
+				return (
+					<div className="border-t border-neutral-800 pt-4">
+						<div className="text-lg font-bold text-neutral-500 mb-3">Keys to the Game</div>
 
-					{/* Mobile toggle */}
-					<div className="md:hidden flex border-b border-neutral-800 mb-4">
-						<button
-							onClick={() => setMobileTeam('a')}
-							className={`flex-1 pb-2 text-sm font-medium text-center cursor-pointer border-b-2 ${mobileTeam === 'a' ? 'text-white' : 'text-neutral-500 border-transparent'}`}
-							style={mobileTeam === 'a' ? { borderColor: teamAColor } : undefined}
-						>
-							{teamAName}
-						</button>
-						<button
-							onClick={() => setMobileTeam('b')}
-							className={`flex-1 pb-2 text-sm font-medium text-center cursor-pointer border-b-2 ${mobileTeam === 'b' ? 'text-white' : 'text-neutral-500 border-transparent'}`}
-							style={mobileTeam === 'b' ? { borderColor: teamBColor } : undefined}
-						>
-							{teamBName}
-						</button>
-					</div>
+						{/* Mobile toggle */}
+						<div className="md:hidden flex border-b border-neutral-800 mb-4">
+							<button
+								onClick={() => setMobileTeam('a')}
+								className={`flex-1 pb-2 text-sm font-medium text-center cursor-pointer border-b-2 ${mobileTeam === 'a' ? 'text-white' : 'text-neutral-500 border-transparent'}`}
+								style={mobileTeam === 'a' ? { borderColor: teamAColor } : undefined}
+							>
+								{teamAName}
+							</button>
+							<button
+								onClick={() => setMobileTeam('b')}
+								className={`flex-1 pb-2 text-sm font-medium text-center cursor-pointer border-b-2 ${mobileTeam === 'b' ? 'text-white' : 'text-neutral-500 border-transparent'}`}
+								style={mobileTeam === 'b' ? { borderColor: teamBColor } : undefined}
+							>
+								{teamBName}
+							</button>
+						</div>
 
-					<div className="flex flex-col md:flex-row md:w-full gap-4 md:gap-8">
-						<div className={`flex-1 ${mobileTeam !== 'a' ? 'hidden md:block' : ''}`}>
-							<div className="hidden md:block text-sm font-semibold text-neutral-400 mb-2">{teamAName}</div>
-							<KeysList keys={prediction.home.keys_to_game} />
-						</div>
-						<div className="hidden md:block md:h-auto md:w-px bg-neutral-800" />
-						<div className={`flex-1 ${mobileTeam !== 'b' ? 'hidden md:block' : ''}`}>
-							<div className="hidden md:block text-sm font-semibold text-neutral-400 mb-2">{teamBName}</div>
-							<KeysList keys={prediction.away.keys_to_game} />
+						<div className="flex flex-col md:flex-row md:w-full gap-4 md:gap-8">
+							<div className={`flex-1 ${mobileTeam !== 'a' ? 'hidden md:block' : ''}`}>
+								<div className="hidden md:block text-sm font-semibold text-neutral-400 mb-2">{teamAName}</div>
+								{keysA && <KeysList keys={keysA} />}
+							</div>
+							<div className="hidden md:block md:h-auto md:w-px bg-neutral-800" />
+							<div className={`flex-1 ${mobileTeam !== 'b' ? 'hidden md:block' : ''}`}>
+								<div className="hidden md:block text-sm font-semibold text-neutral-400 mb-2">{teamBName}</div>
+								{keysB && <KeysList keys={keysB} />}
+							</div>
 						</div>
 					</div>
+				);
+			})()}
+
+			{prediction && (
+				<div className="text-[10px] text-neutral-700 text-right mt-3">
+					Model v{prediction.model_version}
 				</div>
 			)}
-
-			<div className="text-[10px] text-neutral-700 text-right mt-3">
-				Model v{prediction.model_version}
-			</div>
 		</div>
 	);
 }

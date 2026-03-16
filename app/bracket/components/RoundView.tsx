@@ -27,8 +27,11 @@ interface RoundViewProps {
 
 type SlideDirection = 'left' | 'right' | null;
 
+const ROUND_LABELS: Record<number, string> = { 0: 'First Four', ...ROUND_SHORT_NAMES };
+
 export default function RoundView({ games, seedPickCounts, seedRoundStats, selectedRound, onSelectRound, onPickWinner, onSimulateRound, onPerfectRound }: RoundViewProps) {
-	const rounds = [1, 2, 3, 4, 5, 6];
+	const hasFirstFour = [...games.values()].some(g => g.round === 0);
+	const rounds = hasFirstFour ? [0, 1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5, 6];
 	const [slideDirection, setSlideDirection] = useState<SlideDirection>(null);
 	const prevRoundRef = useRef(selectedRound);
 
@@ -49,15 +52,16 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 	const touchStartY = useRef(0);
 	const containerRef = useRef<HTMLDivElement>(null);
 
+	const minRound = hasFirstFour ? 0 : 1;
 	const navigateRound = useCallback((direction: 'left' | 'right') => {
 		const next = direction === 'left'
 			? Math.min(selectedRound + 1, 6)
-			: Math.max(selectedRound - 1, 1);
+			: Math.max(selectedRound - 1, minRound);
 		if (next !== selectedRound) {
 			setSlideDirection(direction);
 			onSelectRound(next);
 		}
-	}, [selectedRound, onSelectRound]);
+	}, [selectedRound, onSelectRound, minRound]);
 
 	// Handle swipe
 	useEffect(() => {
@@ -130,7 +134,7 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 	}, [allPicked, pickedCount, selectedRound, onSelectRound]);
 
 	const roundGames = roundGamesAll.sort((a, b) => {
-		const regionOrder = ['SOUTH', 'EAST', 'WEST', 'MIDWEST', 'FF'];
+		const regionOrder = ['EAST', 'SOUTH', 'WEST', 'MIDWEST', 'FF'];
 		const aRegion = regionOrder.indexOf(a.region);
 		const bRegion = regionOrder.indexOf(b.region);
 		if (aRegion !== bRegion) return aRegion - bRegion;
@@ -147,6 +151,10 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 
 	// Count completed games per round
 	const roundProgress = rounds.map(r => {
+		if (r === 0) {
+			const ffGames = [...games.values()].filter(g => g.round === 0);
+			return { round: 0, completed: ffGames.filter(g => g.winner).length, total: ffGames.length };
+		}
 		const rGames = [...games.values()].filter(g => g.round === r);
 		const completed = rGames.filter(g => g.winner).length;
 		return { round: r, completed, total: rGames.length };
@@ -176,8 +184,8 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 								: 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
 						}`}
 					>
-						{ROUND_SHORT_NAMES[round]}
-						{completed > 0 && (
+						{ROUND_LABELS[round]}
+						{round > 0 && completed > 0 && (
 							<span className={`ml-1 text-xs ${completed === total ? 'text-green-500' : 'text-muted-foreground'}`}>
 								{completed}/{total}
 							</span>
@@ -187,10 +195,10 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 			</div>
 
 			{/* Round auto-fill bar */}
-			{hasUnfilledGames && (
+			{selectedRound > 0 && hasUnfilledGames && (
 				<div className="flex items-center justify-between px-3 py-1.5 border-b border-neutral-800/50 shrink-0">
 					<span className="text-xs text-muted-foreground">
-						{ROUND_SHORT_NAMES[selectedRound]}
+						{ROUND_LABELS[selectedRound]}
 					</span>
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -226,13 +234,11 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 
 			{/* Games */}
 			<div className={`flex-1 overflow-auto p-3 space-y-4 ${slideClass}`}>
-				{[...gamesByRegion.entries()].map(([region, games]) => (
-					<div key={region}>
-						<div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-							{region === 'FF' ? 'Final Four' : region}
-						</div>
+				{selectedRound === 0 ? (
+					<div>
+						<div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">First Four</div>
 						<div className="space-y-2">
-							{games.map(game => (
+							{[...games.values()].filter(g => g.round === 0).sort((a, b) => a.position - b.position).map(game => (
 								<MatchupCard
 									key={game.id}
 									game={game}
@@ -243,18 +249,37 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 							))}
 						</div>
 					</div>
-				))}
+				) : (
+					[...gamesByRegion.entries()].map(([region, games]) => (
+						<div key={region}>
+							<div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+								{region === 'FF' ? 'Final Four' : region}
+							</div>
+							<div className="space-y-2">
+								{games.map(game => (
+									<MatchupCard
+										key={game.id}
+										game={game}
+										seedPickCounts={seedPickCounts}
+										seedRoundStats={seedRoundStats}
+										onPickWinner={onPickWinner}
+									/>
+								))}
+							</div>
+						</div>
+					))
+				)}
 			</div>
 
 			{/* Next/Back navigation */}
 			<div className="flex items-center justify-between px-3 py-1 border-t border-neutral-800 shrink-0">
-				{selectedRound > 1 ? (
+				{selectedRound > minRound ? (
 					<button
 						onClick={() => navigateRound('right')}
 						className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer"
 					>
 						<ChevronLeft className="size-4" />
-						{ROUND_SHORT_NAMES[selectedRound - 1]}
+						{ROUND_LABELS[selectedRound - 1]}
 					</button>
 				) : <div />}
 				{selectedRound < 6 ? (
@@ -262,7 +287,7 @@ export default function RoundView({ games, seedPickCounts, seedRoundStats, selec
 						onClick={() => navigateRound('left')}
 						className="flex items-center gap-1 px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer"
 					>
-						{ROUND_SHORT_NAMES[selectedRound + 1]}
+						{ROUND_LABELS[selectedRound + 1]}
 						<ChevronRight className="size-4" />
 					</button>
 				) : <div />}

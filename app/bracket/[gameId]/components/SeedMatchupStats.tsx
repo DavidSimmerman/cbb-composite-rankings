@@ -1,7 +1,8 @@
 'use client';
 
 import type { SeedMatchupStat, SeedRoundStats } from '@/lib/rankings/profile';
-import { ROUND_NAMES } from '@/lib/bracket/predictions';
+import { ROUND_SHORT_NAMES } from '@/lib/bracket/predictions';
+import type { BracketState, BracketTeam } from '@/lib/bracket/predictions';
 import { getSeedColor } from '@/components/march/MarchCards';
 
 interface SeedMatchupStatsProps {
@@ -10,6 +11,9 @@ interface SeedMatchupStatsProps {
 	round: number;
 	seedMatchupStats: SeedMatchupStat[];
 	seedRoundStats: SeedRoundStats;
+	bracketState?: BracketState;
+	teamA?: BracketTeam;
+	teamB?: BracketTeam;
 }
 
 const ROUND_LABEL_MAP: Record<number, string> = {
@@ -21,7 +25,7 @@ const ROUND_LABEL_MAP: Record<number, string> = {
 	6: 'Championship',
 };
 
-export default function SeedMatchupStats({ seedA, seedB, round, seedMatchupStats, seedRoundStats }: SeedMatchupStatsProps) {
+export default function SeedMatchupStats({ seedA, seedB, round, seedMatchupStats, seedRoundStats, bracketState, teamA, teamB }: SeedMatchupStatsProps) {
 	const roundName = ROUND_LABEL_MAP[round];
 	const higherSeed = Math.min(seedA, seedB);
 	const lowerSeed = Math.max(seedA, seedB);
@@ -31,13 +35,15 @@ export default function SeedMatchupStats({ seedA, seedB, round, seedMatchupStats
 		s => s.higher_seed === higherSeed && s.lower_seed === lowerSeed && s.round === roundName
 	);
 
-	// Get individual seed round stats
-	const seedAStat = seedRoundStats[seedA]?.[roundName];
-	const seedBStat = seedRoundStats[seedB]?.[roundName];
-
 	// Also get progression stats for both seeds across all rounds
 	const seedAProgression = getRoundProgression(seedA, seedRoundStats);
 	const seedBProgression = getRoundProgression(seedB, seedRoundStats);
+
+	// Compute seed pick tracking if bracket state is available
+	const seedAPicksByRound = bracketState ? getPicksByRound(seedA, bracketState) : null;
+	const seedBPicksByRound = bracketState ? getPicksByRound(seedB, bracketState) : null;
+	const seedALossesByRound = bracketState ? getLossesByRound(seedA, bracketState) : null;
+	const seedBLossesByRound = bracketState ? getLossesByRound(seedB, bracketState) : null;
 
 	return (
 		<div className="border border-neutral-800 rounded-lg p-3 md:p-4">
@@ -108,6 +114,26 @@ export default function SeedMatchupStats({ seedA, seedB, round, seedMatchupStats
 					progression={seedBProgression}
 				/>
 			</div>
+
+			{/* Your seed picks */}
+			{seedAPicksByRound && seedBPicksByRound && seedALossesByRound && seedBLossesByRound && teamA && teamB && (
+				<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+					<SeedPickSummary
+						team={teamA}
+						picksByRound={seedAPicksByRound}
+						lossesByRound={seedALossesByRound}
+						currentRound={round}
+						seedRoundStats={seedRoundStats}
+					/>
+					<SeedPickSummary
+						team={teamB}
+						picksByRound={seedBPicksByRound}
+						lossesByRound={seedBLossesByRound}
+						currentRound={round}
+						seedRoundStats={seedRoundStats}
+					/>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -127,7 +153,7 @@ function SeedProgressionCard({
 			<div className="flex flex-col gap-1.5">
 				{progression.map(({ round, winPct }) => (
 					<div key={round} className="flex items-center gap-2">
-						<span className="text-xs text-neutral-400 w-8 text-right tabular-nums">{round}</span>
+						<span className="text-xs text-neutral-400 w-12 text-right shrink-0">{round}</span>
 						<div className="flex-1 h-3 rounded bg-neutral-800 overflow-hidden">
 							<div
 								className="h-full rounded transition-all duration-300"
@@ -141,6 +167,77 @@ function SeedProgressionCard({
 						<span className="text-xs text-neutral-300 tabular-nums w-8 text-right">{winPct}%</span>
 					</div>
 				))}
+			</div>
+		</div>
+	);
+}
+
+function SeedPickSummary({
+	team,
+	picksByRound,
+	lossesByRound,
+	currentRound,
+	seedRoundStats,
+}: {
+	team: BracketTeam;
+	picksByRound: Record<number, number>;
+	lossesByRound: Record<number, number>;
+	currentRound: number;
+	seedRoundStats: SeedRoundStats;
+}) {
+	// Compute cumulative losses through each round
+	const cumulativeLosses: Record<number, number> = {};
+	let totalLosses = 0;
+	for (const round of [1, 2, 3, 4, 5, 6]) {
+		totalLosses += lossesByRound[round] ?? 0;
+		cumulativeLosses[round] = totalLosses;
+	}
+
+	return (
+		<div className="border border-neutral-800 rounded-md p-3">
+			<div className="text-sm font-bold mb-2" style={{ color: getSeedColor(team.seed) }}>
+				Your {team.seed}-seed picks
+			</div>
+			<div className="flex flex-col gap-1">
+				{[1, 2, 3, 4, 5, 6].map(round => {
+					const wins = picksByRound[round] ?? 0;
+					const losses = lossesByRound[round] ?? 0;
+					const originalMax = round <= 4 ? 4 : round === 5 ? 2 : 1;
+					const prevLosses = round === 1 ? 0 : cumulativeLosses[round - 1];
+					const couldEnter = Math.min(originalMax, Math.max(0, 4 - prevLosses));
+					const undecided = Math.max(0, couldEnter - wins - losses);
+					const xSlots = originalMax - wins - losses - undecided;
+					const isCurrentRound = round === currentRound;
+					const roundStat = seedRoundStats[team.seed]?.[ROUND_LABEL_MAP[round]];
+					const winPct = roundStat ? Math.round(roundStat.win_pct * 100) : null;
+
+					return (
+						<div key={round} className={`flex items-center gap-2 ${isCurrentRound ? 'text-white' : 'text-neutral-500'}`}>
+							<span className="text-xs w-10 text-right tabular-nums">{ROUND_SHORT_NAMES[round]}</span>
+							<div className="flex gap-0.5">
+								{Array.from({ length: wins }, (_, i) => (
+									<div
+										key={`pick-${i}`}
+										className="w-3 h-3 rounded-sm"
+										style={{ backgroundColor: getSeedColor(team.seed), opacity: 0.8 }}
+									/>
+								))}
+								{Array.from({ length: undecided }, (_, i) => (
+									<div key={`empty-${i}`} className="w-3 h-3 rounded-sm bg-neutral-800" />
+								))}
+								{Array.from({ length: Math.max(0, losses + xSlots) }, (_, i) => (
+									<div key={`x-${i}`} className="w-3 h-3 rounded-sm flex items-center justify-center text-red-500/60 text-[9px] font-bold leading-none">
+										✕
+									</div>
+								))}
+							</div>
+							<span className="text-[10px] tabular-nums">{wins}/{couldEnter}</span>
+							{winPct !== null && (
+								<span className="text-[10px] tabular-nums text-neutral-600">{winPct}%</span>
+							)}
+						</div>
+					);
+				})}
 			</div>
 		</div>
 	);
@@ -166,4 +263,30 @@ function getRoundProgression(seed: number, seedRoundStats: SeedRoundStats): { ro
 			round: shortLabels[r] ?? r,
 			winPct: Math.round(stats[r].win_pct * 100),
 		}));
+}
+
+// Helper functions for seed pick tracking
+
+function getPicksByRound(seed: number, bracketState: BracketState): Record<number, number> {
+	const picks: Record<number, number> = {};
+	for (const game of bracketState.values()) {
+		if (!game.winner || !game.teamA || !game.teamB) continue;
+		const winnerTeam = game.teamA.team_key === game.winner ? game.teamA : game.teamB;
+		if (winnerTeam.seed === seed) {
+			picks[game.round] = (picks[game.round] ?? 0) + 1;
+		}
+	}
+	return picks;
+}
+
+function getLossesByRound(seed: number, bracketState: BracketState): Record<number, number> {
+	const losses: Record<number, number> = {};
+	for (const game of bracketState.values()) {
+		if (!game.winner || !game.teamA || !game.teamB) continue;
+		const loserTeam = game.teamA.team_key === game.winner ? game.teamB : game.teamA;
+		if (loserTeam.seed === seed) {
+			losses[game.round] = (losses[game.round] ?? 0) + 1;
+		}
+	}
+	return losses;
 }

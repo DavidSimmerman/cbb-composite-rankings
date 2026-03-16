@@ -528,6 +528,93 @@ function rankToSeed(rank: number): number {
 	return 16;
 }
 
+// ─── Tournament Bracket Data (real bracket from tournament_games) ─────
+
+function getCurrentSeason(): number {
+	const now = new Date();
+	return now.getMonth() >= 7 ? now.getFullYear() + 1 : now.getFullYear();
+}
+
+interface TournamentBracketEntry {
+	team_key: string;
+	seed: number;
+	region: string;
+}
+
+let _tournamentBracketCache: TournamentBracketEntry[] | null = null;
+let _tournamentBracketCacheTime = 0;
+
+async function getTournamentBracketTeams(season: number): Promise<TournamentBracketEntry[] | null> {
+	if (_tournamentBracketCache && Date.now() - _tournamentBracketCacheTime < BM_CACHE_TTL) {
+		return _tournamentBracketCache;
+	}
+
+	try {
+		// Get R64 + First Four games to build full 68-team bracket
+		const [r64, firstFour] = await Promise.all([
+			db.query<any>(`
+				SELECT team_a_key, team_a_seed, team_b_key, team_b_seed, region
+				FROM tournament_games
+				WHERE season = $1 AND round = 'Round of 64'
+			`, [season]),
+			db.query<any>(`
+				SELECT team_a_key, team_a_seed, team_b_key, team_b_seed
+				FROM tournament_games
+				WHERE season = $1 AND round = 'First Four'
+			`, [season]),
+		]);
+
+		if (r64.length === 0) return null;
+
+		// Collect First Four team keys (these may duplicate R64 slot entries)
+		const firstFourKeys = new Set<string>();
+		for (const row of firstFour) {
+			if (row.team_a_key) firstFourKeys.add(row.team_a_key);
+			if (row.team_b_key) firstFourKeys.add(row.team_b_key);
+		}
+
+		// Deduplicate: use team_key as unique identifier
+		const seen = new Map<string, TournamentBracketEntry>();
+		for (const row of r64) {
+			// Skip duplicate entries where team_a === team_b (First Four placeholder)
+			if (row.team_a_key && !seen.has(row.team_a_key)) {
+				seen.set(row.team_a_key, { team_key: row.team_a_key, seed: row.team_a_seed, region: row.region });
+			}
+			if (row.team_b_key && row.team_b_key !== row.team_a_key && !seen.has(row.team_b_key)) {
+				seen.set(row.team_b_key, { team_key: row.team_b_key, seed: row.team_b_seed, region: row.region });
+			}
+		}
+
+		// Add First Four teams that aren't already in R64
+		for (const row of firstFour) {
+			// Find which region this First Four game feeds into
+			// Match R64 games that contain one of the FF team keys
+			const matchingR64 = r64.find((r: any) =>
+				r.team_a_key === row.team_a_key || r.team_a_key === row.team_b_key ||
+				r.team_b_key === row.team_a_key || r.team_b_key === row.team_b_key
+			);
+			const region = matchingR64?.region ?? 'EAST';
+
+			if (row.team_a_key && !seen.has(row.team_a_key)) {
+				seen.set(row.team_a_key, { team_key: row.team_a_key, seed: row.team_a_seed, region });
+			}
+			if (row.team_b_key && !seen.has(row.team_b_key)) {
+				seen.set(row.team_b_key, { team_key: row.team_b_key, seed: row.team_b_seed, region });
+			}
+		}
+
+		const teams = [...seen.values()];
+		if (teams.length < 56) return null;
+
+		_tournamentBracketCache = teams;
+		_tournamentBracketCacheTime = Date.now();
+		return teams;
+	} catch (e) {
+		console.error('Failed to get tournament bracket teams:', e);
+		return null;
+	}
+}
+
 let _datasetCache: TourneyTeamSeason[] | null = null;
 let _seedOutcomesCache: SeedOutcomeEntry[] | null = null;
 let _seasonSeedOutcomesCache: SeasonSeedOutcome[] | null = null;
@@ -986,12 +1073,14 @@ async function getMarchAnalysis(teamKey: string, fullRatings: Record<string, Ful
 	}
 	if (dataset.length === 0) return null;
 
-	// Projected seed: use Bracket Matrix consensus if available, fallback to rank-based estimate
-	const bmSeeds = await getBracketMatrixSeeds();
-	const bmEntry = bmSeeds.find(b => b.team_key === teamKey);
-	const projectedSeed = bmEntry
-		? Math.round(bmEntry.avg_seed)
-		: rankToSeed(ratings.kp_rank ?? 100);
+	// Projected seed: use tournament data if available, then Bracket Matrix, then rank-based fallback
+	const tournamentTeams = await getTournamentBracketTeams(getCurrentSeason());
+	const tournamentEntry = tournamentTeams?.find(t => t.team_key === teamKey);
+	const bmSeeds = tournamentEntry ? null : await getBracketMatrixSeeds();
+	const bmEntry = bmSeeds?.find(b => b.team_key === teamKey);
+	const projectedSeed = tournamentEntry
+		? tournamentEntry.seed
+		: bmEntry ? Math.round(bmEntry.avg_seed) : rankToSeed(ratings.kp_rank ?? 100);
 
 	// ─── Seed Line Analysis ──────────────────────────────────────────────
 	const seedTeams = dataset.filter(t => t.seed === projectedSeed);
@@ -1035,7 +1124,7 @@ async function getMarchAnalysis(teamKey: string, fullRatings: Record<string, Ful
 		}));
 
 	const seedLine: SeedLineValue = {
-		projected_seed: projectedSeed, avg_seed: bmEntry?.avg_seed ?? null,
+		projected_seed: projectedSeed, avg_seed: tournamentEntry?.seed ?? bmEntry?.avg_seed ?? null,
 		team_kp_rating: Math.round(compRating * 100) / 100,
 		seed_avg_rating: Math.round(seedAvg * 100) / 100, seed_median_rating: Math.round(seedMedian * 100) / 100,
 		rating_percentile: ratingPercentile, implied_seed: impliedSeed,
@@ -1182,6 +1271,7 @@ export interface BracketTeamSummary {
 	abbreviation: string;
 	projected_seed: number;
 	avg_seed: number | null;
+	region?: string;
 	march_score: number;
 	march_analysis: MarchAnalysis;
 	comp_rating: number;
@@ -1257,12 +1347,39 @@ async function getBulkLatestRatings(teamKeys: string[]): Promise<Record<string, 
 }
 
 export async function getMarchPageData(): Promise<MarchPageData> {
-	const [{ dataset, allSeedOutcomes }, bmSeeds, { globalMin, globalMax }, allTeamData] = await Promise.all([
+	const [{ dataset, allSeedOutcomes }, tournamentTeams, { globalMin, globalMax }, allTeamData] = await Promise.all([
 		getTournamentDataset(),
-		getBracketMatrixSeeds(),
+		getTournamentBracketTeams(getCurrentSeason()),
 		getGlobalScaleBounds(),
 		(await import('../espn/espn-team-data')).getAllTeamData(),
 	]);
+
+	// Use real tournament data if available, otherwise fall back to Bracket Matrix
+	type TeamEntry = { team_key: string; seed: number; avg_seed: number | null; team_name: string; region?: string };
+	let teamEntries: TeamEntry[];
+
+	if (tournamentTeams && tournamentTeams.length >= 56) {
+		// Deduplicate by team_key (First Four teams may appear twice with same seed)
+		const seen = new Map<string, TournamentBracketEntry>();
+		for (const t of tournamentTeams) {
+			if (!seen.has(t.team_key)) seen.set(t.team_key, t);
+		}
+		teamEntries = [...seen.values()].map(t => ({
+			team_key: t.team_key,
+			seed: t.seed,
+			avg_seed: t.seed,
+			team_name: t.team_key,
+			region: t.region,
+		}));
+	} else {
+		const bmSeeds = await getBracketMatrixSeeds();
+		teamEntries = bmSeeds.map(b => ({
+			team_key: b.team_key,
+			seed: Math.round(b.avg_seed),
+			avg_seed: b.avg_seed,
+			team_name: b.team_name,
+		}));
+	}
 
 	// Seed baselines
 	const seedBaselineWins = new Map<number, number>();
@@ -1279,18 +1396,18 @@ export async function getMarchPageData(): Promise<MarchPageData> {
 	const factorMatrix: FactorMatrixCell[] = [];
 
 	// Get bracket team keys and their projected seeds for matrix matching
-	const bracketTeamKeys = bmSeeds.map(b => b.team_key);
+	const bracketTeamKeys = teamEntries.map(b => b.team_key);
 	const bulkRatings = await getBulkLatestRatings(bracketTeamKeys);
 
 	// Build per-bracket-team factor meta for matching to matrix cells
 	const bracketTeamMetas = new Map<string, { seed: number; meta: TeamFactorMeta[] }>();
-	for (const bm of bmSeeds) {
-		const teamRatings = bulkRatings[bm.team_key];
+	for (const entry of teamEntries) {
+		const teamRatings = bulkRatings[entry.team_key];
 		if (!teamRatings) continue;
 		const latestSeason = Object.keys(teamRatings).sort().at(-1);
 		if (!latestSeason) continue;
 		const r = teamRatings[latestSeason] as any;
-		bracketTeamMetas.set(bm.team_key, { seed: Math.round(bm.avg_seed), meta: getTeamFactorMeta(r) });
+		bracketTeamMetas.set(entry.team_key, { seed: entry.seed, meta: getTeamFactorMeta(r) });
 	}
 
 	for (const q of qualifiers) {
@@ -1325,22 +1442,23 @@ export async function getMarchPageData(): Promise<MarchPageData> {
 
 	// Bracket teams with march analysis
 	const bracketTeams: BracketTeamSummary[] = [];
-	await Promise.all(bmSeeds.map(async bm => {
-		const teamRatings = bulkRatings[bm.team_key];
+	await Promise.all(teamEntries.map(async entry => {
+		const teamRatings = bulkRatings[entry.team_key];
 		if (!teamRatings) return;
-		const analysis = await getMarchAnalysis(bm.team_key, teamRatings as any);
+		const analysis = await getMarchAnalysis(entry.team_key, teamRatings as any);
 		if (!analysis) return;
-		const td = allTeamData[bm.team_key];
+		const td = allTeamData[entry.team_key];
 		const latestSeason = Object.keys(teamRatings).sort().at(-1)!;
 		const latestRatings = teamRatings[latestSeason] as any;
-		const espnId = td?.espn_id ?? ESPN_TEAM_IDS[bm.team_key];
+		const espnId = td?.espn_id ?? ESPN_TEAM_IDS[entry.team_key];
 		bracketTeams.push({
-			team_key: bm.team_key,
-			team_name: td?.short_name ?? td?.name ?? bm.team_name,
-			short_name: td?.short_name ?? td?.name ?? bm.team_name,
-			abbreviation: td?.abbreviation ?? bm.team_key.toUpperCase().slice(0, 4),
-			projected_seed: 0, // assigned below
-			avg_seed: bm.avg_seed,
+			team_key: entry.team_key,
+			team_name: td?.short_name ?? td?.name ?? entry.team_name,
+			short_name: td?.short_name ?? td?.name ?? entry.team_name,
+			abbreviation: td?.abbreviation ?? entry.team_key.toUpperCase().slice(0, 4),
+			projected_seed: entry.seed,
+			avg_seed: entry.avg_seed,
+			region: entry.region,
 			march_score: analysis.march_score,
 			march_analysis: analysis,
 			comp_rating: latestRatings?.comp_avg_zscore ?? 0,
@@ -1353,10 +1471,12 @@ export async function getMarchPageData(): Promise<MarchPageData> {
 		});
 	}));
 
-	// Assign projected seeds: sort by avg_seed, 4 per seed line (1-16)
-	bracketTeams.sort((a, b) => a.avg_seed! - b.avg_seed!);
-	for (let i = 0; i < bracketTeams.length; i++) {
-		bracketTeams[i].projected_seed = Math.min(16, Math.floor(i / 4) + 1);
+	// For Bracket Matrix fallback: assign projected seeds from avg_seed ranking
+	if (!tournamentTeams) {
+		bracketTeams.sort((a, b) => a.avg_seed! - b.avg_seed!);
+		for (let i = 0; i < bracketTeams.length; i++) {
+			bracketTeams[i].projected_seed = Math.min(16, Math.floor(i / 4) + 1);
+		}
 	}
 
 	return { factor_matrix: factorMatrix, global_min: globalMin, global_max: globalMax, bracket_teams: bracketTeams, seed_baselines: seedBaselines };
@@ -1388,21 +1508,123 @@ export interface SeedMatchupStat {
 	sample_size: number;
 }
 
+export interface FirstFourGame {
+	game_id: string;
+	team_a: { team_key: string; seed: number };
+	team_b: { team_key: string; seed: number };
+	/** The region this First Four game feeds into (from the R64 placeholder game) */
+	target_region?: string;
+}
+
+interface KeyToGame {
+	label: string;
+	description: string;
+	impact: number;
+	advantage: 'team' | 'opponent' | 'neutral';
+}
+
+/** Pre-calculated ML prediction for a team pair + round. */
+export interface BracketPrediction {
+	prob_a: number;
+	prob_b: number;
+	predicted_margin: number;
+	predicted_score_a: number | null;
+	predicted_score_b: number | null;
+	keys_a: KeyToGame[] | null;
+	keys_b: KeyToGame[] | null;
+}
+
 export interface BracketPageData {
 	bracket_teams: BracketTeamSummary[];
 	seed_baselines: Record<number, number>;
 	seed_round_stats: SeedRoundStats;
 	cross_seed_patterns: CrossSeedPatterns;
 	seed_matchup_stats: SeedMatchupStat[];
+	first_four_games: FirstFourGame[];
+	/** Pre-calculated predictions keyed by "teamA-vs-teamB-rN" (alphabetical team order). */
+	predictions: Record<string, BracketPrediction>;
 }
 
 const BRACKET_ROUNDS = ['Round of 64', 'Round of 32', 'Sweet 16', 'Elite 8', 'Final Four', 'Championship'];
 
 export async function getBracketPageData(): Promise<BracketPageData> {
-	const [marchData, { allSeedOutcomes, seasonSeedOutcomes }] = await Promise.all([
+	const currentSeason = getCurrentSeason();
+	const [marchData, { allSeedOutcomes, seasonSeedOutcomes }, ffRows, r64Rows, predRows] = await Promise.all([
 		getMarchPageData(),
 		getTournamentDataset(),
+		db.query<{ game_id: string; team_a_key: string; team_a_seed: number; team_b_key: string; team_b_seed: number; region: string }>(
+			`SELECT game_id, team_a_key, team_a_seed, team_b_key, team_b_seed, region
+			 FROM tournament_games WHERE season = $1 AND round = 'First Four'`,
+			[currentSeason]
+		),
+		db.query<{ team_a_key: string; team_b_key: string | null; team_a_seed: number; team_b_seed: number; region: string }>(
+			`SELECT team_a_key, team_b_key, team_a_seed, team_b_seed, region
+			 FROM tournament_games WHERE season = $1 AND round = 'Round of 64'`,
+			[currentSeason]
+		),
+		db.query<{
+			team_a_key: string; team_b_key: string; round_number: number;
+			prob_a: number; prob_b: number; predicted_margin: number;
+			predicted_score_a: number | null; predicted_score_b: number | null;
+			keys_a: KeyToGame[] | null; keys_b: KeyToGame[] | null;
+		}>(
+			`SELECT team_a_key, team_b_key, round_number, prob_a, prob_b, predicted_margin,
+			        predicted_score_a, predicted_score_b, keys_a, keys_b
+			 FROM bracket_predictions WHERE season = $1`,
+			[currentSeason]
+		),
 	]);
+
+	// Match each First Four game to its target R64 region
+	// If scraper already resolved FF region (not 'First Four'), use that directly
+	// Otherwise try to match FF games to R64 slots by team key or seed
+	const consumedR64 = new Set<number>();
+	const first_four_games: FirstFourGame[] = ffRows.map(ff => {
+		// If the scraper resolved the region to an actual bracket region, use it
+		if (ff.region !== 'First Four' && ['SOUTH', 'EAST', 'WEST', 'MIDWEST'].includes(ff.region)) {
+			return {
+				game_id: ff.game_id,
+				team_a: { team_key: ff.team_a_key, seed: ff.team_a_seed },
+				team_b: { team_key: ff.team_b_key, seed: ff.team_b_seed },
+				target_region: ff.region,
+			};
+		}
+
+		// Fall back to matching against R64 rows
+		const ffKeys = [ff.team_a_key, ff.team_b_key].filter(Boolean);
+		let matchIdx = -1;
+
+		// Try to find R64 game containing one of the FF team keys
+		matchIdx = r64Rows.findIndex((r, i) =>
+			!consumedR64.has(i) &&
+			(ffKeys.includes(r.team_a_key) || (r.team_b_key && ffKeys.includes(r.team_b_key)))
+		);
+
+		// Also try: R64 game where team_a_key === team_b_key (ESPN placeholder)
+		if (matchIdx === -1) {
+			matchIdx = r64Rows.findIndex((r, i) =>
+				!consumedR64.has(i) &&
+				r.team_a_key && r.team_a_key === r.team_b_key && r.team_b_seed === ff.team_a_seed
+			);
+		}
+
+		// Fallback: R64 game with null team_b_key and matching seed
+		if (matchIdx === -1) {
+			matchIdx = r64Rows.findIndex((r, i) =>
+				!consumedR64.has(i) &&
+				!r.team_b_key && r.team_b_seed === ff.team_a_seed
+			);
+		}
+
+		if (matchIdx !== -1) consumedR64.add(matchIdx);
+
+		return {
+			game_id: ff.game_id,
+			team_a: { team_key: ff.team_a_key, seed: ff.team_a_seed },
+			team_b: { team_key: ff.team_b_key, seed: ff.team_b_seed },
+			target_region: matchIdx !== -1 ? r64Rows[matchIdx].region : undefined,
+		};
+	});
 
 	// Compute seed-round stats from seasonSeedOutcomes
 	// For each seed (1-16) and round, compute: win rate, per-year distribution
@@ -1473,12 +1695,32 @@ export async function getBracketPageData(): Promise<BracketPageData> {
 	// Compute seed-vs-seed matchup stats from tournament_games
 	const matchupStats = computeSeedMatchupStats(seasonSeedOutcomes);
 
+	// Build predictions lookup map from pre-calculated bracket_predictions
+	const predictions: Record<string, BracketPrediction> = {};
+	for (const row of predRows) {
+		// Store with alphabetically-ordered key so lookups are consistent
+		const [first, second] = [row.team_a_key, row.team_b_key].sort();
+		const isFlipped = first !== row.team_a_key;
+		const key = `${first}-vs-${second}-r${row.round_number}`;
+		predictions[key] = {
+			prob_a: isFlipped ? row.prob_b : row.prob_a,
+			prob_b: isFlipped ? row.prob_a : row.prob_b,
+			predicted_margin: isFlipped ? -row.predicted_margin : row.predicted_margin,
+			predicted_score_a: isFlipped ? row.predicted_score_b : row.predicted_score_a,
+			predicted_score_b: isFlipped ? row.predicted_score_a : row.predicted_score_b,
+			keys_a: isFlipped ? row.keys_b : row.keys_a,
+			keys_b: isFlipped ? row.keys_a : row.keys_b,
+		};
+	}
+
 	return {
 		bracket_teams: marchData.bracket_teams,
 		seed_baselines: marchData.seed_baselines,
 		seed_round_stats: seedRoundStats,
 		cross_seed_patterns: { unprecedented, distributions },
 		seed_matchup_stats: matchupStats,
+		first_four_games,
+		predictions,
 	};
 }
 

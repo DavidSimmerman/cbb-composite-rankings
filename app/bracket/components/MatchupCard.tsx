@@ -79,7 +79,7 @@ export default function MatchupCard({ game, seedPickCounts, seedRoundStats, onPi
 						<div className="flex-1 flex items-center gap-1.5 min-w-0 overflow-hidden">
 							{seedFacts.map(({ seed, winPct, picked }) => (
 								<span key={seed} className={`${compact ? 'text-[8px]' : 'text-[10px]'} text-neutral-500 tabular-nums whitespace-nowrap`}>
-									{seed}s: {winPct}%{!compact && ` (${picked}/4)`}
+									{seed}s: {winPct}% ({picked}/4)
 								</span>
 							))}
 						</div>
@@ -118,7 +118,7 @@ function TeamRow({
 }) {
 	if (!team) {
 		return (
-			<div className={`${compact ? 'py-0.5 px-1 text-xs' : 'py-1 px-1.5 text-sm'} text-muted-foreground`}>
+			<div className={`flex items-center ${compact ? 'py-0.5 px-1 text-xs min-h-5.5' : 'py-1 px-1.5 text-sm min-h-7.5'} text-muted-foreground`}>
 				TBD
 			</div>
 		);
@@ -166,15 +166,38 @@ function getSeedFacts(
 	const seeds = [teamA.seed, teamB.seed];
 	const uniqueSeeds = [...new Set(seeds)].sort((a, b) => a - b);
 
+	// In R64, matchups are fixed (1v16, 2v15, etc.) so percentages must sum to 100%.
+	// Use the higher seed's stat and derive the complement for the lower seed.
+	const isR64Pair = game.round === 1 && uniqueSeeds.length === 2 && uniqueSeeds[0] + uniqueSeeds[1] === 17;
+
 	const items: { seed: number; winPct: number; picked: number }[] = [];
-	for (const seed of uniqueSeeds) {
-		const stat = seedRoundStats[seed]?.[roundName];
-		if (!stat) continue;
-		items.push({
-			seed,
-			winPct: Math.round(stat.win_pct * 100),
-			picked: seedPickCounts[`${seed}-${game.round}`] ?? 0,
-		});
+	if (isR64Pair) {
+		const higherSeed = uniqueSeeds[0];
+		const lowerSeed = uniqueSeeds[1];
+		const higherStat = seedRoundStats[higherSeed]?.[roundName];
+		if (higherStat) {
+			const higherPct = Math.round(higherStat.win_pct * 100);
+			items.push({
+				seed: higherSeed,
+				winPct: higherPct,
+				picked: seedPickCounts[`${higherSeed}-${game.round}`] ?? 0,
+			});
+			items.push({
+				seed: lowerSeed,
+				winPct: 100 - higherPct,
+				picked: seedPickCounts[`${lowerSeed}-${game.round}`] ?? 0,
+			});
+		}
+	} else {
+		for (const seed of uniqueSeeds) {
+			const stat = seedRoundStats[seed]?.[roundName];
+			if (!stat) continue;
+			items.push({
+				seed,
+				winPct: Math.round(stat.win_pct * 100),
+				picked: seedPickCounts[`${seed}-${game.round}`] ?? 0,
+			});
+		}
 	}
 	return items;
 }

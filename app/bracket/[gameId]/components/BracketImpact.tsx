@@ -47,12 +47,14 @@ export default function BracketImpact({ game, gameId, bracketState, seedPickCoun
 					picksByRound={seedAPicksByRound}
 					lossesByRound={seedALossesByRound}
 					currentRound={game.round}
+					seedRoundStats={seedRoundStats}
 				/>
 				<SeedPickSummary
 					team={teamB}
 					picksByRound={seedBPicksByRound}
 					lossesByRound={seedBLossesByRound}
 					currentRound={game.round}
+					seedRoundStats={seedRoundStats}
 				/>
 			</div>
 
@@ -94,12 +96,19 @@ function SeedPickSummary({
 	picksByRound,
 	lossesByRound,
 	currentRound,
+	seedRoundStats,
 }: {
 	team: BracketTeam;
 	picksByRound: Record<number, number>;
 	lossesByRound: Record<number, number>;
 	currentRound: number;
+	seedRoundStats: SeedRoundStats;
 }) {
+	const ROUND_LABEL_MAP: Record<number, string> = {
+		1: 'Round of 64', 2: 'Round of 32', 3: 'Sweet 16',
+		4: 'Elite 8', 5: 'Final Four', 6: 'Championship',
+	};
+
 	// Compute cumulative losses through each round
 	const cumulativeLosses: Record<number, number> = {};
 	let totalLosses = 0;
@@ -127,6 +136,8 @@ function SeedPickSummary({
 					// X slots = original display slots minus those that are fills/empty/losses
 					const xSlots = originalMax - wins - losses - undecided;
 					const isCurrentRound = round === currentRound;
+					const roundStat = seedRoundStats[team.seed]?.[ROUND_LABEL_MAP[round]];
+					const winPct = roundStat ? Math.round(roundStat.win_pct * 100) : null;
 
 					return (
 						<div key={round} className={`flex items-center gap-2 ${isCurrentRound ? 'text-white' : 'text-neutral-500'}`}>
@@ -152,6 +163,9 @@ function SeedPickSummary({
 								))}
 							</div>
 							<span className="text-[10px] tabular-nums">{wins}/{couldEnter}</span>
+							{winPct !== null && (
+								<span className="text-[10px] tabular-nums text-neutral-600">{winPct}%</span>
+							)}
 						</div>
 					);
 				})}
@@ -281,15 +295,11 @@ function getDownstreamPath(
 		const nextId = getNextGameId(currentGameId, currentRound);
 		if (!nextId) break;
 
-		const nextGame = bracketState.get(nextId);
 		const nextRound = currentRound + 1;
 
-		// Find the opponent in the next game (the team not from our path)
-		let opponent: BracketTeam | null = null;
-		if (nextGame) {
-			if (nextGame.teamA && nextGame.teamA.team_key !== teamKey) opponent = nextGame.teamA;
-			else if (nextGame.teamB && nextGame.teamB.team_key !== teamKey) opponent = nextGame.teamB;
-		}
+		// Find the opponent from the OTHER feeder game (the sibling branch)
+		const siblingId = getSiblingGameId(currentGameId, currentRound);
+		const opponent = siblingId ? getWinnerFromBranch(siblingId, bracketState) : null;
 
 		path.push({ round: nextRound, opponent });
 		currentGameId = nextId;
@@ -297,4 +307,53 @@ function getDownstreamPath(
 	}
 
 	return path;
+}
+
+/** Get the sibling game that feeds into the same next-round game */
+function getSiblingGameId(gameId: string, round: number): string | null {
+	const parts = gameId.split('-');
+	if (parts.length < 3) return null;
+
+	const region = parts[1];
+	const position = parseInt(parts[2]);
+
+	if (round <= 3) {
+		// Rounds 1-3: sibling is the adjacent position in the same region
+		const siblingPos = position % 2 === 0 ? position + 1 : position - 1;
+		return `r${round}-${region}-${siblingPos}`;
+	}
+
+	if (round === 4) {
+		// E8: each pair of regions feeds into one FF game
+		// SOUTH pairs with EAST, WEST pairs with MIDWEST
+		const regionPairs: Record<string, string> = {
+			'SOUTH': 'EAST', 'EAST': 'SOUTH',
+			'WEST': 'MIDWEST', 'MIDWEST': 'WEST',
+		};
+		const siblingRegion = regionPairs[region];
+		return siblingRegion ? `r4-${siblingRegion}-0` : null;
+	}
+
+	if (round === 5) {
+		// FF: two FF games are siblings
+		const siblingPos = position === 0 ? 1 : 0;
+		return `r5-FF-${siblingPos}`;
+	}
+
+	return null;
+}
+
+/** Walk down a bracket branch to find who the user picked to win it */
+function getWinnerFromBranch(gameId: string, bracketState: BracketState): BracketTeam | null {
+	const game = bracketState.get(gameId);
+	if (!game) return null;
+
+	// If someone was picked to win this game, that's the opponent
+	if (game.winner) {
+		const winnerTeam = game.teamA?.team_key === game.winner ? game.teamA : game.teamB;
+		return winnerTeam ?? null;
+	}
+
+	// No winner picked — show whichever team is set (for display purposes)
+	return game.teamA ?? game.teamB ?? null;
 }

@@ -23,12 +23,15 @@ interface BracketViewProps {
 }
 
 export default function BracketView({ games, seedPickCounts, seedRoundStats, onPickWinner, onSimulateRound, onPerfectRound }: BracketViewProps) {
+	const firstFourGames = [...games.values()].filter(g => g.round === 0).sort((a, b) => a.position - b.position);
+
 	return (
-		<div className="grid grid-cols-[1fr_auto_1fr] grid-rows-[1fr_1fr] w-full h-full p-4 gap-x-2 gap-y-4">
-			{/* Top-left: SOUTH (R64 → E8) */}
+		<div className="w-full p-4 flex flex-col gap-4">
+		<div className="grid grid-cols-[1fr_auto_1fr] grid-rows-[1fr_1fr] gap-x-2 gap-y-4">
+			{/* Top-left: EAST (R64 → E8) */}
 			<div className="col-start-1 row-start-1">
 				<RegionBracket
-					region="SOUTH"
+					region="EAST"
 					games={games}
 					seedPickCounts={seedPickCounts}
 					seedRoundStats={seedRoundStats}
@@ -40,10 +43,10 @@ export default function BracketView({ games, seedPickCounts, seedRoundStats, onP
 				/>
 			</div>
 
-			{/* Bottom-left: EAST (R64 → E8) */}
+			{/* Bottom-left: SOUTH (R64 → E8) */}
 			<div className="col-start-1 row-start-2">
 				<RegionBracket
-					region="EAST"
+					region="SOUTH"
 					games={games}
 					seedPickCounts={seedPickCounts}
 					seedRoundStats={seedRoundStats}
@@ -123,6 +126,27 @@ export default function BracketView({ games, seedPickCounts, seedRoundStats, onP
 					showRoundFill={false}
 				/>
 			</div>
+		</div>
+
+		{/* First Four */}
+		{firstFourGames.length > 0 && (
+			<div className="shrink-0 border-t border-neutral-800 pt-2 pb-6">
+				<div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 text-center">First Four</div>
+				<div className="flex gap-3 justify-center flex-wrap">
+					{firstFourGames.map(game => (
+						<div key={game.id} className="w-44">
+							<MatchupCard
+								game={game}
+								seedPickCounts={seedPickCounts}
+								seedRoundStats={seedRoundStats}
+								onPickWinner={onPickWinner}
+								compact
+							/>
+						</div>
+					))}
+				</div>
+			</div>
+		)}
 		</div>
 	);
 }
