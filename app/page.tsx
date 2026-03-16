@@ -45,10 +45,7 @@ export default async function Home() {
 						NET
 					</a>
 				</div>
-				<p className="text-center text-xs text-muted-foreground/60 mt-1 max-w-xl mx-auto">
-					Composite NCAA basketball rankings combining KenPom, Evan Miya, Bart Torvik, and NET ratings into a single unified ranking system.
-				</p>
-				<TeamTable />
+					<TeamTable />
 			</div>
 		</div>
 	);
