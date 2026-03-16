@@ -1,5 +1,7 @@
+import type { Metadata } from 'next';
 import Header from '@/components/Header';
 import { getTeamProfile } from '@/lib/rankings/profile';
+import { getTeamData } from '@/lib/espn/espn-team-data';
 import { TeamProfileProvider } from '../context/TeamProfileContext';
 import TeamCharts from './components/TeamCharts';
 import TeamProfileBanner from './components/TeamProfileBanner';
@@ -7,15 +9,46 @@ import BottomSection from './components/BottomSection';
 import TeamSchedule from './components/TeamSchedule';
 import TeamStats from './components/TeamStats';
 
+export async function generateMetadata({ params }: { params: Promise<{ teamKey: string }> }): Promise<Metadata> {
+	const { teamKey } = await params;
+	const teamData = await getTeamData(teamKey);
+	const name = teamData?.name ?? teamKey;
+
+	return {
+		title: `${name} Basketball Rankings — KenPom, EvanMiya, BartTorvik Ratings`,
+		description: `${name} college basketball ratings and rankings from KenPom, Evan Miya, Bart Torvik, and NET. View rating trends, schedule, stats, and March Madness tournament profile.`,
+		openGraph: {
+			title: `${name} — CBB Composite Rankings`,
+			description: `${name} composite basketball ratings from KenPom, EvanMiya, BartTorvik, and NET.`,
+		},
+	};
+}
+
 export default async function TeamPage({ params }: { params: Promise<{ teamKey: string }> }) {
 	const { teamKey } = await params;
 
 	const profile = await getTeamProfile(teamKey);
 
+	const teamJsonLd = {
+		'@context': 'https://schema.org',
+		'@type': 'SportsTeam',
+		name: profile.team_name,
+		sport: 'Basketball',
+		url: `https://cbbcomposite.com/${teamKey}`,
+		memberOf: {
+			'@type': 'SportsOrganization',
+			name: 'NCAA Division I Men\'s Basketball',
+		},
+	};
+
 	return (
 		<TeamProfileProvider profile={profile}>
 			<div className="h-dvh flex flex-col">
 				<Header />
+				<script
+					type="application/ld+json"
+					dangerouslySetInnerHTML={{ __html: JSON.stringify(teamJsonLd) }}
+				/>
 				<div className="flex-1 min-h-0 overflow-auto">
 					<div className="max-w-340 mx-auto px-2 md:px-4 pb-4 md:pb-8">
 						<TeamProfileBanner />

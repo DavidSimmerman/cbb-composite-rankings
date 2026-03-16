@@ -7,7 +7,7 @@ export default async function Home() {
 		<div className="h-dvh flex flex-col overflow-hidden">
 			<Header />
 			<div className="flex flex-col overflow-hidden mx-2 md:mx-8">
-				<TitleBar title="CBB Composite Rankings" />
+				<TitleBar title={<h1>CBB Composite Rankings</h1>} />
 				<div className="flex justify-center items-center gap-2 text-xs md:text-base text-muted-foreground mt-2 md:mt-1">
 					<a
 						href="https://kenpom.com"
@@ -45,6 +45,9 @@ export default async function Home() {
 						NET
 					</a>
 				</div>
+				<p className="text-center text-xs text-muted-foreground/60 mt-1 max-w-xl mx-auto">
+					Composite NCAA basketball rankings combining KenPom, Evan Miya, Bart Torvik, and NET ratings into a single unified ranking system.
+				</p>
 				<TeamTable />
 			</div>
 		</div>
