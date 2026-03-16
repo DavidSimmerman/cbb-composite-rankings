@@ -32,6 +32,8 @@ interface BracketContextValue {
 	seedPickCounts: Record<string, number>;
 	totalPicks: number;
 	evaluation: BracketEvaluation | null;
+	/** True when using real tournament bracket data (fixed regions) */
+	hasRealRegions: boolean;
 
 	// Actions
 	handlePickWinner: (gameId: string, teamKey: string) => void;
@@ -57,14 +59,20 @@ export function useBracket() {
 }
 
 export function BracketProvider({ data, children }: { data: BracketPageData; children: ReactNode }) {
+	// Check if teams have real region assignments (from tournament_games)
+	const hasRealRegions = data.bracket_teams.some(t => t.region && ['SOUTH', 'EAST', 'WEST', 'MIDWEST'].includes(t.region));
+
+	const firstFourGames = data.first_four_games;
+
 	const [bracketState, setBracketState] = useState<BracketState>(() => {
 		const saved = typeof window !== 'undefined' ? localStorage.getItem('bracket-state') : null;
 		if (saved) {
 			try {
 				const parsed = JSON.parse(saved);
-				let state = initializeBracket(data.bracket_teams, parsed.regions);
+				// With real regions, don't use saved region assignments — always use tournament data
+				let state = initializeBracket(data.bracket_teams, hasRealRegions ? undefined : parsed.regions, firstFourGames);
 				// Verify all teams made it into the bracket (stale keys → TBD slots)
-				const bracketTeamKeys = new Set(data.bracket_teams.map(t => t.team_key));
+				const bracketTeamKeys = new Set(data.bracket_teams.filter(t => t.region && ['SOUTH', 'EAST', 'WEST', 'MIDWEST'].includes(t.region)).map(t => t.team_key));
 				const assignedKeys = new Set<string>();
 				for (const game of state.values()) {
 					if (game.round === 1) {
@@ -74,11 +82,11 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 				}
 				const missing = [...bracketTeamKeys].filter(k => !assignedKeys.has(k));
 				if (missing.length > 0) {
-					state = initializeBracket(data.bracket_teams);
+					state = initializeBracket(data.bracket_teams, undefined, firstFourGames);
 				}
 				// Restore picks in round order so later rounds have teams propagated
 				if (parsed.picks && Object.keys(parsed.picks).length > 0) {
-					for (let round = 1; round <= 6; round++) {
+					for (let round = 0; round <= 6; round++) {
 						const roundPicks = Object.entries(parsed.picks as Record<string, { winner: string; isManual: boolean }>)
 							.filter(([id]) => {
 								const game = state.get(id);
@@ -96,7 +104,7 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 				return state;
 			} catch { /* fall through */ }
 		}
-		return initializeBracket(data.bracket_teams);
+		return initializeBracket(data.bracket_teams, undefined, firstFourGames);
 	});
 
 	const [predictionCache, setPredictionCache] = useState<Map<string, { probA: number; probB: number }>>(() => {
@@ -258,13 +266,13 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 	const handleReset = useCallback(() => {
 		setBracketState(prev => {
 			const regions = getRegionAssignment(prev);
-			return initializeBracket(data.bracket_teams, regions);
+			return initializeBracket(data.bracket_teams, regions, firstFourGames);
 		});
-	}, [data.bracket_teams]);
+	}, [data.bracket_teams, firstFourGames]);
 
 	const handleReRandomize = useCallback(() => {
-		setBracketState(initializeBracket(data.bracket_teams));
-	}, [data.bracket_teams]);
+		setBracketState(initializeBracket(data.bracket_teams, undefined, firstFourGames));
+	}, [data.bracket_teams, firstFourGames]);
 
 	const handleEvaluate = useCallback(() => {
 		const merged = mergeWithPredictionCache(bracketState);
@@ -278,6 +286,7 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 		seedPickCounts,
 		totalPicks,
 		evaluation,
+		hasRealRegions,
 		handlePickWinner,
 		handleSimulate,
 		handlePerfect,
@@ -289,7 +298,7 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 		setEvaluation,
 		getTeamByKey,
 	}), [
-		data, bracketState, seedPickCounts, totalPicks, evaluation,
+		data, bracketState, seedPickCounts, totalPicks, evaluation, hasRealRegions,
 		handlePickWinner, handleSimulate, handlePerfect,
 		handleSimulateRound, handlePerfectRound,
 		handleReset, handleReRandomize, handleEvaluate,
