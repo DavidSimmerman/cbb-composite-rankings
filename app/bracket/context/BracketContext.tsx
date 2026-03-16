@@ -6,11 +6,10 @@ import {
 	useContext,
 	useEffect,
 	useMemo,
-	useRef,
 	useState,
 	type ReactNode,
 } from 'react';
-import type { BracketPageData, BracketTeamSummary } from '@/lib/rankings/profile';
+import type { BracketPageData, BracketPrediction, BracketTeamSummary } from '@/lib/rankings/profile';
 import {
 	initializeBracket,
 	pickWinner,
@@ -19,7 +18,6 @@ import {
 	perfectBracket,
 	getRegionAssignment,
 	type BracketState,
-	type BracketGame,
 } from '@/lib/bracket/predictions';
 import { evaluateBracket, type BracketEvaluation } from '@/lib/bracket/evaluation';
 
@@ -107,18 +105,7 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 		return initializeBracket(data.bracket_teams, undefined, firstFourGames);
 	});
 
-	const [predictionCache, setPredictionCache] = useState<Map<string, { probA: number; probB: number }>>(() => {
-		try {
-			const saved = typeof window !== 'undefined' ? localStorage.getItem('bracket-predictions') : null;
-			if (saved) {
-				const entries = JSON.parse(saved) as [string, { probA: number; probB: number }][];
-				return new Map(entries);
-			}
-		} catch { /* fall through */ }
-		return new Map();
-	});
 	const [evaluation, setEvaluation] = useState<BracketEvaluation | null>(null);
-	const fetchingRef = useRef(new Set<string>());
 
 	// Team lookup map
 	const teamMap = useMemo(() => {
@@ -141,68 +128,20 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 		localStorage.setItem('bracket-state', JSON.stringify({ regions, picks }));
 	}, [bracketState]);
 
-	// Save prediction cache to localStorage
-	useEffect(() => {
-		if (predictionCache.size > 0) {
-			localStorage.setItem('bracket-predictions', JSON.stringify([...predictionCache]));
-		}
-	}, [predictionCache]);
 
-	// Fetch ML predictions for games that have both teams
-	useEffect(() => {
-		const controller = new AbortController();
-
-		const fetchPredictions = async () => {
-			const gamesToPredict = [...bracketState.values()].filter(
-				g => g.teamA && g.teamB && !g.prediction && !predictionCache.has(cacheKey(g.teamA!.team_key, g.teamB!.team_key))
-			);
-
-			for (const game of gamesToPredict) {
-				if (controller.signal.aborted) break;
-				const key = cacheKey(game.teamA!.team_key, game.teamB!.team_key);
-				if (fetchingRef.current.has(key)) continue;
-				fetchingRef.current.add(key);
-
-				try {
-					const res = await fetch(`/api/games/predict?home=${game.teamA!.team_key}&away=${game.teamB!.team_key}`, {
-						signal: controller.signal,
-					});
-					if (res.ok) {
-						const pred = await res.json();
-						const probA = pred.home?.win_probability ?? 0.5;
-						const probB = pred.away?.win_probability ?? 0.5;
-						setPredictionCache(prev => {
-							const next = new Map(prev);
-							next.set(key, { probA, probB });
-							return next;
-						});
-					}
-				} catch {
-					// Silently fail — predictions are optional / aborted
-				} finally {
-					fetchingRef.current.delete(key);
-				}
-			}
-		};
-
-		fetchPredictions();
-		return () => controller.abort();
-	}, [bracketState, predictionCache]);
-
-	/** Merge cached ML predictions into a bracket state snapshot. */
-	const mergeWithPredictionCache = useCallback((state: BracketState): BracketState => {
+	/** Merge pre-calculated ML predictions into a bracket state snapshot. */
+	const mergeWithPredictions = useCallback((state: BracketState): BracketState => {
 		const merged = new Map(state);
 		for (const [id, game] of merged) {
 			if (game.teamA && game.teamB && !game.prediction) {
-				const key = cacheKey(game.teamA.team_key, game.teamB.team_key);
-				const cached = predictionCache.get(key);
-				if (cached) {
-					merged.set(id, { ...game, prediction: cached });
+				const pred = lookupPrediction(data.predictions, game.teamA.team_key, game.teamB.team_key, game.round);
+				if (pred) {
+					merged.set(id, { ...game, prediction: { probA: pred.prob_a, probB: pred.prob_b } });
 				}
 			}
 		}
 		return merged;
-	}, [predictionCache]);
+	}, [data.predictions]);
 
 	// Count total picks
 	const totalPicks = useMemo(() => {
@@ -241,27 +180,27 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 	}, []);
 
 	const handleSimulate = useCallback(() => {
-		setBracketState(prev => autoFillBracket(mergeWithPredictionCache(prev), data.seed_round_stats, data.cross_seed_patterns));
-	}, [data, mergeWithPredictionCache]);
+		setBracketState(prev => autoFillBracket(mergeWithPredictions(prev), data.seed_round_stats, data.cross_seed_patterns));
+	}, [data, mergeWithPredictions]);
 
 	const handlePerfect = useCallback(() => {
 		setBracketState(prev => perfectBracket(
-			mergeWithPredictionCache(prev), data.seed_round_stats, data.cross_seed_patterns,
+			mergeWithPredictions(prev), data.seed_round_stats, data.cross_seed_patterns,
 			(games) => evaluateBracket(games, data.seed_round_stats, data.cross_seed_patterns),
 		));
-	}, [data, mergeWithPredictionCache]);
+	}, [data, mergeWithPredictions]);
 
 	const handleSimulateRound = useCallback((round: number) => {
-		setBracketState(prev => autoFillBracket(mergeWithPredictionCache(prev), data.seed_round_stats, data.cross_seed_patterns, { round }));
-	}, [data, mergeWithPredictionCache]);
+		setBracketState(prev => autoFillBracket(mergeWithPredictions(prev), data.seed_round_stats, data.cross_seed_patterns, { round }));
+	}, [data, mergeWithPredictions]);
 
 	const handlePerfectRound = useCallback((round: number) => {
 		setBracketState(prev => perfectBracket(
-			mergeWithPredictionCache(prev), data.seed_round_stats, data.cross_seed_patterns,
+			mergeWithPredictions(prev), data.seed_round_stats, data.cross_seed_patterns,
 			(games) => evaluateBracket(games, data.seed_round_stats, data.cross_seed_patterns),
 			{ round },
 		));
-	}, [data, mergeWithPredictionCache]);
+	}, [data, mergeWithPredictions]);
 
 	const handleReset = useCallback(() => {
 		setBracketState(prev => {
@@ -275,10 +214,10 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 	}, [data.bracket_teams, firstFourGames]);
 
 	const handleEvaluate = useCallback(() => {
-		const merged = mergeWithPredictionCache(bracketState);
+		const merged = mergeWithPredictions(bracketState);
 		const result = evaluateBracket([...merged.values()], data.seed_round_stats, data.cross_seed_patterns);
 		setEvaluation(result);
-	}, [bracketState, mergeWithPredictionCache, data.seed_round_stats, data.cross_seed_patterns]);
+	}, [bracketState, mergeWithPredictions, data.seed_round_stats, data.cross_seed_patterns]);
 
 	const value = useMemo<BracketContextValue>(() => ({
 		data,
@@ -308,6 +247,22 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 	return <BracketCtx.Provider value={value}>{children}</BracketCtx.Provider>;
 }
 
-function cacheKey(teamA: string, teamB: string): string {
-	return `${teamA}-vs-${teamB}`;
+/** Look up a pre-calculated prediction by team keys and round. */
+function lookupPrediction(
+	predictions: Record<string, BracketPrediction>,
+	teamAKey: string,
+	teamBKey: string,
+	round: number,
+): BracketPrediction | null {
+	const [first, second] = [teamAKey, teamBKey].sort();
+	const key = `${first}-vs-${second}-r${round}`;
+	const pred = predictions[key];
+	if (!pred) return null;
+	// If teamA is the alphabetically-first team, prob_a matches; otherwise flip
+	if (first === teamAKey) return pred;
+	return {
+		prob_a: pred.prob_b, prob_b: pred.prob_a, predicted_margin: -pred.predicted_margin,
+		predicted_score_a: pred.predicted_score_b, predicted_score_b: pred.predicted_score_a,
+		keys_a: pred.keys_b, keys_b: pred.keys_a,
+	};
 }

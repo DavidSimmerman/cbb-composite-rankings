@@ -78,7 +78,7 @@ export default function GamePreviewPage() {
 				/>
 
 				{/* Game Prediction */}
-				<BracketGamePrediction teamA={game.teamA} teamB={game.teamB} />
+				<BracketGamePrediction teamA={game.teamA} teamB={game.teamB} round={game.round} />
 
 				{/* Team Comparison */}
 				<BracketTeamComparison teamA={game.teamA} teamB={game.teamB} />

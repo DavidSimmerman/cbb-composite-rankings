@@ -1516,6 +1516,24 @@ export interface FirstFourGame {
 	target_region?: string;
 }
 
+interface KeyToGame {
+	label: string;
+	description: string;
+	impact: number;
+	advantage: 'team' | 'opponent' | 'neutral';
+}
+
+/** Pre-calculated ML prediction for a team pair + round. */
+export interface BracketPrediction {
+	prob_a: number;
+	prob_b: number;
+	predicted_margin: number;
+	predicted_score_a: number | null;
+	predicted_score_b: number | null;
+	keys_a: KeyToGame[] | null;
+	keys_b: KeyToGame[] | null;
+}
+
 export interface BracketPageData {
 	bracket_teams: BracketTeamSummary[];
 	seed_baselines: Record<number, number>;
@@ -1523,13 +1541,15 @@ export interface BracketPageData {
 	cross_seed_patterns: CrossSeedPatterns;
 	seed_matchup_stats: SeedMatchupStat[];
 	first_four_games: FirstFourGame[];
+	/** Pre-calculated predictions keyed by "teamA-vs-teamB-rN" (alphabetical team order). */
+	predictions: Record<string, BracketPrediction>;
 }
 
 const BRACKET_ROUNDS = ['Round of 64', 'Round of 32', 'Sweet 16', 'Elite 8', 'Final Four', 'Championship'];
 
 export async function getBracketPageData(): Promise<BracketPageData> {
 	const currentSeason = getCurrentSeason();
-	const [marchData, { allSeedOutcomes, seasonSeedOutcomes }, ffRows, r64Rows] = await Promise.all([
+	const [marchData, { allSeedOutcomes, seasonSeedOutcomes }, ffRows, r64Rows, predRows] = await Promise.all([
 		getMarchPageData(),
 		getTournamentDataset(),
 		db.query<{ game_id: string; team_a_key: string; team_a_seed: number; team_b_key: string; team_b_seed: number; region: string }>(
@@ -1540,6 +1560,17 @@ export async function getBracketPageData(): Promise<BracketPageData> {
 		db.query<{ team_a_key: string; team_b_key: string | null; team_a_seed: number; team_b_seed: number; region: string }>(
 			`SELECT team_a_key, team_b_key, team_a_seed, team_b_seed, region
 			 FROM tournament_games WHERE season = $1 AND round = 'Round of 64'`,
+			[currentSeason]
+		),
+		db.query<{
+			team_a_key: string; team_b_key: string; round_number: number;
+			prob_a: number; prob_b: number; predicted_margin: number;
+			predicted_score_a: number | null; predicted_score_b: number | null;
+			keys_a: KeyToGame[] | null; keys_b: KeyToGame[] | null;
+		}>(
+			`SELECT team_a_key, team_b_key, round_number, prob_a, prob_b, predicted_margin,
+			        predicted_score_a, predicted_score_b, keys_a, keys_b
+			 FROM bracket_predictions WHERE season = $1`,
 			[currentSeason]
 		),
 	]);
@@ -1664,6 +1695,24 @@ export async function getBracketPageData(): Promise<BracketPageData> {
 	// Compute seed-vs-seed matchup stats from tournament_games
 	const matchupStats = computeSeedMatchupStats(seasonSeedOutcomes);
 
+	// Build predictions lookup map from pre-calculated bracket_predictions
+	const predictions: Record<string, BracketPrediction> = {};
+	for (const row of predRows) {
+		// Store with alphabetically-ordered key so lookups are consistent
+		const [first, second] = [row.team_a_key, row.team_b_key].sort();
+		const isFlipped = first !== row.team_a_key;
+		const key = `${first}-vs-${second}-r${row.round_number}`;
+		predictions[key] = {
+			prob_a: isFlipped ? row.prob_b : row.prob_a,
+			prob_b: isFlipped ? row.prob_a : row.prob_b,
+			predicted_margin: isFlipped ? -row.predicted_margin : row.predicted_margin,
+			predicted_score_a: isFlipped ? row.predicted_score_b : row.predicted_score_a,
+			predicted_score_b: isFlipped ? row.predicted_score_a : row.predicted_score_b,
+			keys_a: isFlipped ? row.keys_b : row.keys_a,
+			keys_b: isFlipped ? row.keys_a : row.keys_b,
+		};
+	}
+
 	return {
 		bracket_teams: marchData.bracket_teams,
 		seed_baselines: marchData.seed_baselines,
@@ -1671,6 +1720,7 @@ export async function getBracketPageData(): Promise<BracketPageData> {
 		cross_seed_patterns: { unprecedented, distributions },
 		seed_matchup_stats: matchupStats,
 		first_four_games,
+		predictions,
 	};
 }
 
