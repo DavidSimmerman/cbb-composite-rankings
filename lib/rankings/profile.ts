@@ -1071,6 +1071,10 @@ async function getMarchAnalysis(teamKey: string, fullRatings: Record<string, Ful
 		console.error('getMarchAnalysis: getTournamentDataset error:', e?.message, e?.stack);
 		return null;
 	}
+	// Exclude current season teams — these are not yet historical
+	const currentSeason = getCurrentSeason();
+	dataset = dataset.filter(t => t.season !== currentSeason);
+
 	if (dataset.length === 0) return null;
 
 	// Projected seed: use tournament data if available, then Bracket Matrix, then rank-based fallback
@@ -1347,12 +1351,15 @@ async function getBulkLatestRatings(teamKeys: string[]): Promise<Record<string, 
 }
 
 export async function getMarchPageData(): Promise<MarchPageData> {
-	const [{ dataset, allSeedOutcomes }, tournamentTeams, { globalMin, globalMax }, allTeamData] = await Promise.all([
+	const [{ dataset: rawDataset, allSeedOutcomes }, tournamentTeams, { globalMin, globalMax }, allTeamData] = await Promise.all([
 		getTournamentDataset(),
 		getTournamentBracketTeams(getCurrentSeason()),
 		getGlobalScaleBounds(),
 		(await import('../espn/espn-team-data')).getAllTeamData(),
 	]);
+
+	// Exclude current season teams — these are not yet historical
+	const dataset = rawDataset.filter(t => t.season !== getCurrentSeason());
 
 	// Use real tournament data if available, otherwise fall back to Bracket Matrix
 	type TeamEntry = { team_key: string; seed: number; avg_seed: number | null; team_name: string; region?: string };
