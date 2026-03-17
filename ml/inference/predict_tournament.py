@@ -83,6 +83,12 @@ class TournamentPredictor:
         margin_b = float(self.margin_model.predict(X_b)[0])
         avg_margin = (margin_a - margin_b) / 2
 
+        # Ensure margin direction agrees with win probability
+        if prob_a > prob_b and avg_margin <= 0:
+            avg_margin = max(1.0, abs(avg_margin))
+        elif prob_b > prob_a and avg_margin >= 0:
+            avg_margin = -max(1.0, abs(avg_margin))
+
         return {
             "team_a_win_probability": prob_a,
             "team_b_win_probability": prob_b,

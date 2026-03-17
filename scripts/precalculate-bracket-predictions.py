@@ -124,12 +124,45 @@ def create_table(conn):
     print("Table bracket_predictions ready.")
 
 
-def estimate_scores(margin: float, tempo_a: float, tempo_b: float) -> tuple[int, int]:
-    """Estimate individual team scores from margin and tempo (same logic as general predictor)."""
+def estimate_scores(
+    margin: float,
+    tempo_a: float, tempo_b: float,
+    off_a: float, def_a: float,
+    off_b: float, def_b: float,
+) -> tuple[int, int]:
+    """
+    Estimate individual team scores using KenPom-style efficiency model.
+
+    Each team's expected points = (their offense vs opponent defense) * possessions / 100.
+    The D1 average efficiency is ~100 pts/100 possessions (both offense and defense).
+    We then adjust the scores so the difference matches the predicted margin.
+    """
+    # Estimate game possessions from both teams' tempos
+    # D1 average tempo ~68 possessions per game
     avg_tempo = (tempo_a + tempo_b) / 2
-    estimated_total = 140 * (avg_tempo / 68)
-    score_a = round(estimated_total / 2 + margin / 2)
-    score_b = round(estimated_total / 2 - margin / 2)
+
+    # Each team's expected efficiency against this opponent:
+    # team_a scores at (off_a attack vs def_b), team_b scores at (off_b attack vs def_a)
+    # Normalize against D1 average (~100): eff_a = off_a * (100 / def_b) isn't quite right
+    # Simpler: raw_score = off_eff * possessions / 100, then adjust for opponent defense
+    # KenPom approach: expected_pts = (off_rating * opp_def_rating / D1_avg) * tempo / 100
+    D1_AVG_EFF = 100.0
+    raw_a = (off_a * def_b / D1_AVG_EFF) * avg_tempo / 100
+    raw_b = (off_b * def_a / D1_AVG_EFF) * avg_tempo / 100
+
+    # Adjust so the score differential matches the predicted margin
+    raw_margin = raw_a - raw_b
+    adjustment = (margin - raw_margin) / 2
+    score_a = round(raw_a + adjustment)
+    score_b = round(raw_b - adjustment)
+
+    # Ensure no ties (winner gets +1 if tied)
+    if score_a == score_b:
+        if margin >= 0:
+            score_a += 1
+        else:
+            score_b += 1
+
     return int(score_a), int(score_b)
 
 
@@ -268,10 +301,22 @@ def main():
                 margin_b = float(predictor.margin_model.predict(X_b)[0])
                 avg_margin = round((margin_a - margin_b) / 2, 1)
 
-                # Compute predicted scores from tempo + margin
+                # Ensure margin direction agrees with win probability
+                # If prob says team_a wins but margin says team_b (or vice versa),
+                # flip to a minimum margin in the probability-favored direction
+                if prob_a > prob_b and avg_margin <= 0:
+                    avg_margin = max(1.0, abs(avg_margin))
+                elif prob_b > prob_a and avg_margin >= 0:
+                    avg_margin = -max(1.0, abs(avg_margin))
+
+                # Compute predicted scores from efficiency + tempo
                 tempo_a = float(f_ratings_a.get("kp_adjusted_tempo", 68)) if f_ratings_a else 68.0
                 tempo_b = float(f_ratings_b.get("kp_adjusted_tempo", 68)) if f_ratings_b else 68.0
-                score_a, score_b = estimate_scores(avg_margin, tempo_a, tempo_b)
+                off_a = float(f_ratings_a.get("kp_offensive_rating", 100)) if f_ratings_a else 100.0
+                def_a = float(f_ratings_a.get("kp_defensive_rating", 100)) if f_ratings_a else 100.0
+                off_b = float(f_ratings_b.get("kp_offensive_rating", 100)) if f_ratings_b else 100.0
+                def_b = float(f_ratings_b.get("kp_defensive_rating", 100)) if f_ratings_b else 100.0
+                score_a, score_b = estimate_scores(avg_margin, tempo_a, tempo_b, off_a, def_a, off_b, def_b)
 
                 batch.append((
                     season, team_a, team_b, seed_a, seed_b, round_num,

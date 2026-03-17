@@ -87,17 +87,41 @@ class Predictor:
         # Average the margins (they should be close to negatives of each other)
         avg_margin = (home_margin - away_margin) / 2
 
-        # Estimate total score from tempo
-        home_tempo = home_ratings.get("kp_adjusted_tempo", 68)
-        away_tempo = away_ratings.get("kp_adjusted_tempo", 68)
-        avg_tempo = (float(home_tempo) + float(away_tempo)) / 2
+        # Ensure margin direction agrees with win probability
+        if home_win_prob > away_win_prob and avg_margin <= 0:
+            avg_margin = max(1.0, abs(avg_margin))
+        elif away_win_prob > home_win_prob and avg_margin >= 0:
+            avg_margin = -max(1.0, abs(avg_margin))
 
-        # Rough total estimation: average D1 game ~= 140 points at ~68 possessions
-        # Scale linearly with tempo
-        estimated_total = 140 * (avg_tempo / 68)
+        # Estimate scores using KenPom-style efficiency model
+        home_tempo = float(home_ratings.get("kp_adjusted_tempo", 68))
+        away_tempo = float(away_ratings.get("kp_adjusted_tempo", 68))
+        home_off = float(home_ratings.get("kp_offensive_rating", 100))
+        home_def = float(home_ratings.get("kp_defensive_rating", 100))
+        away_off = float(away_ratings.get("kp_offensive_rating", 100))
+        away_def = float(away_ratings.get("kp_defensive_rating", 100))
 
-        home_predicted_score = round(estimated_total / 2 + avg_margin / 2)
-        away_predicted_score = round(estimated_total / 2 - avg_margin / 2)
+        avg_tempo = (home_tempo + away_tempo) / 2
+        D1_AVG_EFF = 100.0
+
+        # Expected points: (team_off * opp_def / D1_avg) * possessions / 100
+        raw_home = (home_off * away_def / D1_AVG_EFF) * avg_tempo / 100
+        raw_away = (away_off * home_def / D1_AVG_EFF) * avg_tempo / 100
+
+        # Adjust so score differential matches predicted margin
+        raw_margin = raw_home - raw_away
+        adjustment = (avg_margin - raw_margin) / 2
+        home_predicted_score = round(raw_home + adjustment)
+        away_predicted_score = round(raw_away - adjustment)
+
+        # Ensure no ties
+        if home_predicted_score == away_predicted_score:
+            if avg_margin >= 0:
+                home_predicted_score += 1
+            else:
+                away_predicted_score += 1
+
+        estimated_total = home_predicted_score + away_predicted_score
 
         # Load game history for record splits
         home_history = load_team_game_history(home_team_key)
