@@ -15,7 +15,8 @@ const NAV_LINKS = [
 	{ href: '/', label: 'Rankings' },
 	{ href: '/games', label: 'Scoreboard' },
 	{ href: '/march', label: 'March Profiles' },
-	{ href: '/bracket', label: 'Bracket' }
+	{ href: '/upsets', label: 'Upsets' },
+	{ href: '/bracket', label: 'Bracket' },
 ];
 
 export default function Header() {
