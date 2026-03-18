@@ -890,14 +890,6 @@ export default function BracketBuilder({ onClose }: { onClose: () => void }) {
 				</button>
 
 				<div className="flex items-center gap-2">
-					{!isStepComplete && currentStep < steps.length - 1 && (
-						<button
-							onClick={goNext}
-							className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-						>
-							Skip
-						</button>
-					)}
 					<button
 						onClick={goNext}
 						className="flex items-center gap-1 px-4 py-2 rounded-md text-sm bg-violet-600 hover:bg-violet-500 text-white transition-colors cursor-pointer"
