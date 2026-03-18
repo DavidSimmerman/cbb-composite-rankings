@@ -17,6 +17,7 @@ import {
 	autoFillBracket,
 	perfectBracket,
 	getRegionAssignment,
+	swapR64Pick,
 	type BracketState,
 } from '@/lib/bracket/predictions';
 import { evaluateBracket, type BracketEvaluation } from '@/lib/bracket/evaluation';
@@ -35,6 +36,7 @@ interface BracketContextValue {
 
 	// Actions
 	handlePickWinner: (gameId: string, teamKey: string) => void;
+	handleSwapR64Pick: (r64GameId: string, newWinnerKey: string) => void;
 	handleSimulate: () => void;
 	handlePerfect: () => void;
 	handleSimulateRound: (round: number) => void;
@@ -179,6 +181,10 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 		});
 	}, []);
 
+	const handleSwapR64Pick = useCallback((r64GameId: string, newWinnerKey: string) => {
+		setBracketState(prev => swapR64Pick(prev, r64GameId, newWinnerKey));
+	}, []);
+
 	const handleSimulate = useCallback(() => {
 		setBracketState(prev => autoFillBracket(mergeWithPredictions(prev), data.seed_round_stats, data.cross_seed_patterns));
 	}, [data, mergeWithPredictions]);
@@ -227,6 +233,7 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 		evaluation,
 		hasRealRegions,
 		handlePickWinner,
+		handleSwapR64Pick,
 		handleSimulate,
 		handlePerfect,
 		handleSimulateRound,
@@ -238,7 +245,7 @@ export function BracketProvider({ data, children }: { data: BracketPageData; chi
 		getTeamByKey,
 	}), [
 		data, bracketState, seedPickCounts, totalPicks, evaluation, hasRealRegions,
-		handlePickWinner, handleSimulate, handlePerfect,
+		handlePickWinner, handleSwapR64Pick, handleSimulate, handlePerfect,
 		handleSimulateRound, handlePerfectRound,
 		handleReset, handleReRandomize, handleEvaluate,
 		getTeamByKey,

@@ -46,7 +46,7 @@ export const ALL_REGIONS = REGIONS;
 
 // Standard bracket positions: [higherSeed, lowerSeed]
 // Position order determines R32 matchups (0 vs 1, 2 vs 3, etc.)
-const R64_MATCHUP_ORDER: [number, number][] = [
+export const R64_MATCHUP_ORDER: [number, number][] = [
 	[1, 16], [8, 9], [5, 12], [4, 13], [6, 11], [3, 14], [7, 10], [2, 15],
 ];
 
@@ -375,6 +375,56 @@ function cascadeClear(state: BracketState, fromGameId: string, teamKey: string) 
 	}
 
 	state.set(nextId, nextGame);
+}
+
+/**
+ * Swap an R64 pick without disrupting downstream picks.
+ * If the R32 winner came from the OTHER feeder game, preserve it and all its downstream picks.
+ */
+export function swapR64Pick(state: BracketState, r64GameId: string, newWinnerKey: string): BracketState {
+	const game = state.get(r64GameId);
+	if (!game || game.round !== 1 || !game.winner || !game.teamA || !game.teamB) return state;
+
+	const oldWinnerKey = game.winner;
+	if (oldWinnerKey === newWinnerKey) return state;
+
+	const r32Id = getNextGameId(r64GameId);
+	if (!r32Id) return state;
+
+	const r32Game = state.get(r32Id);
+	const r32WinnerKey = r32Game?.winner ?? null;
+	// Check if the R32 winner is the team being swapped out (if so, we must cascade)
+	const r32WinnerPreserved = r32WinnerKey !== null && r32WinnerKey !== oldWinnerKey;
+
+	let newState = new Map(state);
+
+	if (r32WinnerPreserved) {
+		// Safe swap: just replace the team in the R32 slot without clearing downstream
+		const updatedR64 = { ...newState.get(r64GameId)! };
+		updatedR64.winner = newWinnerKey;
+		updatedR64.isManualPick = true;
+		newState.set(r64GameId, updatedR64);
+
+		const slot = getNextGameSlot(r64GameId);
+		const newWinnerTeam = updatedR64.teamA?.team_key === newWinnerKey ? updatedR64.teamA : updatedR64.teamB;
+		const updatedR32 = { ...newState.get(r32Id)! };
+		if (slot === 'A') {
+			updatedR32.teamA = newWinnerTeam;
+		} else {
+			updatedR32.teamB = newWinnerTeam;
+		}
+		updatedR32.prediction = null;
+		newState.set(r32Id, updatedR32);
+	} else {
+		// R32 winner is the team being swapped — must cascade normally
+		newState = clearPick(newState, r64GameId);
+		newState = pickWinner(newState, r64GameId, newWinnerKey, true);
+		if (r32WinnerKey) {
+			newState = pickWinner(newState, r32Id, r32WinnerKey, true);
+		}
+	}
+
+	return newState;
 }
 
 // --- Historical benchmarks for bracket realism ---

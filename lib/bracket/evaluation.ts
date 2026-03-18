@@ -312,7 +312,10 @@ function findDeepRuns(
 		const ddPct = ddTotal > 0 ? (ddWins / ddTotal * 100).toFixed(1) : '0';
 		const ddPerYear = ddTotal > 0 ? (ddWins / 23).toFixed(1) : '0'; // 23 tournaments
 
-		if (group.teams.length === 1) {
+		const ddPerYearNum = parseFloat(ddPerYear);
+		if (group.teams.length <= ddPerYearNum) {
+			// At or below average — nothing unusual, skip
+		} else if (group.teams.length === 1) {
 			const t = group.teams[0];
 			const severity: FindingSeverity = t.pct < 0.03 ? 'bold' : 'mild';
 			findings.push({
@@ -322,10 +325,11 @@ function findDeepRuns(
 				round: reachedRound,
 			});
 		} else {
+			const severity: FindingSeverity = group.teams.length > ddPerYearNum + 1 ? 'bold' : 'mild';
 			findings.push({
-				severity: 'bold',
+				severity,
 				title: `${group.teams.length} double-digit seeds in the ${shortRound}`,
-				detail: `${teamList} in the ${reachedRoundName}. Historically ~${ddPerYear} 10+-seeds per tournament reach this round. Having ${group.teams.length} is very unusual.`,
+				detail: `${teamList} in the ${reachedRoundName}. Historically ~${ddPerYear} 10+-seeds per tournament reach this round.${group.teams.length > ddPerYearNum + 1 ? ` Having ${group.teams.length} is very unusual.` : ''}`,
 				round: reachedRound,
 			});
 		}

@@ -5,7 +5,8 @@ import BracketView from './BracketView';
 import RoundView from './RoundView';
 import EvaluationPanel from './EvaluationPanel';
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, RotateCcw, ClipboardCheck, Crown, Dices } from 'lucide-react';
+import { ChevronDown, RotateCcw, ClipboardCheck, Crown, Dices, Wand2 } from 'lucide-react';
+import BracketBuilder from './BracketBuilder';
 import {
 	DropdownMenu,
 	DropdownMenuTrigger,
@@ -30,6 +31,14 @@ export default function BracketClient() {
 		handleEvaluate,
 		setEvaluation,
 	} = useBracket();
+
+	const [showBuilder, setShowBuilder] = useState(() => {
+		if (typeof window !== 'undefined') return sessionStorage.getItem('bracket-builder') === 'true';
+		return false;
+	});
+	useEffect(() => {
+		sessionStorage.setItem('bracket-builder', String(showBuilder));
+	}, [showBuilder]);
 
 	const hasFirstFour = [...bracketState.values()].some(g => g.round === 0);
 	const [selectedRound, setSelectedRound] = useState(() => {
@@ -59,8 +68,8 @@ export default function BracketClient() {
 
 	return (
 		<div className="flex flex-col h-full">
-			{/* Toolbar */}
-			<div className="flex items-center gap-2 px-3 py-2 border-b border-neutral-800 shrink-0 flex-wrap">
+			{/* Toolbar (hidden when builder is active) */}
+			{!showBuilder && <div className="flex items-center gap-2 px-3 py-2 border-b border-neutral-800 shrink-0 flex-wrap">
 				{/* Auto-fill dropdown */}
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
@@ -93,6 +102,14 @@ export default function BracketClient() {
 				</DropdownMenu>
 
 				<button
+					onClick={() => setShowBuilder(true)}
+					className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-violet-600 hover:bg-violet-500 text-white transition-colors cursor-pointer"
+				>
+					<Wand2 className="size-3.5" />
+					Bracket Builder
+				</button>
+
+				<button
 					onClick={handleEvaluate}
 					disabled={totalPicks < 10}
 					className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
@@ -112,7 +129,7 @@ export default function BracketClient() {
 						{totalPicks}/{maxPicks} picks
 					</span>
 				</div>
-			</div>
+			</div>}
 
 			{/* Evaluation panel */}
 			{evaluation && (
@@ -124,31 +141,40 @@ export default function BracketClient() {
 				</div>
 			)}
 
-			{/* Desktop bracket view */}
-			<div className="hidden md:flex flex-1 min-h-0 overflow-auto">
-				<BracketView
-					games={bracketState}
-					seedPickCounts={seedPickCounts}
-					seedRoundStats={data.seed_round_stats}
-					onPickWinner={handlePickWinner}
-					onSimulateRound={handleSimulateRound}
-					onPerfectRound={handlePerfectRound}
-				/>
-			</div>
+			{showBuilder ? (
+				<BracketBuilder onClose={() => {
+					setShowBuilder(false);
+					sessionStorage.removeItem('bracket-builder-step');
+				}} />
+			) : (
+				<>
+					{/* Desktop bracket view */}
+					<div className="hidden md:flex flex-1 min-h-0 overflow-auto">
+						<BracketView
+							games={bracketState}
+							seedPickCounts={seedPickCounts}
+							seedRoundStats={data.seed_round_stats}
+							onPickWinner={handlePickWinner}
+							onSimulateRound={handleSimulateRound}
+							onPerfectRound={handlePerfectRound}
+						/>
+					</div>
 
-			{/* Mobile round view */}
-			<div className="md:hidden flex-1 min-h-0">
-				<RoundView
-					games={bracketState}
-					seedPickCounts={seedPickCounts}
-					seedRoundStats={data.seed_round_stats}
-					selectedRound={selectedRound}
-					onSelectRound={setSelectedRound}
-					onPickWinner={handlePickWinner}
-					onSimulateRound={handleSimulateRound}
-					onPerfectRound={handlePerfectRound}
-				/>
-			</div>
+					{/* Mobile round view */}
+					<div className="md:hidden flex-1 min-h-0">
+						<RoundView
+							games={bracketState}
+							seedPickCounts={seedPickCounts}
+							seedRoundStats={data.seed_round_stats}
+							selectedRound={selectedRound}
+							onSelectRound={setSelectedRound}
+							onPickWinner={handlePickWinner}
+							onSimulateRound={handleSimulateRound}
+							onPerfectRound={handlePerfectRound}
+						/>
+					</div>
+				</>
+			)}
 		</div>
 	);
 }
