@@ -4,6 +4,7 @@ import type { BracketTeam } from '@/lib/bracket/predictions';
 import type { BracketPrediction } from '@/lib/rankings/profile';
 import { useBracket } from '../../context/BracketContext';
 import GamePrediction from '@/components/games/GamePrediction';
+import { pickBarColors } from '@/app/games/[gameId]/components/GameBoxScore';
 
 interface BracketGamePredictionProps {
 	teamA: BracketTeam;
@@ -25,6 +26,7 @@ export default function BracketGamePrediction({ teamA, teamB, round }: BracketGa
 			teamBAbbr={teamB.abbreviation}
 			teamAColor={`#${teamA.color}`}
 			teamBColor={`#${teamB.color}`}
+			pickColors={(a, b) => pickBarColors(a, `#${teamA.secondary_color}`, b, `#${teamB.secondary_color}`)}
 			preCalculated={pred ? {
 				probA: pred.prob_a, probB: pred.prob_b, margin: pred.predicted_margin,
 				scoreA: pred.predicted_score_a, scoreB: pred.predicted_score_b,
