@@ -40,6 +40,8 @@ interface WizardStep {
 	s16Section?: R32Section;
 	/** E8 section reference (for E8 sub-steps) */
 	e8Section?: R32Section;
+	/** Upset validation checkpoint after R64 or R32 */
+	isUpsetCheck?: 'r64' | 'r32';
 }
 
 /** R64 steps ordered from most predictable to most chaotic */
@@ -76,6 +78,8 @@ function buildSteps(hasFirstFour: boolean, r32Sections: R32Section[], hasValuePi
 			positionIndex: r64.positionIndex,
 		});
 	}
+	// R64 upset check (auto-skipped if upsets are close to average)
+	steps.push({ id: 'r64-upset-check', round: 1, title: 'Upset Check', isUpsetCheck: 'r64' });
 	// R32: one step per section
 	for (const section of r32Sections) {
 		steps.push({
@@ -85,6 +89,8 @@ function buildSteps(hasFirstFour: boolean, r32Sections: R32Section[], hasValuePi
 			r32Section: section,
 		});
 	}
+	// R32 upset check (auto-skipped if upsets are close to average)
+	steps.push({ id: 'r32-upset-check', round: 2, title: 'Upset Check', isUpsetCheck: 'r32' });
 	// Value picks (conditional)
 	if (hasValuePicks) {
 		steps.push({ id: 'value-picks', round: -1, title: 'Value Picks' });
@@ -649,6 +655,7 @@ export default function BracketBuilder({ onClose }: { onClose: () => void }) {
 		for (let i = 0; i < steps.length; i++) {
 			const s = steps[i];
 			if (s.round === -1) continue; // skip value picks for auto-advance
+			if (s.isUpsetCheck) continue; // skip upset checks for auto-advance
 			const games = getGamesForStep(s, bracketState);
 			const allPicked = games.length > 0 && games.every(g => g.winner !== null);
 			if (!allPicked) return i;
@@ -662,9 +669,10 @@ export default function BracketBuilder({ onClose }: { onClose: () => void }) {
 
 	const step = steps[currentStep];
 	const isValuePicksStep = step.round === -1;
-	const stepGames = isValuePicksStep ? [] : getGamesForStep(step, bracketState);
-	const isStepComplete = isValuePicksStep
-		? true // value picks are always skippable
+	const isUpsetCheckStep = !!step.isUpsetCheck;
+	const stepGames = (isValuePicksStep || isUpsetCheckStep) ? [] : getGamesForStep(step, bracketState);
+	const isStepComplete = (isValuePicksStep || isUpsetCheckStep)
+		? true // value picks and upset checks are always navigable
 		: stepGames.length > 0 && stepGames.every(g => g.winner !== null);
 	const pickedCount = stepGames.filter(g => g.winner !== null).length;
 
@@ -697,8 +705,18 @@ export default function BracketBuilder({ onClose }: { onClose: () => void }) {
 	// Touch swipe for mobile
 	const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
 
+	const shouldSkipUpsetCheck = (stepIdx: number): boolean => {
+		const s = steps[stepIdx];
+		if (!s?.isUpsetCheck) return false;
+		const budget = computeRoundUpsetBudget(bracketState, data.seed_round_stats, data.cross_seed_patterns, s.round);
+		return budget.status === 'average';
+	};
+
 	const goNext = () => {
-		if (currentStep < steps.length - 1) setCurrentStep(s => s + 1);
+		let next = currentStep + 1;
+		// Auto-skip upset check steps when upsets are close to average
+		if (next < steps.length && shouldSkipUpsetCheck(next)) next++;
+		if (next < steps.length) setCurrentStep(next);
 		else onClose();
 	};
 	const goPrev = () => {
@@ -751,7 +769,16 @@ export default function BracketBuilder({ onClose }: { onClose: () => void }) {
 			{/* Step content */}
 			<div className="flex-1 overflow-auto px-4 py-4">
 				<div className="max-w-2xl mx-auto">
-					{isValuePicksStep ? (
+					{isUpsetCheckStep ? (
+						<UpsetCheckContent
+							type={step.isUpsetCheck!}
+							bracketState={bracketState}
+							seedRoundStats={data.seed_round_stats}
+							crossSeedPatterns={data.cross_seed_patterns}
+							predictions={data.predictions}
+							onPickWinner={handlePickWinner}
+						/>
+					) : isValuePicksStep ? (
 						<ValuePicksContent
 							valuePicks={valuePicks}
 							onFlip={handleValueFlip}
@@ -890,14 +917,6 @@ export default function BracketBuilder({ onClose }: { onClose: () => void }) {
 				</button>
 
 				<div className="flex items-center gap-2">
-					{!isStepComplete && currentStep < steps.length - 1 && (
-						<button
-							onClick={goNext}
-							className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-						>
-							Skip
-						</button>
-					)}
 					<button
 						onClick={goNext}
 						className="flex items-center gap-1 px-4 py-2 rounded-md text-sm bg-violet-600 hover:bg-violet-500 text-white transition-colors cursor-pointer"
@@ -1096,6 +1115,233 @@ function UpsetBudgetBar({ budget, roundName }: { budget: UpsetBudgetData; roundN
 				<span className="text-[10px] text-muted-foreground">{maxRange}</span>
 			</div>
 		</div>
+	);
+}
+
+// ─── Upset Check content ─────────────────────────────────────────────────────
+
+interface SeedGroupDelta {
+	higherSeed: number;
+	lowerSeed: number;
+	picked: number;
+	avg: number;
+	delta: number; // positive = over, negative = under
+	/** Games in this seed group where user can flip */
+	flippableGames: BracketGame[];
+}
+
+function getR64SeedGroupDeltas(
+	bracketState: BracketState,
+	crossSeedPatterns: CrossSeedPatterns,
+): SeedGroupDelta[] {
+	const deltas: SeedGroupDelta[] = [];
+	for (const entry of R64_WIZARD_ORDER) {
+		const [higher, lower] = entry.seedPair;
+		// Skip 1v16 and 2v15 — too rare for meaningful upset validation
+		if (higher <= 2) continue;
+		const dist = crossSeedPatterns.distributions[lower]?.['Round of 64'];
+		if (!dist) continue;
+		const avgUpsets = dist.mean; // mean = avg lower-seed wins per tournament (out of 4)
+
+		// Count upsets picked in this seed group
+		const games: BracketGame[] = [];
+		let picked = 0;
+		for (const region of ALL_REGIONS) {
+			const game = bracketState.get(`r1-${region}-${entry.positionIndex}`);
+			if (!game?.teamA || !game.teamB) continue;
+			games.push(game);
+			if (game.winner) {
+				const winner = game.teamA.team_key === game.winner ? game.teamA : game.teamB;
+				if (winner.seed === lower) picked++;
+			}
+		}
+
+		const delta = picked - avgUpsets;
+		// Only show seed groups that are meaningfully off from average (>= 0.8 diff)
+		if (Math.abs(delta) >= 0.8) {
+			deltas.push({ higherSeed: higher, lowerSeed: lower, picked, avg: avgUpsets, delta, flippableGames: games });
+		}
+	}
+	return deltas;
+}
+
+function UpsetCheckContent({
+	type,
+	bracketState,
+	seedRoundStats,
+	crossSeedPatterns,
+	predictions,
+	onPickWinner,
+}: {
+	type: 'r64' | 'r32';
+	bracketState: BracketState;
+	seedRoundStats: SeedRoundStats;
+	crossSeedPatterns: CrossSeedPatterns;
+	predictions: Record<string, BracketPrediction>;
+	onPickWinner: (gameId: string, teamKey: string) => void;
+}) {
+	const round = type === 'r64' ? 1 : 2;
+	const roundName = ROUND_NAMES[round];
+	const budget = computeRoundUpsetBudget(bracketState, seedRoundStats, crossSeedPatterns, round);
+	const { totalUpsets, historicalAvg } = budget;
+	const diff = totalUpsets - historicalAvg;
+	const isUnder = diff < 0;
+	const isOver = diff > 0;
+
+	// R64: per-seed-group deltas
+	const seedGroupDeltas = type === 'r64' ? getR64SeedGroupDeltas(bracketState, crossSeedPatterns) : [];
+
+	// Get all games for this round
+	const roundGames = [...bracketState.values()].filter(g => g.round === round && g.teamA && g.teamB);
+
+	// Build suggestion list
+	const suggestedGames: { game: BracketGame; upsetProb: number; isUpset: boolean; message: string }[] = [];
+
+	if (isUnder) {
+		// Too few upsets: show chalk picks ranked by upset likelihood
+		const chalkGames = roundGames.filter(g => {
+			if (!g.winner || !g.teamA || !g.teamB) return false;
+			const winner = g.teamA.team_key === g.winner ? g.teamA : g.teamB;
+			const loser = g.teamA.team_key === g.winner ? g.teamB : g.teamA;
+			return winner.seed < loser.seed; // favorite won (chalk)
+		});
+		for (const game of chalkGames) {
+			const favored = game.teamA!.seed <= game.teamB!.seed ? game.teamA! : game.teamB!;
+			const underdog = game.teamA!.seed <= game.teamB!.seed ? game.teamB! : game.teamA!;
+			const pred = lookupPrediction(predictions, game.teamA!.team_key, game.teamB!.team_key, game.round);
+			const upsetProb = pred
+				? (game.teamA!.seed <= game.teamB!.seed ? pred.prob_b : pred.prob_a)
+				: (1 - (seedRoundStats[favored.seed]?.[roundName]?.win_pct ?? 0.7));
+			suggestedGames.push({
+				game,
+				upsetProb,
+				isUpset: false,
+				message: `${underdog.short_name} (${underdog.seed}) has a ${Math.round(upsetProb * 100)}% chance over ${favored.short_name} (${favored.seed})`,
+			});
+		}
+		suggestedGames.sort((a, b) => b.upsetProb - a.upsetProb);
+	} else if (isOver) {
+		// Too many upsets: show upset picks ranked by lowest probability (least likely first)
+		const upsetGames = roundGames.filter(g => {
+			if (!g.winner || !g.teamA || !g.teamB) return false;
+			const winner = g.teamA.team_key === g.winner ? g.teamA : g.teamB;
+			const loser = g.teamA.team_key === g.winner ? g.teamB : g.teamA;
+			return winner.seed > loser.seed; // underdog won (upset)
+		});
+		for (const game of upsetGames) {
+			const favored = game.teamA!.seed <= game.teamB!.seed ? game.teamA! : game.teamB!;
+			const underdog = game.teamA!.seed <= game.teamB!.seed ? game.teamB! : game.teamA!;
+			const pred = lookupPrediction(predictions, game.teamA!.team_key, game.teamB!.team_key, game.round);
+			const upsetProb = pred
+				? (game.teamA!.seed <= game.teamB!.seed ? pred.prob_b : pred.prob_a)
+				: (1 - (seedRoundStats[favored.seed]?.[roundName]?.win_pct ?? 0.7));
+			suggestedGames.push({
+				game,
+				upsetProb,
+				isUpset: true,
+				message: `${underdog.short_name} (${underdog.seed}) only has a ${Math.round(upsetProb * 100)}% chance over ${favored.short_name} (${favored.seed})`,
+			});
+		}
+		suggestedGames.sort((a, b) => a.upsetProb - b.upsetProb);
+	}
+
+	// Limit to top suggestions
+	const topSuggestions = suggestedGames.slice(0, 5);
+
+	return (
+		<>
+			<div className="mb-4">
+				<div className="text-xs text-amber-400 font-medium mb-1 flex items-center gap-1.5">
+					<TrendingUp className="size-3.5" />
+					{roundName}
+				</div>
+				<h2 className="text-xl font-bold">Upset Check</h2>
+				<p className="text-sm text-muted-foreground mt-1">
+					You picked <span className="text-foreground font-medium">{totalUpsets} upset{totalUpsets !== 1 ? 's' : ''}</span> in the {roundName}.
+					The tournament average is <span className="text-foreground font-medium">~{historicalAvg.toFixed(1)}</span>.
+				</p>
+				{isUnder && (
+					<p className="text-sm text-amber-400 mt-1">
+						That&apos;s {Math.abs(diff).toFixed(1)} fewer than average — consider picking some upsets.
+					</p>
+				)}
+				{isOver && (
+					<p className="text-sm text-amber-400 mt-1">
+						That&apos;s {diff.toFixed(1)} more than average — some of these upsets may be unlikely.
+					</p>
+				)}
+			</div>
+
+			<UpsetBudgetBar budget={budget} roundName={roundName} />
+
+			{/* R64 seed group breakdown */}
+			{type === 'r64' && seedGroupDeltas.length > 0 && (
+				<div className="mt-4 border border-neutral-800 rounded-lg p-3">
+					<div className="text-xs font-medium text-muted-foreground mb-2">Seed Group Breakdown</div>
+					<div className="space-y-1.5">
+						{seedGroupDeltas.map(({ higherSeed, lowerSeed, picked, avg, delta }) => (
+							<div key={`${higherSeed}-${lowerSeed}`} className="flex items-center justify-between text-sm">
+								<span className="text-muted-foreground">{higherSeed} vs {lowerSeed}</span>
+								<div className="flex items-center gap-2">
+									<span>{picked} picked</span>
+									<span className="text-muted-foreground">/</span>
+									<span className="text-muted-foreground">avg {avg.toFixed(1)}</span>
+									<span className={
+										Math.abs(delta) >= 2 ? 'text-red-400 text-xs font-medium' :
+										Math.abs(delta) >= 1 ? 'text-amber-400 text-xs font-medium' :
+										'text-green-400 text-xs font-medium'
+									}>
+										{delta > 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1)}
+									</span>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+			)}
+
+			{/* Suggested games to flip */}
+			{topSuggestions.length > 0 && (
+				<div className="mt-4">
+					<div className="text-xs font-medium text-muted-foreground mb-2">
+						{isUnder ? 'Consider These Upsets' : 'Least Likely Upsets'}
+					</div>
+					<div className="space-y-3">
+						{topSuggestions.map(({ game, upsetProb, isUpset, message }) => {
+							const favored = game.teamA!.seed <= game.teamB!.seed ? game.teamA! : game.teamB!;
+							const underdog = game.teamA!.seed <= game.teamB!.seed ? game.teamB! : game.teamA!;
+							const flipTarget = isUpset ? favored : underdog;
+
+							return (
+								<div key={game.id} className="border border-neutral-800 rounded-lg overflow-hidden">
+									<BuilderGameCard game={game} onPickWinner={onPickWinner} predictions={predictions} noBorder />
+									<div className="border-t border-neutral-800 px-3 py-2.5 flex items-center justify-between bg-neutral-900/50">
+										<p className="text-xs text-muted-foreground flex-1 mr-2">
+											{message}
+										</p>
+										<button
+											onClick={() => onPickWinner(game.id, flipTarget.team_key)}
+											className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 transition-colors cursor-pointer shrink-0"
+										>
+											<ArrowRightLeft className="size-3" />
+											{isUpset ? 'Pick Favorite' : 'Pick Upset'}
+										</button>
+									</div>
+								</div>
+							);
+						})}
+					</div>
+				</div>
+			)}
+
+			{topSuggestions.length === 0 && (
+				<div className="mt-4 text-center py-6">
+					<p className="text-sm text-muted-foreground">
+						No specific flip recommendations — your picks are just outside the typical range.
+					</p>
+				</div>
+			)}
+		</>
 	);
 }
 
