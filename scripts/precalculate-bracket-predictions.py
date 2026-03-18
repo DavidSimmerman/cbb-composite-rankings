@@ -1,7 +1,7 @@
 """
 Pre-calculate all possible bracket matchup predictions and store in DB.
 
-For each pair of bracket teams and each round (1-6), runs the tournament ML model
+For each pair of bracket teams and each round (0-6), runs the tournament ML model
 and stores the result in bracket_predictions table. Also computes keys-to-game
 and predicted scores using the general prediction system.
 
@@ -44,11 +44,11 @@ def get_bracket_teams(conn) -> list[dict]:
         SELECT DISTINCT team_key, seed FROM (
             SELECT team_a_key AS team_key, team_a_seed AS seed
             FROM tournament_games
-            WHERE season = %s AND round != 'First Four'
+            WHERE season = %s
             UNION
             SELECT team_b_key AS team_key, team_b_seed AS seed
             FROM tournament_games
-            WHERE season = %s AND round != 'First Four' AND team_b_key IS NOT NULL
+            WHERE season = %s AND team_b_key IS NOT NULL
         ) t
         WHERE team_key IS NOT NULL
         ORDER BY seed, team_key
@@ -241,8 +241,8 @@ def main():
     # Generate all pairs
     team_keys = [t["team_key"] for t in teams if t["team_key"] in tourney_ratings_cache]
     pairs = list(itertools.combinations(team_keys, 2))
-    total = len(pairs) * 6  # 6 rounds
-    print(f"Generating {total} predictions ({len(pairs)} pairs × 6 rounds)...")
+    total = len(pairs) * 7  # 7 rounds (0=First Four through 6=Championship)
+    print(f"Generating {total} predictions ({len(pairs)} pairs × 7 rounds)...")
 
     start = time.time()
     batch = []
@@ -282,7 +282,7 @@ def main():
         keys_a_json = json.dumps(keys_a) if keys_a else None
         keys_b_json = json.dumps(keys_b) if keys_b else None
 
-        for round_num in range(1, 7):
+        for round_num in range(0, 7):
             try:
                 # Compute features directly (avoid re-loading ratings from DB)
                 features_a = predictor._compute_features(t_ratings_a, t_ratings_b, seed_a, seed_b, round_num)

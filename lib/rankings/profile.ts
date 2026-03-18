@@ -704,12 +704,14 @@ async function getTournamentDataset(): Promise<{ dataset: TourneyTeamSeason[]; a
 			const isHome = g.home_team_key === teamKey;
 			const won = isHome ? g.home_score > g.away_score : g.away_score > g.home_score;
 			if (won) {
-				ts.wins++;
 				// Detect mislabeled First Four games: same-seed "Final Four" matchups are play-in games
 				const isFirstFour = g.round === 'First Four' ||
 					(g.round === 'Final Four' && g.team_a_seed === g.team_b_seed && g.season >= 2011);
-				const depth = isFirstFour ? 0 : (ROUND_DEPTH[g.round] ?? 0);
-				if (depth > ts.maxDepth) ts.maxDepth = depth;
+				if (!isFirstFour) {
+					ts.wins++;
+					const depth = ROUND_DEPTH[g.round] ?? 0;
+					if (depth > ts.maxDepth) ts.maxDepth = depth;
+				}
 			}
 			if (oppSeed < ts.oppBestSeed) ts.oppBestSeed = oppSeed;
 		}
