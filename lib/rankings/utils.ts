@@ -59,14 +59,23 @@ export function mapBaseTeams(
 	netTeams: NetRanking[],
 	apRankings?: ApPollTeam[]
 ): BaseTeamData[] {
-	return kpTeams.map(kpValues => {
+	const missing: string[] = [];
+
+	const teams = kpTeams.flatMap(kpValues => {
 		const teamKey = kpValues.team_key;
-		const emValues = emTeams.find(t => t.team_key === teamKey)!;
-		const btValues = btTeams.find(t => t.team_key === teamKey)!;
-		const netValues = netTeams.find(t => t.team_key === teamKey)!;
+		const emValues = emTeams.find(t => t.team_key === teamKey);
+		const btValues = btTeams.find(t => t.team_key === teamKey);
+		const netValues = netTeams.find(t => t.team_key === teamKey);
 		const apRank = apRankings?.find(t => t.team_key === teamKey);
 
-		return {
+		// A team missing from any source (new D1 program, season rollover lag, key mismatch) can't be composited
+		if (!emValues || !btValues || !netValues) {
+			const sources = [!emValues && 'em', !btValues && 'bt', !netValues && 'net'].filter(Boolean).join(',');
+			missing.push(`${teamKey} (${sources})`);
+			return [];
+		}
+
+		return [{
 			team_key: teamKey,
 			team_name: kpValues.team,
 			conference: kpValues.conference,
@@ -115,6 +124,10 @@ export function mapBaseTeams(
 			net_rank_zscore: netValues.rank_zscore,
 
 			ap_rank: apRank?.rank
-		};
+		}];
 	});
+
+	if (missing.length) console.warn(`mapBaseTeams: skipped teams missing from a source: ${missing.join(', ')}`);
+
+	return teams;
 }
