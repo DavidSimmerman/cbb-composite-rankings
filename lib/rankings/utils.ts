@@ -52,6 +52,9 @@ export function calculateZScores<T extends Record<string, any>>(teams: T[], keys
 	return newTeams as T[];
 }
 
+// Stand-in for a source that hasn't published this season: every field reads as null
+const NULL_SOURCE = new Proxy({}, { get: () => null }) as any;
+
 export function mapBaseTeams(
 	kpTeams: KenPomRanking[],
 	emTeams: EvanMiyaRanking[],
@@ -61,14 +64,17 @@ export function mapBaseTeams(
 ): BaseTeamData[] {
 	const missing: string[] = [];
 
+	// A source with no rows at all hasn't published this season yet: its fields stay null and the
+	// composite averages the others. A source that has rows but not this team can't be composited.
+	const has = { em: emTeams?.length > 0, bt: btTeams?.length > 0, net: netTeams?.length > 0 };
+
 	const teams = kpTeams.flatMap(kpValues => {
 		const teamKey = kpValues.team_key;
-		const emValues = emTeams.find(t => t.team_key === teamKey);
-		const btValues = btTeams.find(t => t.team_key === teamKey);
-		const netValues = netTeams.find(t => t.team_key === teamKey);
+		const emValues = has.em ? emTeams.find(t => t.team_key === teamKey) : NULL_SOURCE;
+		const btValues = has.bt ? btTeams.find(t => t.team_key === teamKey) : NULL_SOURCE;
+		const netValues = has.net ? netTeams.find(t => t.team_key === teamKey) : NULL_SOURCE;
 		const apRank = apRankings?.find(t => t.team_key === teamKey);
 
-		// A team missing from any source (new D1 program, season rollover lag, key mismatch) can't be composited
 		if (!emValues || !btValues || !netValues) {
 			const sources = [!emValues && 'em', !btValues && 'bt', !netValues && 'net'].filter(Boolean).join(',');
 			missing.push(`${teamKey} (${sources})`);

@@ -92,16 +92,16 @@ export function computeAverageZScores(
 	const offensiveKeys = sources.map(s => s.offensive).filter(k => k !== null);
 	const defensiveKeys = sources.map(s => s.defensive).filter(k => k !== null);
 
+	// Sources that haven't published this season are null; average only the ones present
+	function average(team: CompiledTeamData, keys: readonly string[]) {
+		const values = keys.map(k => team[k as keyof CompiledTeamData]).filter((v): v is number => typeof v === 'number');
+		return values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;
+	}
+
 	teams.forEach(team => {
-		team.avg_zscore = overallKeys.length
-			? overallKeys.reduce((sum, k) => sum + (team[k as keyof CompiledTeamData] as number), 0) / overallKeys.length
-			: 0;
-		team.avg_offensive_zscore = offensiveKeys.length
-			? offensiveKeys.reduce((sum, k) => sum + (team[k as keyof CompiledTeamData] as number), 0) / offensiveKeys.length
-			: 0;
-		team.avg_defensive_zscore = defensiveKeys.length
-			? defensiveKeys.reduce((sum, k) => sum + (team[k as keyof CompiledTeamData] as number), 0) / defensiveKeys.length
-			: 0;
+		team.avg_zscore = average(team, overallKeys);
+		team.avg_offensive_zscore = average(team, offensiveKeys);
+		team.avg_defensive_zscore = average(team, defensiveKeys);
 	});
 
 	teams.toSorted((a, b) => b.avg_zscore - a.avg_zscore).forEach((t, i) => (t.avg_zscore_rank = i + 1));
@@ -134,4 +134,17 @@ export function rerankColumns(teams: CompiledTeamData[]): CompiledTeamData[] {
 	});
 
 	return teams;
+}
+
+// Composite combos are only stored for sources that had data that day (early season has no
+// BartTorvik or NET). Look up the requested combo, else the requested sources that were available.
+export function pickCompositeCombo<T>(combos: Record<string, T> | undefined, requestedKey: string): T | undefined {
+	if (!combos) return undefined;
+	if (combos[requestedKey]) return combos[requestedKey];
+
+	const widest = Object.keys(combos).sort((a, b) => b.length - a.length)[0];
+	if (!widest) return undefined;
+
+	const available = widest.split(',');
+	return combos[requestedKey.split(',').filter(src => available.includes(src)).join(',')];
 }

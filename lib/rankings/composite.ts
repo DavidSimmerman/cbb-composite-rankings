@@ -1,9 +1,6 @@
 import { PostgresService } from '../database';
 import { computeAverageZScores, SourceSystem, sourceSystems } from '../shared';
-import { BartTorvikRanking } from './barttorvik';
-import { EvanMiyaRanking } from './evanmiya';
-import { KenPomRanking } from './kenpom';
-import { NetRanking } from './net';
+import { getSeasonSnapshot } from './snapshot';
 import { mapBaseTeams } from './utils';
 
 const db = PostgresService.getInstance();
@@ -24,27 +21,19 @@ export interface CompositeRanking {
 }
 
 export async function updateComposite() {
-	function getQuery(table: string, hasSeason = true) {
-		return `
-			SELECT * FROM ${table}
-			WHERE date = (SELECT MAX(date) FROM ${table})
-				${hasSeason ? `AND season = (SELECT MAX(season) FROM ${table})` : ''};
-		`;
-	}
+	const { kenPom, evanMiya, bartTorvik, net } = await getSeasonSnapshot();
 
-	const [kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings]: [
-		KenPomRanking[],
-		EvanMiyaRanking[],
-		BartTorvikRanking[],
-		NetRanking[]
-	] = await Promise.all([
-		db.query(getQuery('kenpom_rankings')),
-		db.query(getQuery('evanmiya_rankings')),
-		db.query(getQuery('barttorvik_rankings')),
-		db.query(getQuery('net_rankings', false))
-	]);
+	const baseTeamData = mapBaseTeams(kenPom, evanMiya, bartTorvik, net);
 
-	const baseTeamData = mapBaseTeams(kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings);
+	// Only store combos whose sources all have this season's data
+	const available = new Set(
+		[
+			'KenPom',
+			evanMiya.length && 'EvanMiya',
+			bartTorvik.length && 'BartTorvik',
+			net.length && 'NET'
+		].filter(Boolean)
+	);
 
 	const COMP_QUERY = `
 		INSERT INTO composite_rankings (
@@ -67,7 +56,9 @@ export async function updateComposite() {
 			sources = EXCLUDED.sources, season = EXCLUDED.season
 	`;
 
-	const allQueries = getAllSourceCombos().flatMap(sourceList => {
+	const combos = getAllSourceCombos().filter(combo => combo.every(src => available.has(src.key)));
+
+	const allQueries = combos.flatMap(sourceList => {
 		const compiledTeams = computeAverageZScores(baseTeamData, sourceList);
 		return compiledTeams.map(t => ({
 			query: COMP_QUERY,

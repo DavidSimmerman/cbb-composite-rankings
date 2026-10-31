@@ -1,5 +1,6 @@
 import { BrowserContext } from 'playwright';
 import { PostgresService } from '../database';
+import { getCurrentSeason, seasonFullYear } from '../season';
 import { calculateZScores, validateRankings } from './utils';
 
 const db = PostgresService.getInstance();
@@ -156,10 +157,16 @@ export const KP_QUERY = `
 		season = EXCLUDED.season
 `;
 
+// KenPom renames that would otherwise split a team's history across two keys
+const TEAM_KEY_MAP: Record<string, string> = {
+	lsu_new_orleans: 'new_orleans'
+};
+
 export function mapApiTeam(t: KenPomApiResponse): Record<string, unknown> {
-	const teamKey = t.TeamName.toLowerCase()
+	const rawKey = t.TeamName.toLowerCase()
 		.replaceAll(' ', '_')
 		.replaceAll(/[^a-z_]/g, '');
+	const teamKey = TEAM_KEY_MAP[rawKey] ?? rawKey;
 
 	return {
 		team_key: teamKey,
@@ -255,7 +262,7 @@ export function getKpDbParams(team: Record<string, unknown>) {
 	];
 }
 
-export async function fetchKenpomRankings(year = 2026): Promise<Record<string, unknown>[]> {
+export async function fetchKenpomRankings(year = seasonFullYear(getCurrentSeason())): Promise<Record<string, unknown>[]> {
 	const startTime = Date.now();
 
 	const url = year ? `https://kenpom.com/api.php?endpoint=ratings&y=${year}` : 'https://kenpom.com/api.php?endpoint=ratings';

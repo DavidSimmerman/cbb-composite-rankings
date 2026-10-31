@@ -3,11 +3,12 @@ import { PostgresService } from '../database';
 import { ApPollTeam, getApPollRankings } from '../espn/ap-poll';
 import { getAllTeamData, TeamData } from '../espn/espn-team-data';
 import { CompiledTeamData, computeAverageZScores } from '../shared';
-import { BartTorvikRanking, updateBartTorvik } from './barttorvik';
+import { updateBartTorvik } from './barttorvik';
 import { CompositeRanking, updateComposite } from './composite';
-import { EvanMiyaRanking, updateEvanMiya } from './evanmiya';
-import { KenPomRanking, updateKenPom } from './kenpom';
-import { NetRanking, updateNet } from './net';
+import { updateEvanMiya } from './evanmiya';
+import { updateKenPom } from './kenpom';
+import { updateNet } from './net';
+import { getSeasonSnapshot, SeasonSnapshot } from './snapshot';
 import { mapBaseTeams } from './utils';
 
 const db = PostgresService.getInstance();
@@ -60,34 +61,22 @@ export async function updateRankings(rankings: Ranking[]) {
 
 export async function getRankings(): Promise<CompiledTeamData[]> {
 	const start = performance.now();
-	function getQuery(table: string, hasSeason = true) {
-		return `
-			SELECT * FROM ${table}
-			WHERE date = (SELECT MAX(date) FROM ${table})
-				${hasSeason ? `AND season = (SELECT MAX(season) FROM ${table})` : ''}
-			ORDER BY team_key;
-		`;
-	}
 
-	const [kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings, apRankings, teamData]: [
-		KenPomRanking[],
-		EvanMiyaRanking[],
-		BartTorvikRanking[],
-		NetRanking[],
-		CompositeRanking[],
-		ApPollTeam[],
-		Record<string, TeamData>
-	] = await Promise.all([
-		db.query(getQuery('kenpom_rankings')),
-		db.query(getQuery('evanmiya_rankings')),
-		db.query(getQuery('barttorvik_rankings')),
-		db.query(getQuery('net_rankings', false)),
-		db.query(getQuery('composite_rankings')),
+	const [snapshot, apRankings, teamData]: [SeasonSnapshot, ApPollTeam[], Record<string, TeamData>] = await Promise.all([
+		getSeasonSnapshot(),
 		getApPollRankings(),
 		getAllTeamData()
 	]);
 
-	const baseTeams = mapBaseTeams(kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, apRankings);
+	const compositeRankings: CompositeRanking[] = await db.query(
+		`SELECT * FROM composite_rankings
+		WHERE season::int = $1
+			AND date = (SELECT MAX(date) FROM composite_rankings WHERE season::int = $1)
+		ORDER BY team_key`,
+		[snapshot.season]
+	);
+
+	const baseTeams = mapBaseTeams(snapshot.kenPom, snapshot.evanMiya, snapshot.bartTorvik, snapshot.net, apRankings);
 
 	let teams = computeAverageZScores(baseTeams);
 

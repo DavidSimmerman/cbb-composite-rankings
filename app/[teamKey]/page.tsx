@@ -24,10 +24,17 @@ export async function generateMetadata({ params }: { params: Promise<{ teamKey: 
 	};
 }
 
-export default async function TeamPage({ params }: { params: Promise<{ teamKey: string }> }) {
+export default async function TeamPage({
+	params,
+	searchParams
+}: {
+	params: Promise<{ teamKey: string }>;
+	searchParams: Promise<{ season?: string }>;
+}) {
 	const { teamKey } = await params;
+	const { season } = await searchParams;
 
-	const profile = await getTeamProfile(teamKey);
+	const profile = await getTeamProfile(teamKey, { season: season ? parseInt(season) : undefined });
 
 	const teamJsonLd = {
 		'@context': 'https://schema.org',

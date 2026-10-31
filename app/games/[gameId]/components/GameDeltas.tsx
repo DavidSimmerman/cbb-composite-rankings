@@ -4,6 +4,7 @@ import { useCookie } from '@/app/context/CookieContext';
 import { useGame } from '@/app/context/GameContext';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ProfileRatingsHistory } from '@/lib/rankings/profile';
+import { pickCompositeCombo } from '@/lib/shared';
 import { useMemo } from 'react';
 import { GoDotFill } from 'react-icons/go';
 
@@ -164,8 +165,8 @@ function TeamDelta({
 			let beforeZscore: number, afterZscore: number;
 
 			if (ratingKey.startsWith('avg')) {
-				const beforeCombo = before.composite_combos[compositeKey] as unknown as Record<string, number>;
-				const afterCombo = after.composite_combos[compositeKey] as unknown as Record<string, number>;
+				const beforeCombo = pickCompositeCombo(before.composite_combos, compositeKey) as unknown as Record<string, number> | undefined;
+				const afterCombo = pickCompositeCombo(after.composite_combos, compositeKey) as unknown as Record<string, number> | undefined;
 				if (!beforeCombo || !afterCombo) return null;
 				beforeValue = beforeCombo[ratingKey];
 				beforeRank = beforeCombo[ratingKey + '_rank'];

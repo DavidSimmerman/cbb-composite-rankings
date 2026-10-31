@@ -1,6 +1,7 @@
 import { BrowserContext } from 'playwright';
 import { waitForSelectorRetries, calculateZScores, validateRankings } from './utils';
 import { PostgresService } from '../database';
+import { getCurrentSeason, getSeasonForDate } from '../season';
 
 const db = PostgresService.getInstance();
 
@@ -96,6 +97,14 @@ export async function fetchNetRankings(browser: BrowserContext) {
 	await page.goto('https://www.ncaa.com/rankings/basketball-men/d1/ncaa-mens-basketball-net-rankings');
 
 	const attempts = await waitForSelectorRetries(page, 'tbody tr');
+
+	// NCAA leaves last season's final NET up until the first release in December
+	const throughText = await page.evaluate(() => document.body.innerText.match(/Through Games ([A-Za-z]+\.? \d{1,2},? \d{4})/)?.[1]);
+	const throughDate = throughText ? new Date(throughText.replace('.', '')) : null;
+	if (throughDate && !isNaN(throughDate.getTime()) && getSeasonForDate(throughDate) !== getCurrentSeason()) {
+		await page.close();
+		throw new Error(`NET is still showing last season (through games ${throughText}); first release is usually early December`);
+	}
 
 	let teams = await page.evaluate(() => {
 		const TEAM_KEY_MAP: Record<string, string> = {

@@ -146,12 +146,12 @@ export async function fetchEvanMiyaRankings(browser: BrowserContext) {
 
 	const page = await browser.newPage();
 
-	await page.goto('https://evanmiya.com/?team_ratings');
+	await page.goto('https://evanmiya.com/team-ratings');
 
-	const attempts = await waitForSelectorRetries(page, '.rt-page-size-select');
+	const attempts = await waitForSelectorRetries(page, 'select[class*=pageSizeSelect]');
 
-	await page.selectOption('.rt-page-size-select', { index: 5 });
-	await page.waitForSelector('#team_ratings_page-team_ratings .rt-tr-group:nth-of-type(365)');
+	await page.selectOption('select[class*=pageSizeSelect]', '500');
+	await page.waitForFunction(() => document.querySelectorAll('[role=cell][data-col=team]').length >= 360);
 
 	let teams = await page.evaluate(() => {
 		const TEAM_KEY_MAP: Record<string, string> = {
@@ -205,21 +205,55 @@ export async function fetchEvanMiyaRankings(browser: BrowserContext) {
 			'👠': 'cinderella'
 		};
 
-		const columns = Array.from(document.querySelectorAll('#team_ratings_page-team_ratings .rt-th')).map(h =>
-			h
-				.querySelector('.rt-text-content:not(:has(span)), span')
-				?.textContent?.toLocaleLowerCase()
-				.replaceAll(' ', '_')
-				.replaceAll('-', '_')
+		// Header text -> DB column. 'Preseason Roster Rank' is shown as 'Roster Rank' once the season starts.
+		const COLUMN_MAP: Record<string, string> = {
+			rank: 'relative_ranking',
+			team: 'team',
+			o_rate: 'o_rate',
+			d_rate: 'd_rate',
+			relative_rating: 'relative_rating',
+			roster_rank: 'roster_rank',
+			preseason_roster_rank: 'roster_rank',
+			opponent_adjust: 'opponent_adjust',
+			pace_adjust: 'pace_adjust',
+			off_rank: 'off_rank',
+			def_rank: 'def_rank',
+			true_tempo: 'true_tempo',
+			tempo_rank: 'tempo_rank',
+			injury_rank: 'injury_rank',
+			home_rank: 'home_rank',
+			kill_shots_per_game: 'kill_shots_per_game',
+			kill_shots_conceded_per_game: 'kill_shots_conceded_per_game',
+			kill_shots_margin_per_game: 'kill_shots_margin_per_game',
+			total_kill_shots: 'total_kill_shots',
+			total_kill_shots_conceded: 'total_kill_shots_conceded',
+			d1_wins: 'd1_wins',
+			d1_losses: 'd1_losses'
+		};
+
+		const columns = Array.from(document.querySelectorAll('[role=columnheader]')).map(
+			h =>
+				COLUMN_MAP[
+					h
+						.textContent!.toLowerCase()
+						.replaceAll(/[^a-z0-9 -]/g, '')
+						.trim()
+						.replaceAll(/[ -]+/g, '_')
+				]
 		);
 
-		const season = (document.querySelector('#team_ratings_page-year') as HTMLSelectElement)!.value.split('-')[1];
+		// '2026-27' -> 27
+		const season = parseInt(document.querySelector('#tr-year')!.textContent!.trim().split('-')[1]);
 
-		return Array.from(document.querySelectorAll('#team_ratings_page-team_ratings .rt-tr-group')).map(row => {
+		const rows = Array.from(document.querySelectorAll('[role=table] [role=row]')).filter(r => r.querySelector('[role=cell]'));
+
+		return rows.map(row => {
 			const team: Record<string, unknown> = {};
 
-			row.querySelectorAll('.rt-td-inner').forEach((td, i) => {
+			row.querySelectorAll('[role=cell]').forEach((td, i) => {
 				const column = columns[i];
+				if (!column) return;
+
 				if (column === 'team') {
 					const teamName = td.querySelector('a')!.textContent!.trim();
 					const teamKey = teamName
@@ -230,20 +264,17 @@ export async function fetchEvanMiyaRankings(browser: BrowserContext) {
 
 					team[column] = teamName;
 					team['team_key'] = TEAM_KEY_MAP[teamKey] ?? teamKey;
-					team['trends'] = Array.from(td.querySelectorAll('.tippy')).map(t => TREND_MAP[t.textContent!.trim()]);
-				} else if (
-					column?.endsWith('ranking') ||
-					column?.endsWith('rank') ||
-					column?.startsWith('total') ||
-					column?.startsWith('d1')
-				) {
+					team['trends'] = Array.from(td.querySelectorAll('[class*=flagBadge]'))
+						.map(t => TREND_MAP[t.textContent!.trim()])
+						.filter(Boolean);
+				} else if (column.endsWith('ranking') || column.endsWith('rank') || column.startsWith('total') || column.startsWith('d1')) {
 					team[column] = parseInt(td.textContent!.trim());
-				} else if (column) {
+				} else {
 					team[column] = parseFloat(td.textContent!.trim());
 				}
-
-				team['season'] = season;
 			});
+
+			team['season'] = season;
 
 			return team;
 		});

@@ -1,6 +1,7 @@
 'use client';
 
 import { allSources } from '@/app/components/columns';
+import { pickCompositeCombo } from '@/lib/shared';
 import SourcesFilter from '@/app/components/SourcesFilter';
 import { useCookie } from '@/app/context/CookieContext';
 import { useTeamProfile } from '@/app/context/TeamProfileContext';
@@ -19,7 +20,7 @@ import { Toggle } from '@/components/ui/toggle';
 import { useEffect, useMemo, useRef } from 'react';
 import { PiChartLineBold } from 'react-icons/pi';
 import { RiCollapseVerticalLine, RiExpandVerticalLine } from 'react-icons/ri';
-import { CartesianGrid, Line, LineChart, ReferenceLine, XAxis, YAxis } from 'recharts';
+import { CartesianGrid, Line, LineChart, ReferenceArea, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { twMerge } from 'tailwind-merge';
 
 export default function TeamCharts({ className }: { className: string }) {
@@ -30,7 +31,9 @@ export default function TeamCharts({ className }: { className: string }) {
 	const [sourcesFilter, setSourcesFilter] = useCookie<string[]>('sources_filter', [...allSources]);
 	const [activeChart, setActiveChart] = useCookie<'rating' | 'offensive' | 'defensive'>('chart_active', 'rating');
 
-	const { ratings_history: history } = useTeamProfile();
+	const [seasonRange, setSeasonRange] = useCookie<'season' | 'two'>('chart_season_range', 'season');
+
+	const { ratings_history: history, season } = useTeamProfile();
 
 	const sourceOrder = ['kp', 'em', 'bt', 'net'];
 	const sourcesKey = useMemo(() => {
@@ -45,37 +48,59 @@ export default function TeamCharts({ className }: { className: string }) {
 		}
 	}, [sourcesFilter]);
 
-	const ratingData = Object.values(history).map(h => ({
-		date: h.date,
-		composite: rank ? -h.composite_combos[sourcesKey]?.avg_zscore_rank : h.composite_combos[sourcesKey]?.avg_zscore,
+	type HistoryRow = (typeof history)[string];
+
+	const compositeFor = (h: HistoryRow) => pickCompositeCombo(h.composite_combos, sourcesKey);
+
+	const ratingPoint = (h: HistoryRow) => ({
+		composite: rank ? -(compositeFor(h)?.avg_zscore_rank ?? NaN) : compositeFor(h)?.avg_zscore,
 		kenpom: rank ? -h.kp_rating_rank : h.kp_rating_zscore,
 		evanmiya: rank ? -h.em_rating_rank : h.em_rating_zscore,
 		barttorvik: rank ? -h.bt_rating_rank : h.bt_rating_zscore,
-		net: rank ? -h.net_rank : h.net_rank_zscore,
-		full: h
-	}));
+		net: rank ? -h.net_rank : h.net_rank_zscore
+	});
 
-	const offensiveData = Object.values(history).map(h => ({
-		date: h.date,
-		composite: rank
-			? -h.composite_combos[sourcesKey]?.avg_offensive_zscore_rank
-			: h.composite_combos[sourcesKey]?.avg_offensive_zscore,
+	const offensivePoint = (h: HistoryRow) => ({
+		composite: rank ? -(compositeFor(h)?.avg_offensive_zscore_rank ?? NaN) : compositeFor(h)?.avg_offensive_zscore,
 		kenpom: rank ? -h.kp_offensive_rating_rank : h.kp_offensive_zscore,
 		evanmiya: rank ? -h.em_offensive_rating_rank : h.em_offensive_zscore,
-		barttorvik: rank ? -h.bt_offensive_rating_rank : h.bt_offensive_zscore,
-		full: h
-	}));
+		barttorvik: rank ? -h.bt_offensive_rating_rank : h.bt_offensive_zscore
+	});
 
-	const defensiveData = Object.values(history).map(h => ({
-		date: h.date,
-		composite: rank
-			? -h.composite_combos[sourcesKey]?.avg_defensive_zscore_rank
-			: h.composite_combos[sourcesKey]?.avg_defensive_zscore,
+	const defensivePoint = (h: HistoryRow) => ({
+		composite: rank ? -(compositeFor(h)?.avg_defensive_zscore_rank ?? NaN) : compositeFor(h)?.avg_defensive_zscore,
 		kenpom: rank ? -h.kp_defensive_rating_rank : h.kp_defensive_zscore,
 		evanmiya: rank ? -h.em_defensive_rating_rank : h.em_defensive_zscore,
-		barttorvik: rank ? -h.bt_defensive_rating_rank : h.bt_defensive_zscore,
-		full: h
-	}));
+		barttorvik: rank ? -h.bt_defensive_rating_rank : h.bt_defensive_zscore
+	});
+
+	// Last season's points go under *_prev keys (drawn faded), then a run of empty
+	// "offseason" slots stands in for the summer before this season starts
+	const buildData = (point: (h: HistoryRow) => Record<string, number | undefined>) => {
+		const rows = Object.values(history).sort((a, b) => a.date.localeCompare(b.date));
+		const current = rows.filter(h => h.season === season).map(h => ({ date: h.date, ...point(h), full: h }));
+
+		if (seasonRange !== 'two') return current;
+
+		const previous = rows
+			.filter(h => h.season === season - 1)
+			.map(h => ({
+				date: h.date,
+				...Object.fromEntries(Object.entries(point(h)).map(([k, v]) => [`${k}_prev`, v])),
+				full: h
+			}));
+
+		if (!previous.length) return current;
+
+		const gapSize = Math.max(4, Math.round((previous.length + current.length) * 0.05));
+		const gap = Array.from({ length: gapSize }, (_, i) => ({ date: `${OFFSEASON}${i}` }));
+
+		return [...previous, ...gap, ...current];
+	};
+
+	const ratingData = buildData(ratingPoint);
+	const offensiveData = buildData(offensivePoint);
+	const defensiveData = buildData(defensivePoint);
 
 	const range = useMemo(() => {
 		if (zoom) {
@@ -93,6 +118,25 @@ export default function TeamCharts({ className }: { className: string }) {
 				<div className="text-2xl font-bold text-neutral-600 h-full align-top mb-2 md:mb-0">Rating History</div>
 
 				<div className="ml-auto mr-0 flex gap-2 z-1">
+					<div className="flex rounded-md border border-input text-xs md:text-sm shrink-0">
+						{(
+							[
+								{ key: 'season', label: 'This season', short: 'Season' },
+								{ key: 'two', label: 'Last 2 seasons', short: '2 seasons' }
+							] as const
+						).map(opt => (
+							<button
+								key={opt.key}
+								onClick={() => setSeasonRange(opt.key)}
+								className={`px-2 md:px-2.5 cursor-pointer first:rounded-l-md last:rounded-r-md transition-colors ${
+									seasonRange === opt.key ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
+								}`}
+							>
+								<span className="hidden md:inline">{opt.label}</span>
+								<span className="md:hidden">{opt.short}</span>
+							</button>
+						))}
+					</div>
 					<Toggle
 						className={`cursor-pointer [&_svg]:transition-transform [&_svg]:duration-200 ${zoom ? 'hover:[&_svg]:scale-75' : 'hover:[&_svg]:scale-125'}`}
 						pressed={zoom}
@@ -313,12 +357,21 @@ function ChartCard({
 
 	const { schedule } = useTeamProfile();
 	const chartDates = new Set(chartData.map(d => d.date));
+	const offseason = chartData.map(d => d.date).filter(isOffseason);
 	const games = schedule.filter(g => g.score && chartDates.has(g.date));
 
 	const gameByDate: Record<string, (typeof schedule)[0]> = {};
 	games.forEach(g => (gameByDate[g.date] = g));
 
 	const show = (source: string) => sources.includes(source) || sources.length === 0;
+
+	if (!chartData.length) {
+		return (
+			<Card className="w-full h-76 md:h-full p-3 rounded-b-none md:rounded-br-xl md:rounded-tl-none flex items-center justify-center text-sm text-muted-foreground">
+				Rating history for this season starts November 1.
+			</Card>
+		);
+	}
 
 	return (
 		<Card ref={scrollRef} className="w-full h-76 md:h-full overflow-auto p-3 rounded-b-none md:rounded-br-xl md:rounded-tl-none md:border-l-none select-none">
@@ -362,16 +415,16 @@ function ChartCard({
 						axisLine={false}
 						tickMargin={8}
 						minTickGap={20}
-						tickFormatter={(value: string) => value.replace(/^\d{4}-/, '')}
+						tickFormatter={(value: string) => (isOffseason(value) ? '' : value.replace(/^\d{4}-/, ''))}
 					/>
 					<YAxis domain={range} hide />
 					<ChartTooltip
 						cursor={false}
 						content={({ active, payload, label }) => {
-							if (!active || !payload?.length) return null;
+							if (!active || !payload?.length || isOffseason(String(label))) return null;
 
 							const visible = payload
-								.filter(item => show(nameToSource[item.dataKey as string]))
+								.filter(item => item.value != null && show(nameToSource[baseKey(item.dataKey as string)]))
 								.sort((a, b) => (b.value as number) - (a.value as number));
 
 							if (!visible.length) return null;
@@ -409,7 +462,7 @@ function ChartCard({
 										)}
 
 										{visible.map(item => {
-											const name = item.dataKey as string;
+											const name = baseKey(item.dataKey as string);
 											let key = '';
 
 											if (name === 'composite') {
@@ -425,7 +478,7 @@ function ChartCard({
 											}
 
 											return (
-												<div key={name} className="flex w-full items-center gap-2">
+												<div key={item.dataKey as string} className="flex w-full items-center gap-2">
 													<div
 														className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-(--color-bg)"
 														style={{ '--color-bg': `var(--color-${name})` } as React.CSSProperties}
@@ -446,66 +499,56 @@ function ChartCard({
 						}}
 					/>
 
-					<Line
-						xAxisId="dates"
-						dataKey="composite"
-						type="monotone"
-						stroke="var(--color-purple-500)"
-						strokeWidth={3}
-						dot={false}
-						strokeOpacity={show('Composite') ? 1 : 0}
-						activeDot={show('Composite')}
-					/>
-					<Line
-						xAxisId="dates"
-						dataKey="kenpom"
-						type="monotone"
-						stroke="var(--color-blue-500)"
-						strokeWidth={3}
-						strokeDasharray={dashed ? '5 15' : undefined}
-						strokeDashoffset={dashed ? 0 : undefined}
-						dot={false}
-						strokeOpacity={show('KenPom') ? 1 : 0}
-						activeDot={show('KenPom')}
-					/>
-					<Line
-						xAxisId="dates"
-						dataKey="evanmiya"
-						type="monotone"
-						stroke="var(--color-green-500)"
-						strokeWidth={3}
-						strokeDasharray={dashed ? '5 15' : undefined}
-						strokeDashoffset={dashed ? -5 : undefined}
-						dot={false}
-						strokeOpacity={show('EvanMiya') ? 1 : 0}
-						activeDot={show('EvanMiya')}
-					/>
-					<Line
-						xAxisId="dates"
-						dataKey="barttorvik"
-						type="monotone"
-						stroke="var(--color-yellow-500)"
-						strokeWidth={3}
-						strokeDasharray={dashed ? '5 15' : undefined}
-						strokeDashoffset={dashed ? -10 : undefined}
-						dot={false}
-						strokeOpacity={show('BartTorvik') ? 1 : 0}
-						activeDot={show('BartTorvik')}
-					/>
-					<Line
-						xAxisId="dates"
-						dataKey="net"
-						type="monotone"
-						stroke="var(--color-red-500)"
-						strokeWidth={3}
-						strokeDasharray={dashed ? '5 15' : undefined}
-						strokeDashoffset={dashed ? -15 : undefined}
-						dot={false}
-						strokeOpacity={show('NET') ? 1 : 0}
-						activeDot={show('NET')}
-					/>
+					{offseason.length > 0 && (
+						<ReferenceArea
+							xAxisId="dates"
+							x1={offseason[0]}
+							x2={offseason.at(-1)}
+							fill="url(#offseason-hatch)"
+							stroke="var(--color-neutral-700)"
+							strokeDasharray="3 3"
+							ifOverflow="visible"
+							label={{ value: 'OFFSEASON', position: 'insideTop', fill: 'var(--color-neutral-500)', fontSize: 10 }}
+						/>
+					)}
+					<defs>
+						<pattern id="offseason-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+							<line x1="0" y1="0" x2="0" y2="6" stroke="var(--color-neutral-800)" strokeWidth="2" />
+						</pattern>
+					</defs>
+
+					{LINES.flatMap(line =>
+						['', '_prev'].map(suffix => (
+							<Line
+								key={line.key + suffix}
+								xAxisId="dates"
+								dataKey={line.key + suffix}
+								type="monotone"
+								stroke={line.color}
+								strokeWidth={suffix ? 2 : 3}
+								strokeDasharray={dashed && line.dashOffset !== null ? '5 15' : undefined}
+								strokeDashoffset={dashed && line.dashOffset !== null ? line.dashOffset : undefined}
+								dot={false}
+								strokeOpacity={show(line.source) ? (suffix ? 0.45 : 1) : 0}
+								activeDot={show(line.source)}
+								isAnimationActive={!suffix}
+							/>
+						))
+					)}
 				</LineChart>
 			</ChartContainer>
 		</Card>
 	);
 }
+
+const OFFSEASON = 'offseason-';
+const isOffseason = (date: string) => date.startsWith(OFFSEASON);
+const baseKey = (dataKey: string) => dataKey.replace(/_prev$/, '');
+
+const LINES = [
+	{ key: 'composite', source: 'Composite', color: 'var(--color-purple-500)', dashOffset: null },
+	{ key: 'kenpom', source: 'KenPom', color: 'var(--color-blue-500)', dashOffset: 0 },
+	{ key: 'evanmiya', source: 'EvanMiya', color: 'var(--color-green-500)', dashOffset: -5 },
+	{ key: 'barttorvik', source: 'BartTorvik', color: 'var(--color-yellow-500)', dashOffset: -10 },
+	{ key: 'net', source: 'NET', color: 'var(--color-red-500)', dashOffset: -15 }
+] as const;

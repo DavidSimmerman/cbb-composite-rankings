@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ParsedEspnGame } from '@/lib/espn/schedule';
 import { CompositeRanking } from '@/lib/rankings/composite';
-import { CompiledTeamData } from '@/lib/shared';
+import { CompiledTeamData, pickCompositeCombo } from '@/lib/shared';
 import { ColumnDef } from '@tanstack/react-table';
 import Link from 'next/link';
 import { useMemo } from 'react';
@@ -355,9 +355,9 @@ function RatingCell({
 	let displayRank: React.ReactNode | number = game.opp[(ratingKey + '_rank') as keyof CompiledTeamData] as number;
 
 	if (ratingKey.startsWith('avg') && game.opp.team_key) {
-		const combo = game.opp.composite_combos[compositeKey];
-		displayValue = Math.round((combo[ratingKey as keyof CompositeRanking] as number) * 100) / 100;
-		displayRank = combo[(ratingKey + '_rank') as keyof CompositeRanking] as number;
+		const combo = pickCompositeCombo(game.opp.composite_combos, compositeKey);
+		displayValue = Math.round((combo?.[ratingKey as keyof CompositeRanking] as number) * 100) / 100;
+		displayRank = combo?.[(ratingKey + '_rank') as keyof CompositeRanking] as number;
 	}
 
 	if (isNaN(displayValue as number)) {
@@ -382,12 +382,12 @@ function RatingCell({
 			const zscoreKey = zscoreKeyMap[ratingType][ratingSource];
 
 			if (ratingKey.startsWith('avg')) {
-				const beforeCombo = beforeRatings.composite_combos[compositeKey] as unknown as Record<string, number>;
-				const afterCombo = afterRatings.composite_combos[compositeKey] as unknown as Record<string, number>;
-				beforeValue = beforeCombo[ratingKey];
-				beforeRank = beforeCombo[ratingKey + '_rank'];
-				afterValue = afterCombo[ratingKey];
-				afterRank = afterCombo[ratingKey + '_rank'];
+				const beforeCombo = pickCompositeCombo(beforeRatings.composite_combos, compositeKey) as unknown as Record<string, number> | undefined;
+				const afterCombo = pickCompositeCombo(afterRatings.composite_combos, compositeKey) as unknown as Record<string, number> | undefined;
+				beforeValue = beforeCombo?.[ratingKey] ?? NaN;
+				beforeRank = beforeCombo?.[ratingKey + '_rank'] ?? NaN;
+				afterValue = afterCombo?.[ratingKey] ?? NaN;
+				afterRank = afterCombo?.[ratingKey + '_rank'] ?? NaN;
 				beforeZscore = beforeValue;
 				afterZscore = afterValue;
 			} else {

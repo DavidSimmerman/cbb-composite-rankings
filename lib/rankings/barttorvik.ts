@@ -1,5 +1,6 @@
 import { BrowserContext } from 'playwright';
 import { PostgresService } from '../database';
+import { getCurrentSeason, seasonFullYear } from '../season';
 import { calculateZScores, validateRankings, waitForSelectorRetries } from './utils';
 
 const db = PostgresService.getInstance();
@@ -178,7 +179,18 @@ export async function fetchBartTorvikRankings(browser: BrowserContext) {
 
 	const page = await browser.newPage();
 
-	await page.goto('https://barttorvik.com/#');
+	await page.goto(`https://barttorvik.com/trank.php?year=${seasonFullYear(getCurrentSeason())}`);
+
+	// Before the first games T-Rank redirects (after its browser check) to a projections page with a different table
+	const landing = await Promise.race([
+		page.waitForSelector('.seedrow', { timeout: 60000 }).then(() => 'ratings', () => 'timeout'),
+		page.waitForURL(/trankpre/, { timeout: 60000 }).then(() => 'preseason', () => 'timeout')
+	]);
+
+	if (landing === 'preseason') {
+		await page.close();
+		throw new Error('BartTorvik only has preseason projections so far; T-Rank ratings start once games are played');
+	}
 
 	const attempts = await waitForSelectorRetries(page, '.seedrow');
 

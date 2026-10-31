@@ -1,4 +1,5 @@
 import { PostgresService } from '../database';
+import { getCurrentSeason } from '../season';
 import { camelToSnake } from '../utils';
 import { ESPN_TO_TEAM_KEY } from './espn-team-ids';
 
@@ -318,7 +319,7 @@ const REVERSE_RANKS = [
 	'technical_fouls'
 ];
 
-export async function fetchEspnStats(season = 26) {
+export async function fetchEspnStats(season = getCurrentSeason()) {
 	const response = await fetch(
 		`https://site.web.api.espn.com/apis/common/v3/sports/basketball/mens-college-basketball/statistics/byteam?limit=400&conference=50&season=20${String(season).padStart(2, '0')}`
 	);
@@ -394,7 +395,7 @@ export async function fetchEspnStats(season = 26) {
 	return mapped;
 }
 
-export async function updateEspnStats(season = 26) {
+export async function updateEspnStats(season = getCurrentSeason()) {
 	const teams = await fetchEspnStats(season);
 
 	const columns = Object.keys(teams[0]).filter(k => k !== 'id' && k !== 'created_at' && k !== 'updated_at');

@@ -301,13 +301,21 @@ function RadialRating({
 }: {
 	metric: string;
 	value: string | number;
-	rank: number;
+	rank: number | null;
 	valueType: string;
 }) {
-	const chartData = [
-		{ name: 'value', value: 365 - rank },
-		{ name: 'remainder', value: rank - 1 }
-	];
+	// No rank yet: the source hasn't published this stat for the season
+	const missing = rank == null || Number.isNaN(rank);
+
+	const chartData = missing
+		? [
+				{ name: 'value', value: 0 },
+				{ name: 'remainder', value: 1 }
+			]
+		: [
+				{ name: 'value', value: 365 - rank },
+				{ name: 'remainder', value: rank - 1 }
+			];
 	const chartConfig = {
 		value: { label: metric }
 	};
@@ -327,7 +335,7 @@ function RadialRating({
 					cornerRadius={5}
 					strokeWidth={0}
 				>
-					<Cell fill={getRankColor(rank)} />
+					<Cell fill={missing ? 'var(--color-neutral-800)' : getRankColor(rank)} />
 					<Cell fill="var(--color-neutral-800)" />
 					<Label
 						content={({ viewBox }) => {
@@ -335,7 +343,7 @@ function RadialRating({
 								return (
 									<text x={viewBox.cx} y={viewBox.cy} textAnchor="middle">
 										<tspan x={viewBox.cx} y={viewBox.cy || 0} className="fill-foreground text-lg font-bold">
-											{valueType === 'stat' ? value : '#' + rank}
+											{missing ? '—' : valueType === 'stat' ? (hasValue(value) ? value : '—') : '#' + rank}
 										</tspan>
 										<tspan
 											x={viewBox.cx}
@@ -355,6 +363,11 @@ function RadialRating({
 	);
 }
 
+// Stats a source hasn't published for the season come through as null/undefined or NaN after rounding
+function hasValue(value: string | number | null | undefined) {
+	return value != null && !(typeof value === 'number' && Number.isNaN(value)) && !/^(NaN|null|undefined)%?$/.test(String(value));
+}
+
 function StatGroup({ header, rows }: { header: string; rows: { label: string; value: string | number; rank: number }[] }) {
 	return (
 		<div>
@@ -363,7 +376,7 @@ function StatGroup({ header, rows }: { header: string; rows: { label: string; va
 				<div key={row.label} className="flex items-center justify-between py-1.5 border-b border-neutral-800">
 					<span className="text-sm text-neutral-300">{row.label}</span>
 					<div className="flex items-center gap-2">
-						<span className="text-sm font-medium text-white tabular-nums">{row.value}</span>
+						<span className="text-sm font-medium text-white tabular-nums">{hasValue(row.value) ? row.value : '—'}</span>
 						<span
 							className="text-xs font-medium tabular-nums w-8 text-center"
 							style={{ color: getRankColor(row.rank) }}

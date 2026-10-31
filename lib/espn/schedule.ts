@@ -1,6 +1,7 @@
 import * as cheerio from 'cheerio';
 import { CompiledTeamData } from '../shared';
 import { getPartialGames, PartialGame } from './espn-game';
+import { getCurrentSeason, seasonFullYear } from '../season';
 import { ESPN_TEAM_IDS } from './espn-team-ids';
 
 export interface LiveScore {
@@ -35,21 +36,21 @@ export interface EspnGameEnriched {
 
 export type ParsedEspnGame = Omit<EspnGame, 'opp'> & { opp: CompiledTeamData; espn_id: string };
 
-export async function getSchedule(teamKey: string) {
+export async function getSchedule(teamKey: string, season = getCurrentSeason()) {
 	const teamId = ESPN_TEAM_IDS[teamKey];
 
-	const games = await fetchEspnSchedule(teamId);
+	const games = await fetchEspnSchedule(teamId, season);
 
 	return games;
 }
 
-export async function getScheduleEnriched(teamKey: string) {
+export async function getScheduleEnriched(teamKey: string, season = getCurrentSeason()) {
 	console.log('getting enriched schedule');
 	const start = performance.now();
 
 	const teamId = ESPN_TEAM_IDS[teamKey];
 
-	const games = await fetchEspnSchedule(teamId);
+	const games = await fetchEspnSchedule(teamId, season);
 	const completedGames = games.filter(g => g.won !== undefined);
 	const gameIds = completedGames.map(g => g.game_id);
 
@@ -64,8 +65,10 @@ export async function getScheduleEnriched(teamKey: string) {
 	return enrichedGames;
 }
 
-async function fetchEspnSchedule(teamId: string): Promise<EspnGame[]> {
-	const res = await fetch(`https://www.espn.com/mens-college-basketball/team/schedule/_/id/${teamId}`);
+async function fetchEspnSchedule(teamId: string, season: number): Promise<EspnGame[]> {
+	const res = await fetch(
+		`https://www.espn.com/mens-college-basketball/team/schedule/_/id/${teamId}/season/${seasonFullYear(season)}`
+	);
 	const html = await res.text();
 	const $ = cheerio.load(html);
 
@@ -82,7 +85,9 @@ async function fetchEspnSchedule(teamId: string): Promise<EspnGame[]> {
 				?.match(/[?&/]gameId[/=](?<id>[^/&]+)/)?.groups?.id;
 
 			const dateString = $r.find('[data-testid="date"]').text();
-			const year = new Date().getFullYear();
+			// ESPN shows "Sat, Jan 3" with no year: Aug-Dec games are in the season's first calendar year
+			const month = new Date(`${dateString}, 2000`).getMonth();
+			const year = month >= 7 ? seasonFullYear(season) - 1 : seasonFullYear(season);
 			const dateObj = new Date(`${dateString}, ${year}`);
 			const date = dateObj.toISOString().split('T')[0];
 
@@ -107,7 +112,7 @@ async function fetchEspnSchedule(teamId: string): Promise<EspnGame[]> {
 			}
 
 			const score = $r.find('.ml4').text().trim() || undefined;
-			const winLoss = $r.find('.fw-bold.clr-positive, .fw-bold.clr-negative').text();
+			const winLoss = $r.find('[data-testid="symbol"], .fw-bold.clr-positive, .fw-bold.clr-negative').first().text().trim();
 
 			let won;
 

@@ -10,6 +10,8 @@ import { CompositeRanking } from './composite';
 import { EvanMiyaRanking } from './evanmiya';
 import { KenPomRanking } from './kenpom';
 import { NetRanking } from './net';
+import { getLatestSeason } from './snapshot';
+import { seasonChartWindow, trimStaticTail } from '../season';
 
 const db = PostgresService.getInstance();
 
@@ -30,6 +32,7 @@ export type FullRatings = Prefix<Omit<KenPomRanking, SystemFields>, 'kp'> &
 interface TeamProfileRow {
 	team_key: string;
 	date: string;
+	season: number;
 }
 
 interface KenPomProfileRow extends TeamProfileRow {
@@ -216,6 +219,9 @@ export interface MarchAnalysis {
 export interface TeamProfile {
 	team_key: string;
 	team_name: string;
+	season: number;
+	latest_season: number;
+	available_seasons: number[];
 	ratings_history: ProfileRatingsHistory;
 	full_ratings: Record<string, FullRatings>;
 	season_snapshots: SeasonSnapshot[];
@@ -223,14 +229,16 @@ export interface TeamProfile {
 	march_analysis: MarchAnalysis | null;
 }
 
-async function getFullRatings(teamKey: string) {
-	function getQuery(table: string, columns: string, hasSeason = true) {
+async function getFullRatings(teamKey: string, season: number, isLatestSeason: boolean) {
+	// The team's row from the season's last snapshot
+	function getQuery(table: string, columns: string) {
 		return `SELECT ${columns} FROM ${table}
             WHERE team_key = $1
-            	AND date = (SELECT MAX(date) FROM ${table})
-				${hasSeason ? `AND season = (SELECT MAX(season) FROM ${table})` : ''}
-			ORDER BY date DESC`;
+				AND season::int = $2
+            	AND date = (SELECT MAX(date) FROM ${table} WHERE season::int = $2)`;
 	}
+
+	const netWindow = { start: `20${String(season - 1).padStart(2, '0')}-11-15`, end: seasonChartWindow(season).end };
 
 	const [kenPomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings, apRankings, espnStats] = await Promise.all([
 		db.query(
@@ -241,7 +249,7 @@ async function getFullRatings(teamKey: string) {
 				sos_offensive_rating, sos_offensive_rating_rank,
 				sos_defensive_rating, sos_defensive_rating_rank`
 			),
-			[teamKey]
+			[teamKey, season]
 		),
 		db.query(
 			getQuery(
@@ -249,7 +257,7 @@ async function getFullRatings(teamKey: string) {
 				`kill_shots_per_game, kill_shots_per_game_rank,
 				kill_shots_conceded_per_game, kill_shots_conceded_per_game_rank`
 			),
-			[teamKey]
+			[teamKey, season]
 		),
 		db.query(
 			getQuery(
@@ -262,20 +270,28 @@ async function getFullRatings(teamKey: string) {
 				"3p_pct", "3p_pct_rank", "3p_pct_d", "3p_pct_d_rank",
 				"3pr", "3pr_rank", "3prd", "3prd_rank"`
 			),
-			[teamKey]
+			[teamKey, season]
 		),
-		db.query(getQuery('net_rankings', 'conf', false), [teamKey]),
 		db.query(
+			`SELECT conf, quad_1, quad_2, quad_3, quad_4, rank FROM net_rankings
+			WHERE team_key = $1 AND date = (SELECT MAX(date) FROM net_rankings WHERE date BETWEEN $2 AND $3)`,
+			[teamKey, netWindow.start, netWindow.end]
+		),
+		db.query(
+			// Prefer kp,em,bt (what the March model was trained on), else the widest combo that season has
 			`SELECT avg_zscore, avg_zscore_rank, avg_offensive_zscore, avg_offensive_zscore_rank, avg_defensive_zscore, avg_defensive_zscore_rank
 			FROM composite_rankings
 			WHERE team_key = $1
-				AND sources = 'kp,em,bt'
-				AND date = (SELECT MAX(date) FROM composite_rankings WHERE sources = 'kp,em,bt')
-				AND season = (SELECT MAX(season) FROM composite_rankings WHERE sources = 'kp,em,bt')
-			ORDER BY date DESC`,
-			[teamKey]
+				AND season::int = $2
+				AND date = (SELECT MAX(date) FROM composite_rankings WHERE season::int = $2)
+				AND sources NOT LIKE '%net%'
+			ORDER BY (sources = 'kp,em,bt') DESC, length(sources) DESC
+			LIMIT 1`,
+			[teamKey, season]
 		),
-		db.query(getQuery('ap_rankings', 'rank', false), [teamKey]),
+		isLatestSeason
+			? db.query(`SELECT rank FROM ap_rankings WHERE team_key = $1 AND date = (SELECT MAX(date) FROM ap_rankings)`, [teamKey])
+			: Promise.resolve([]),
 		db.query(
 			`SELECT season,
 				off_field_goal_pct, off_three_point_field_goal_pct,
@@ -293,8 +309,8 @@ async function getFullRatings(teamKey: string) {
 				def_avg_steals, def_avg_steals_rank,
 				def_avg_blocks, def_avg_blocks_rank,
 				assist_turnover_ratio, assist_turnover_ratio_rank
-			FROM espn_stats WHERE team_key = $1 ORDER BY season DESC`,
-			[teamKey]
+			FROM espn_stats WHERE team_key = $1 AND season::int = $2`,
+			[teamKey, season]
 		)
 	]);
 
@@ -304,10 +320,11 @@ async function getFullRatings(teamKey: string) {
 		const fullSeason: Record<string, any> = {};
 
 		Object.entries(kpValues).forEach(([key, value]) => (fullSeason['kp_' + key] = value));
-		Object.entries(evanMiyaRankings[i]).forEach(([key, value]) => (fullSeason['em_' + key] = value));
-		Object.entries(bartTorvikRankings[i]).forEach(([key, value]) => (fullSeason['bt_' + key] = value));
-		Object.entries(compositeRankings[i]).forEach(([key, value]) => (fullSeason['comp_' + key] = value));
-		Object.entries(espnStats[i]).forEach(([key, value]) => (fullSeason['espn_' + key] = value));
+		// Sources that haven't published this season have no row; their fields stay undefined
+		Object.entries(evanMiyaRankings[i] ?? {}).forEach(([key, value]) => (fullSeason['em_' + key] = value));
+		Object.entries(bartTorvikRankings[i] ?? {}).forEach(([key, value]) => (fullSeason['bt_' + key] = value));
+		Object.entries(compositeRankings[i] ?? {}).forEach(([key, value]) => (fullSeason['comp_' + key] = value));
+		Object.entries(espnStats[i] ?? {}).forEach(([key, value]) => (fullSeason['espn_' + key] = value));
 		if (netRankings[i]) {
 			Object.entries(netRankings[i]).forEach(([key, value]) => (fullSeason['net_' + key] = value));
 		}
@@ -1758,8 +1775,27 @@ function computeSeedMatchupStats(seasonSeedOutcomes: SeasonSeedOutcome[]): SeedM
 	return stats;
 }
 
-export async function getTeamProfile(teamKey: string, options?: { enrichedSchedule?: boolean }): Promise<TeamProfile> {
+export async function getTeamProfile(
+	teamKey: string,
+	options?: { enrichedSchedule?: boolean; season?: number }
+): Promise<TeamProfile> {
 	const start = performance.now();
+
+	const [latestSeason, seasonRows] = await Promise.all([
+		getLatestSeason(),
+		db.query<{ season: number }>(
+			`SELECT DISTINCT season::int AS season FROM kenpom_rankings WHERE team_key = $1 ORDER BY season DESC`,
+			[teamKey]
+		)
+	]);
+	const availableSeasons = seasonRows.map(r => r.season).filter(s => s <= latestSeason);
+	const season = options?.season && availableSeasons.includes(options.season) ? options.season : latestSeason;
+	const isLatestSeason = season === latestSeason;
+
+	// Charts cover the selected season plus the one before it (for the "Last 2 seasons" view)
+	const historySeasons = [season - 1, season];
+	const chartWindow = { start: seasonChartWindow(season - 1).start, end: seasonChartWindow(season).end };
+
 	function getQuery(
 		table: string,
 		keys: Partial<
@@ -1770,22 +1806,32 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 		>,
 		hasSeason = true
 	) {
-		const query = `
+		// Each row is pinned to its season's Nov 1 - Jul 31 window, so last season's numbers re-saved
+		// over the summer (or under the wrong season label) never land on the chart
+		const seasonExpr = hasSeason
+			? 'season::int'
+			: `(CASE WHEN EXTRACT(MONTH FROM date) >= 8 THEN EXTRACT(YEAR FROM date)::int - 1999 ELSE EXTRACT(YEAR FROM date)::int - 2000 END)`;
+
+		return `
 			SELECT
 				team_key,
 				date,
+				${seasonExpr} AS season,
 				${Object.entries(keys)
 					.map(([k, v]) => `${k} as ${v}`)
 					.join(',\n')}
 			FROM ${table}
 			WHERE team_key = $1
-				AND date >= NOW() - INTERVAL '30 days'
-				${hasSeason ? `AND season = (SELECT MAX(season) FROM ${table})` : ''}
+				AND date BETWEEN $2 AND $3
+				AND (EXTRACT(MONTH FROM date) >= 11 OR EXTRACT(MONTH FROM date) <= 7)
+				${hasSeason ? `AND season::int = ANY($4) AND date BETWEEN make_date(1999 + season::int, 11, 1) AND make_date(2000 + season::int, 7, 31)` : ''}
 			ORDER BY date ASC
 		`;
-
-		return query;
 	}
+
+	const seasonParams = [teamKey, chartWindow.start, chartWindow.end, historySeasons];
+	// NET's first release is mid-November at the earliest; earlier rows are last season's list
+	const netParams = [teamKey, chartWindow.start, chartWindow.end];
 
 	const [fullRankings, seasonSnapshots, kenpomRankings, evanMiyaRankings, bartTorvikRankings, netRankings, compositeRankings, schedule]: [
 		Record<string, FullRatings>,
@@ -1797,7 +1843,7 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 		CompositeProfileRow[],
 		EspnGame[]
 	] = await Promise.all([
-		getFullRatings(teamKey),
+		getFullRatings(teamKey, season, isLatestSeason),
 		getSeasonSnapshots(teamKey),
 		db.query<KenPomProfileRow>(
 			getQuery('kenpom_rankings', {
@@ -1811,11 +1857,10 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 				defensive_rating_zscore: 'kp_defensive_zscore',
 				defensive_rating_rank: 'kp_defensive_rating_rank'
 			}),
-			[teamKey]
+			seasonParams
 		),
 		db.query<EvanMiyaProfileRow>(
 			getQuery('evanmiya_rankings', {
-				team: 'team_name',
 				relative_rating: 'em_rating',
 				relative_rating_zscore: 'em_rating_zscore',
 				relative_ranking: 'em_rating_rank',
@@ -1826,7 +1871,7 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 				d_rate_zscore: 'em_defensive_zscore',
 				def_rank: 'em_defensive_rating_rank'
 			}),
-			[teamKey]
+			seasonParams
 		),
 		db.query<BartTorvikProfileRow>(
 			getQuery('barttorvik_rankings', {
@@ -1840,15 +1885,21 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 				adjde_zscore: 'bt_defensive_zscore',
 				adjde_rank: 'bt_defensive_rating_rank'
 			}),
-			[teamKey]
+			seasonParams
 		),
-		db.query<NetProfileRow>(
-			getQuery('net_rankings', {
-				rank: 'net_rank',
-				rank_zscore: 'net_rank_zscore'
-			}, false),
-			[teamKey]
-		),
+		db
+			.query<NetProfileRow>(
+				getQuery(
+					'net_rankings',
+					{
+						rank: 'net_rank',
+						rank_zscore: 'net_rank_zscore'
+					},
+					false
+				),
+				netParams
+			)
+			.then(rows => rows.filter(r => r.date.slice(5) >= '11-15' || r.date.slice(5) <= '07-31')),
 		db.query<CompositeProfileRow>(
 			getQuery('composite_rankings', {
 				avg_zscore: 'avg_zscore',
@@ -1859,37 +1910,64 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 				avg_defensive_zscore_rank: 'avg_defensive_zscore_rank',
 				sources: 'sources'
 			}),
-			[teamKey]
+			seasonParams
 		),
-		options?.enrichedSchedule ? getScheduleEnriched(teamKey) : getSchedule(teamKey)
+		options?.enrichedSchedule ? getScheduleEnriched(teamKey, season) : getSchedule(teamKey, season)
 	]);
 
-	const teamName = evanMiyaRankings[0].team_name!;
-	evanMiyaRankings.forEach(r => delete r['team_name']);
+	const [teamNameRow] = await db.query<{ team: string }>(
+		`SELECT team FROM evanmiya_rankings WHERE team_key = $1 ORDER BY date DESC LIMIT 1`,
+		[teamKey]
+	);
+	const teamName = teamNameRow?.team ?? teamKey;
 
-	const ratings_history = kenpomRankings.reduce<Record<string, TeamProfileData>>((map, kp) => {
-		const date = kp.date;
+	// Drop each season's trailing run of unchanged rows (the scrapers keep re-saving the final
+	// numbers after the last game, and the preseason numbers before the first)
+	function trimBySeason<T extends TeamProfileRow>(rows: T[], valueOf: (row: T) => unknown): T[] {
+		return historySeasons.flatMap(s =>
+			trimStaticTail(
+				rows.filter(r => Number(r.season) === s),
+				valueOf
+			)
+		);
+	}
 
+	const kp = trimBySeason(kenpomRankings, r => r.kp_rating);
+	const em = trimBySeason(evanMiyaRankings, r => r.em_rating);
+	const bt = trimBySeason(bartTorvikRankings, r => r.bt_rating);
+	const net = trimBySeason(netRankings, r => r.net_rank);
+	// Composite rows only count on days at least one source moved
+	const sourceDates = new Set([...kp, ...em, ...bt, ...net].map(r => r.date));
+	const composite = compositeRankings.filter(r => sourceDates.has(r.date));
+
+	const byDate = <T extends TeamProfileRow>(rows: T[]) => new Map(rows.map(r => [r.date, r]));
+	const kpMap = byDate(kp);
+	const emMap = byDate(em);
+	const btMap = byDate(bt);
+	const netMap = byDate(net);
+
+	const ratings_history: ProfileRatingsHistory = {};
+
+	for (const date of [...sourceDates].sort()) {
 		const compositeMap: Record<string, CompositeProfileRow> = {};
-
-		compositeRankings.forEach(r => {
-			if (r.date !== date) {
-				return;
-			}
-
-			compositeMap[r.sources] = r;
+		composite.forEach(r => {
+			if (r.date === date) compositeMap[r.sources] = r;
 		});
 
-		map[date] = {
-			...kp,
-			...evanMiyaRankings.find(r => r.date === date),
-			...bartTorvikRankings.find(r => r.date === date),
-			...netRankings.find(r => r.date === date),
+		const rowSeason = [kpMap, emMap, btMap, netMap].map(m => m.get(date)?.season).find(v => v != null);
+
+		ratings_history[date] = {
+			...kpMap.get(date),
+			...emMap.get(date),
+			...btMap.get(date),
+			...netMap.get(date),
 			...compositeMap['kp,em,bt,net'],
+			team_key: teamKey,
+			date,
+			season: Number(rowSeason),
 			composite_combos: compositeMap
 		} as TeamProfileData;
-		return map;
-	}, {});
+	}
 
 	if (!options?.enrichedSchedule) {
 		await Promise.all(
@@ -1907,7 +1985,22 @@ export async function getTeamProfile(teamKey: string, options?: { enrichedSchedu
 		);
 	}
 
-	const marchAnalysis = await getMarchAnalysis(teamKey, fullRankings);
+	// The March model reads this season's bracket projections, so it only makes sense for the latest season
+	const marchAnalysis = isLatestSeason ? await getMarchAnalysis(teamKey, fullRankings) : null;
 
-	return { team_key: teamKey, team_name: teamName, full_ratings: fullRankings, season_snapshots: seasonSnapshots, ratings_history, schedule, march_analysis: marchAnalysis };
+	console.log(`getTeamProfile(${teamKey}, ${season}) took ${Math.round(performance.now() - start)}ms`);
+
+	return {
+		team_key: teamKey,
+		team_name: teamName,
+		season,
+		latest_season: latestSeason,
+		available_seasons: availableSeasons,
+		full_ratings: fullRankings,
+		season_snapshots: seasonSnapshots,
+		ratings_history,
+		// ESPN lists a finished season's postseason games first
+		schedule: schedule.toSorted((a, b) => a.date.localeCompare(b.date)),
+		march_analysis: marchAnalysis
+	};
 }
