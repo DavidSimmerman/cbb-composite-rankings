@@ -57,7 +57,9 @@ export default function TeamTable() {
 		const showAllMetrics = metricsFilter.length === 0 || metricsFilter.length === allMetricToggles.length;
 
 		for (const [source, cols] of Object.entries(sourceColumns)) {
-			const isSourceVisible = showAllSources || sourcesFilter.includes(source);
+			// A source that hasn't published this season yet (NET before December) has nothing to show
+			const hasData = data.some(team => team[cols[0] as keyof typeof team] != null);
+			const isSourceVisible = hasData && (showAllSources || sourcesFilter.includes(source));
 			for (const col of cols) {
 				let metric: string;
 				if (col.includes('off')) metric = 'offense';
@@ -71,7 +73,7 @@ export default function TeamTable() {
 		}
 
 		setColumnVisibility(visibility);
-	}, [sourcesFilter, metricsFilter]);
+	}, [sourcesFilter, metricsFilter, data]);
 
 	const fuse = useMemo(
 		() =>

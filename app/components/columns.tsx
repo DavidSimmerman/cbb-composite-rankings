@@ -107,7 +107,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 				),
 				cell: ({ row }) => (
 					<div className="text-center bg-blue-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
-						{row.original.kp_rating} <span className="text-xs text-neutral-400">{row.original.kp_rating_rank}</span>
+						{row.original.kp_rating ?? '—'} <span className="text-xs text-neutral-400">{row.original.kp_rating_rank}</span>
 					</div>
 				),
 				enableSorting: true,
@@ -126,7 +126,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 				),
 				cell: ({ row }) => (
 					<div className="text-center bg-blue-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
-						{row.original.kp_offensive_rating}{' '}
+						{row.original.kp_offensive_rating ?? '—'}{' '}
 						<span className="text-xs text-neutral-400">{row.original.kp_offensive_rating_rank}</span>
 					</div>
 				),
@@ -146,7 +146,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 				),
 				cell: ({ row }) => (
 					<div className="text-center bg-blue-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
-						{row.original.kp_defensive_rating}{' '}
+						{row.original.kp_defensive_rating ?? '—'}{' '}
 						<span className="text-xs text-neutral-400">{row.original.kp_defensive_rating_rank}</span>
 					</div>
 				),
@@ -172,7 +172,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 				),
 				cell: ({ row }) => (
 					<div className="text-center bg-green-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
-						{row.original.em_rating} <span className="text-xs text-neutral-400">{row.original.em_rating_rank}</span>
+						{row.original.em_rating ?? '—'} <span className="text-xs text-neutral-400">{row.original.em_rating_rank}</span>
 					</div>
 				),
 				enableSorting: true,
@@ -191,7 +191,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 				),
 				cell: ({ row }) => (
 					<div className="text-center bg-green-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
-						{row.original.em_offensive_rating}{' '}
+						{row.original.em_offensive_rating ?? '—'}{' '}
 						<span className="text-xs text-neutral-400">{row.original.em_offensive_rating_rank}</span>
 					</div>
 				),
@@ -211,7 +211,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 				),
 				cell: ({ row }) => (
 					<div className="text-center bg-green-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
-						{row.original.em_defensive_rating}{' '}
+						{row.original.em_defensive_rating ?? '—'}{' '}
 						<span className="text-xs text-neutral-400">{row.original.em_defensive_rating_rank}</span>
 					</div>
 				),
@@ -237,7 +237,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 				),
 				cell: ({ row }) => (
 					<div className="text-center bg-yellow-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
-						{row.original.bt_rating} <span className="text-xs text-neutral-400">{row.original.bt_rating_rank}</span>
+						{row.original.bt_rating ?? '—'} <span className="text-xs text-neutral-400">{row.original.bt_rating_rank}</span>
 					</div>
 				),
 				enableSorting: true,
@@ -256,7 +256,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 				),
 				cell: ({ row }) => (
 					<div className="text-center bg-yellow-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
-						{row.original.bt_offensive_rating}{' '}
+						{row.original.bt_offensive_rating ?? '—'}{' '}
 						<span className="text-xs text-neutral-400">{row.original.bt_offensive_rating_rank}</span>
 					</div>
 				),
@@ -276,7 +276,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 				),
 				cell: ({ row }) => (
 					<div className="text-center bg-yellow-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">
-						{row.original.bt_defensive_rating}{' '}
+						{row.original.bt_defensive_rating ?? '—'}{' '}
 						<span className="text-xs text-neutral-400">{row.original.bt_defensive_rating_rank}</span>
 					</div>
 				),
@@ -301,7 +301,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_rank}</div>
+					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_rank ?? '—'}</div>
 				),
 				enableSorting: true,
 				enableHiding: false
@@ -318,7 +318,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q1_record}</div>
+					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q1_record ?? '—'}</div>
 				),
 				enableSorting: true,
 				enableHiding: false
@@ -335,7 +335,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q2_record}</div>
+					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q2_record ?? '—'}</div>
 				),
 				enableSorting: true,
 				enableHiding: false
@@ -352,7 +352,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q3_record}</div>
+					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q3_record ?? '—'}</div>
 				),
 				enableSorting: true,
 				enableHiding: false
@@ -369,7 +369,7 @@ export const columns: ColumnDef<CompiledTeamData, unknown>[] = [
 					</div>
 				),
 				cell: ({ row }) => (
-					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q4_record}</div>
+					<div className="text-center bg-red-600/15 -my-3.5 md:-my-2 py-3.5 md:py-2">{row.original.net_q4_record ?? '—'}</div>
 				),
 				enableSorting: true,
 				enableHiding: false
