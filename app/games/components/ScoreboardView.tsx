@@ -229,7 +229,7 @@ export default function ScoreboardView({ data }: { data: ScoreboardData }) {
 				<button
 					onClick={() => shift(-1)}
 					aria-label="Previous day"
-					className="size-9 shrink-0 grid place-items-center rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.04] cursor-pointer"
+					className="hidden md:grid size-9 shrink-0 place-items-center rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.04] cursor-pointer"
 				>
 					<ChevronLeft className="size-4" />
 				</button>
@@ -242,11 +242,10 @@ export default function ScoreboardView({ data }: { data: ScoreboardData }) {
 							<button
 								key={d.date}
 								onClick={() => !active && go(d.date)}
-								className={`${phoneHidden ? 'hidden md:block' : ''} flex-1 min-w-0 rounded-xl border px-2 md:px-3 py-1.5 md:py-2 text-center md:text-left cursor-pointer transition-colors ${active ? 'border-violet-400/40 bg-violet-500/10' : 'border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05]'}`}
+								className={`${phoneHidden ? 'hidden md:block' : ''} flex-1 min-w-0 rounded-xl border px-1.5 md:px-3 py-1.5 md:py-2 text-left cursor-pointer transition-colors ${active ? 'border-violet-400/40 bg-violet-500/10' : 'border-white/[0.07] bg-white/[0.02] hover:bg-white/[0.05]'}`}
 							>
-								<div className="flex justify-center md:justify-between gap-1 text-[10px] md:text-[11px]">
+								<div className="flex justify-between gap-1 text-[10px] md:text-[11px]">
 									<span className={active ? 'text-violet-200' : 'text-slate-500'}>{fmt(d.date, { weekday: 'short' })}</span>
-									<span className="md:hidden text-slate-600">·</span>
 									<span className="text-slate-500 tabular-nums">{d.count ?? ''}</span>
 								</div>
 								<div className={`text-[12.5px] md:text-[14px] font-medium whitespace-nowrap ${active ? 'text-white' : 'text-slate-300'}`}>
@@ -259,7 +258,7 @@ export default function ScoreboardView({ data }: { data: ScoreboardData }) {
 				<button
 					onClick={() => shift(1)}
 					aria-label="Next day"
-					className="size-9 shrink-0 grid place-items-center rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.04] cursor-pointer"
+					className="hidden md:grid size-9 shrink-0 place-items-center rounded-lg border border-white/10 text-slate-400 hover:text-white hover:bg-white/[0.04] cursor-pointer"
 				>
 					<ChevronRight className="size-4" />
 				</button>

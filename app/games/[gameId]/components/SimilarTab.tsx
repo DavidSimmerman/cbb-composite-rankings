@@ -9,13 +9,16 @@ import { AtsValue, Card, fmtShortDate, LOSS, LogoBox, SideSeg, WIN } from './ui'
 
 const COLS = 'grid-cols-[34px_minmax(0,1fr)_58px_34px_38px_30px] md:grid-cols-[46px_minmax(0,1fr)_70px_48px_46px_44px]';
 
-function Stat({ value, label, color }: { value: string; label: string; color?: string }) {
+function Stat({ value, label, short, color }: { value: string; label: string; short?: string; color?: string }) {
 	return (
 		<div className="rounded-lg bg-white/[0.03] px-2.5 md:px-3 py-2 min-w-0">
 			<div className="text-[18px] md:text-[20px] font-semibold tabular-nums leading-none" style={{ color: color ?? '#fff' }}>
 				{value}
 			</div>
-			<div className="text-[10.5px] text-slate-500 mt-1 truncate">{label}</div>
+			<div className="text-[10.5px] text-slate-500 mt-1 truncate">
+				<span className="md:hidden">{short ?? label}</span>
+				<span className="hidden md:inline">{label}</span>
+			</div>
 		</div>
 	);
 }
@@ -46,10 +49,11 @@ function Panel({ data, side, cat, right }: { data: GamePageData; side: Side; cat
 				</div>
 				<div className="grid grid-cols-3 gap-2 mt-3">
 					<Stat value={`${wins}-${games.length - wins}`} label="Record" />
-					<Stat value={withLine.length ? `${cov}-${lost}${push ? `-${push}` : ''}` : '—'} label="Against the spread" />
+					<Stat value={withLine.length ? `${cov}-${lost}${push ? `-${push}` : ''}` : '—'} label="Against the spread" short="Vs. spread" />
 					<Stat
 						value={avgAts == null ? '—' : `${avgAts >= 0 ? '+' : ''}${avgAts.toFixed(1)}`}
 						label={avgAts == null ? 'No lines saved' : avgAts >= 0 ? 'Beat the line by' : 'Missed the line by'}
+						short={avgAts == null ? 'No lines' : avgAts >= 0 ? 'Beat line by' : 'Missed by'}
 						color={avgAts == null ? undefined : avgAts >= 0 ? WIN : LOSS}
 					/>
 				</div>
@@ -76,7 +80,7 @@ function Panel({ data, side, cat, right }: { data: GamePageData; side: Side; cat
 								className={`grid ${COLS} items-center gap-1.5 md:gap-2 h-10 border-t border-white/[0.05] text-[12px] md:text-[12.5px] hover:bg-white/[0.02]`}
 							>
 								<span className="text-[10.5px] md:text-[11px] text-slate-500 tabular-nums">{fmtShortDate(g.date)}</span>
-								<OppCell g={g} />
+								<OppCell g={g} compact />
 								<ResultCell g={g} />
 								<span className="text-right tabular-nums text-[11.5px] md:text-[12px] text-slate-400">{g.line == null ? '—' : formatTeamLine(g.line)}</span>
 								<span className="text-right">

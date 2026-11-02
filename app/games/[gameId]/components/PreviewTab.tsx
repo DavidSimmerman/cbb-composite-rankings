@@ -2,7 +2,7 @@
 
 import PredBar from '@/components/PredBar';
 import type { GamePageData, ModelCell, ModelKey, PastGame, Side } from '@/lib/games/game-page';
-import { formatLine } from '@/lib/games/line-utils';
+import { formatLine, pctLabel } from '@/lib/games/line-utils';
 import type { KeyToGame } from '@/lib/games/store';
 import { useState } from 'react';
 import { AtsValue, Card, Dot, fmtShortDate, LOSS, LogoBox, RankChip, SideSeg, SidesHeader, WIN } from './ui';
@@ -16,7 +16,6 @@ const MODEL_META: Record<ModelKey, { name: string; short: string; color: string 
 };
 const ADV_COLOR = { team: '#4ade80', opponent: '#f87171', neutral: '#facc15' };
 
-const pct = (p: number) => Math.round(p * 100);
 
 // ── Model prediction ──
 
@@ -36,7 +35,7 @@ function PredSide({ data, side }: { data: GamePageData; side: Side }) {
 				</span>
 			</div>
 			<div className={`text-[30px] md:text-[44px] font-semibold tabular-nums leading-none mt-1.5 ${fav ? 'text-white' : 'text-slate-500'}`}>
-				{pct(prob)}
+				{pctLabel(prob)}
 				<span className="text-[16px] md:text-[22px] text-slate-500">%</span>
 			</div>
 			{score != null && (
@@ -69,7 +68,7 @@ function PredictionHero({ data }: { data: GamePageData }) {
 			<div className="flex items-center justify-between gap-2 mb-3">
 				<h3 className="text-[15px] font-semibold text-white">{pre ? 'Model prediction' : 'Pregame prediction'}</h3>
 				<span className="text-[10.5px] text-slate-500 text-right">
-					{p.modelVersion ? `Model v${p.modelVersion}` : 'Model'}
+					{p.modelVersion ? `Model ${/^\d/.test(p.modelVersion) ? 'v' : ''}${p.modelVersion}` : 'Model'}
 					{p.frozen ? ' · set before tip-off' : ''}
 				</span>
 			</div>
@@ -272,11 +271,14 @@ function Keys({ data }: { data: GamePageData }) {
 
 // ── Recent form ──
 
-export function OppCell({ g }: { g: PastGame }) {
+/** compact: phones drop the logo so the name has room */
+export function OppCell({ g, compact = false }: { g: PastGame; compact?: boolean }) {
 	return (
-		<div className="flex items-center gap-2 min-w-0">
-			<span className="w-4 text-[10.5px] text-slate-500 shrink-0">{g.loc}</span>
-			<LogoBox teamKey={g.oppKey} size={16} />
+		<div className="flex items-center gap-1.5 md:gap-2 min-w-0">
+			<span className="w-3.5 md:w-4 text-[10.5px] text-slate-500 shrink-0">{g.loc}</span>
+			<span className={compact ? 'hidden md:block' : ''}>
+				<LogoBox teamKey={g.oppKey} size={16} />
+			</span>
 			<span className="text-slate-200 truncate">{g.opp}</span>
 			{g.oppRank != null && <RankChip rank={g.oppRank} small />}
 		</div>

@@ -2,7 +2,6 @@
 import { PostgresService } from '../database';
 import { type Game, type GameTeam, type GameTeamStats, getGame } from '../espn/espn-game';
 import { getAllTeamData, type TeamData } from '../espn/espn-team-data';
-import type { EspnGameEnriched } from '../espn/schedule';
 import type { FullRatings, ProfileRatingsHistory } from '../rankings/profile';
 import { getTeamRanksMap, type RanksMap } from '../rankings/ranks-map';
 import { getSeasonForDate } from '../season';
@@ -10,6 +9,7 @@ import { pickCompositeCombo } from '../shared';
 import { matchupTones } from '../team-colors';
 import { ats, teamLine, type GameLine } from './line-utils';
 import { fetchModelPrediction, toStored } from './model';
+import { storedStart } from './scoreboard-data';
 import { SIMILAR_CATEGORIES, rankSimilar } from './similar';
 import { getLines, getStoredPredictions, type KeyToGame, savePregamePrediction } from './store';
 
@@ -129,6 +129,8 @@ export interface GamePageData {
 	dateLabel: string;
 	timeLabel: string | null;
 	clockLabel: string | null;
+	/** overtime periods played (0 = regulation) */
+	overtimes: number;
 	broadcast: string | null;
 	venue: string | null;
 	neutral: boolean;
@@ -223,45 +225,68 @@ async function compositeRanksAsOf(season: number, iso: string): Promise<Map<stri
 	}
 }
 
-// ── schedule → past games ──
+// ── past games (from espn_games) ──
 
+interface GameRow {
+	game_id: string;
+	date: string;
+	home_team_key: string;
+	away_team_key: string;
+	home_score: number;
+	away_score: number;
+}
+
+/** A team's finished games of a season before `beforeDate`. espn_games holds every Division I
+ *  game the app has seen (the 6 AM cron saves each day's slate); games against non-D1 teams
+ *  aren't stored, so they don't count here. */
+async function seasonGames(teamKey: string, season: number, beforeDate: string): Promise<GameRow[]> {
+	try {
+		return await db.query<GameRow>(
+			`SELECT game_id, date, home_team_key, away_team_key, home_score, away_score
+			FROM espn_games
+			WHERE (home_team_key = $1 OR away_team_key = $1)
+				AND season::int IN ($2, $3) AND status = 'final' AND date < $4
+			ORDER BY date DESC`,
+			[teamKey, season, 2000 + season, beforeDate]
+		);
+	} catch (err) {
+		console.error('[game] season games failed:', err);
+		return [];
+	}
+}
+
+/** Neutral-site flags aren't stored; a game at neither team's usual home is unknowable here,
+ *  so location is home/away as ESPN listed it. */
 function pastGames(
-	team: GameTeam | undefined,
-	beforeDate: string,
-	currentGameId: string,
+	teamKey: string,
+	rows: GameRow[],
 	lines: Map<string, GameLine>,
 	teamData: Record<string, TeamData>,
 	ranks: Map<string, number>
 ): PastGame[] {
-	const sched = (team?.profile?.schedule ?? []) as unknown as EspnGameEnriched[];
-	const out: PastGame[] = [];
-	for (const g of sched) {
-		if (!g.game || g.game_id === currentGameId || g.date >= beforeDate) continue;
-		const teams = Object.entries(g.game.teams ?? {});
-		const mine = teams.find(([, t]) => t.team_key === team!.team_key);
-		const opp = teams.find(([, t]) => t.team_key !== team!.team_key);
-		if (!mine || !opp || g.game.status !== 'final') continue;
-		const [side, me] = mine;
-		const [, them] = opp;
-		const margin = (me.score ?? 0) - (them.score ?? 0);
-		const l = lines.get(g.game_id)?.homeSpread;
-		const line = l == null ? null : teamLine(l, side as Side);
-		const meta = teamData[them.team_key];
-		out.push({
-			gameId: g.game_id,
-			date: g.date,
-			loc: g.homeAway === 'neutral' ? 'N' : g.homeAway === 'away' ? '@' : 'vs',
-			oppKey: them.team_key,
-			opp: meta?.short_name || meta?.school || them.name || them.team_key,
-			oppRank: ranks.get(them.team_key) ?? null,
+	return rows.map(r => {
+		const side: Side = r.home_team_key === teamKey ? 'home' : 'away';
+		const oppKey = side === 'home' ? r.away_team_key : r.home_team_key;
+		const me = side === 'home' ? r.home_score : r.away_score;
+		const them = side === 'home' ? r.away_score : r.home_score;
+		const margin = me - them;
+		const l = lines.get(r.game_id)?.homeSpread;
+		const line = l == null ? null : teamLine(l, side);
+		const meta = teamData[oppKey];
+		return {
+			gameId: r.game_id,
+			date: r.date.slice(0, 10),
+			loc: side === 'home' ? 'vs' : '@',
+			oppKey,
+			opp: meta?.short_name || meta?.school || oppKey,
+			oppRank: ranks.get(oppKey) ?? null,
 			won: margin > 0,
-			score: `${me.score}-${them.score}`,
+			score: `${me}-${them}`,
 			margin,
 			line,
 			ats: line == null ? null : ats(margin, line)
-		});
-	}
-	return out.sort((a, b) => b.date.localeCompare(a.date));
+		};
+	});
 }
 
 const record = (gs: { won: boolean }[]) => `${gs.filter(g => g.won).length}-${gs.filter(g => !g.won).length}`;
@@ -473,8 +498,14 @@ export async function getGamePageData(gameId: string): Promise<GamePageData> {
 	const season = getSeasonForDate(date);
 	const away = game.teams.away;
 	const home = game.teams.home;
+	// Tip-off time: from ESPN, else from the stored ET clock ("7:00 PM EST") of a game not started
+	if (!game.start && phase === 'pre' && /\d:\d\d\s*[AP]M/i.test(game.clock ?? '')) game.start = storedStart(date, game.clock);
 
-	const scheduleIds = [away, home].flatMap(t => ((t?.profile?.schedule ?? []) as unknown as EspnGameEnriched[]).map(g => g.game_id));
+	const [awayRows, homeRows] = await Promise.all([
+		away?.team_key ? seasonGames(away.team_key, season, date) : Promise.resolve([]),
+		home?.team_key ? seasonGames(home.team_key, season, date) : Promise.resolve([])
+	]);
+	const scheduleIds = [...awayRows, ...homeRows].map(r => r.game_id);
 
 	const [teamData, lines, stored, ranks, ranksMap, awayKp, homeKp] = await Promise.all([
 		getAllTeamData().catch(() => ({}) as Record<string, TeamData>),
@@ -513,7 +544,8 @@ export async function getGamePageData(gameId: string): Promise<GamePageData> {
 	const form: Record<Side, PastGame[]> = { away: [], home: [] };
 	const past: Record<Side, PastGame[]> = { away: [], home: [] };
 	for (const s of ['away', 'home'] as const) {
-		past[s] = pastGames(game.teams[s], date, gameId, lines, teamData, ranks);
+		const t = game.teams[s];
+		past[s] = t?.team_key ? pastGames(t.team_key, s === 'away' ? awayRows : homeRows, lines, teamData, ranks) : [];
 		form[s] = past[s].slice(0, 5);
 	}
 
@@ -552,8 +584,9 @@ export async function getGamePageData(gameId: string): Promise<GamePageData> {
 		const g = past[s];
 		const kp = s === 'away' ? awayKp : homeKp;
 		const fr = ratings[s] as unknown as Record<string, string | number> | null;
-		const venue = game.neutral_site ? 'neutral' : s === 'away' ? 'away' : 'home';
-		const at = g.filter(x => (venue === 'neutral' ? x.loc === 'N' : venue === 'away' ? x.loc === '@' : x.loc === 'vs'));
+		// the away team's record on the road, the home team's at home
+		const venue = s === 'away' ? 'away' : 'home';
+		const at = g.filter(x => (venue === 'away' ? x.loc === '@' : x.loc === 'vs'));
 		const close = g.filter(x => Math.abs(x.margin) <= 5);
 		const q1 = typeof fr?.net_quad_1 === 'string' ? fr.net_quad_1 : null;
 		const atsR = atsRecord(g);
@@ -576,7 +609,7 @@ export async function getGamePageData(gameId: string): Promise<GamePageData> {
 	const signed = (v: number | null) => (v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(1)}`);
 	const tape: TapeRow[] = [
 		{ label: 'Record', away: ta.record, home: th.record, better: better(ta.recPct, th.recPct) },
-		{ label: game.neutral_site ? 'Neutral site' : 'Away / home', away: ta.venue, home: th.venue, better: null },
+		{ label: 'Away / home', away: ta.venue, home: th.venue, better: null },
 		{ label: 'Quad 1', away: ta.q1 ?? '—', home: th.q1 ?? '—', better: better(ta.q1Wins, th.q1Wins) },
 		{ label: 'Against the spread', short: 'Vs. spread', away: ta.ats, home: th.ats, better: better(ta.atsPct, th.atsPct) },
 		{ label: 'Strength of schedule', short: 'Schedule rank', away: ta.sos ? `#${ta.sos}` : '—', home: th.sos ? `#${th.sos}` : '—', better: better(ta.sos, th.sos, true) },
@@ -634,6 +667,7 @@ export async function getGamePageData(gameId: string): Promise<GamePageData> {
 					: game.clock || null
 				: null,
 		clockLabel: phase === 'live' ? (game.is_halftime ? 'Half' : `${ordinal(game.half || 1)} · ${game.clock}`) : null,
+		overtimes: started && (game.half ?? 0) > 2 ? game.half - 2 : 0,
 		broadcast: game.broadcast ?? null,
 		venue: game.venue ?? null,
 		neutral: !!game.neutral_site,

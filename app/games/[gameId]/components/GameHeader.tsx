@@ -14,8 +14,12 @@ function TeamBlock({ data, side, winner }: { data: GamePageData; side: Side; win
 		<div
 			className={`flex flex-col items-center text-center gap-1.5 md:flex-row md:gap-4 md:text-left ${home ? 'md:flex-row-reverse md:text-right' : ''} min-w-0 ${dim ? 'opacity-60' : ''}`}
 		>
-			<LogoBox teamKey={t.teamKey} size={46} className="md:hidden" />
-			<LogoBox teamKey={t.teamKey} size={64} className="hidden md:inline-grid" />
+			<span className="md:hidden">
+				<LogoBox teamKey={t.teamKey} size={46} />
+			</span>
+			<span className="hidden md:block">
+				<LogoBox teamKey={t.teamKey} size={64} />
+			</span>
 			<div className="min-w-0">
 				<div className="text-[17px] md:text-[26px] font-semibold text-white tracking-tight leading-tight group-hover:underline decoration-white/30 underline-offset-4">
 					{t.ap && <span className="text-slate-500 font-normal text-[12px] md:text-[15px] mr-1">{t.ap}</span>}
@@ -84,7 +88,7 @@ export default function GameHeader({ data }: { data: GamePageData }) {
 								</div>
 							) : (
 								<div className="mt-2 text-[12px] text-slate-400 font-medium">
-									Final{periods && periods.length > 2 ? (periods.length === 3 ? '/OT' : `/${periods.length - 2}OT`) : ''}
+									Final{data.overtimes === 1 ? '/OT' : data.overtimes > 1 ? `/${data.overtimes}OT` : ''}
 								</div>
 							)}
 							{periods && (

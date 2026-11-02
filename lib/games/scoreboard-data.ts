@@ -107,6 +107,127 @@ async function getCompositeRanks(dateParam: string): Promise<Map<string, number>
 	return new Map(rows.map(r => [r.team_key, r.avg_zscore_rank]));
 }
 
+// ── Stored games ──
+// The live ESPN scoreboard is the main source. Games saved in espn_games for the date are merged
+// in (same ids in production), and carry the page on their own if ESPN can't be reached.
+
+interface StoredGameRow {
+	game_id: string;
+	date: string;
+	status: string;
+	broadcast: string | null;
+	is_halftime: boolean;
+	half: number;
+	clock: string;
+	home_team_key: string;
+	away_team_key: string;
+	home_score: number;
+	away_score: number;
+}
+
+/** "7:00 PM EST" on a YYYY-MM-DD date -> ISO time */
+export function storedStart(date: string, clock: string): string {
+	const m = clock?.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)\s*(EST|EDT)?/i);
+	if (!m) return `${date}T17:00:00.000Z`;
+	let h = parseInt(m[1]) % 12;
+	if (m[3].toUpperCase() === 'PM') h += 12;
+	const offset = (m[4] ?? 'EST').toUpperCase() === 'EDT' ? '-04:00' : '-05:00';
+	return new Date(`${date}T${String(h).padStart(2, '0')}:${m[2]}:00${offset}`).toISOString();
+}
+
+async function getStoredScoreboard(dateParam: string, teamData: Record<string, TeamData>): Promise<ScoreboardGame[]> {
+	const iso = fromDateParam(dateParam).toISOString().slice(0, 10);
+	const season = getSeasonForDate(iso);
+	const rows = await db.query<StoredGameRow>(
+		`SELECT game_id, date, status, broadcast, is_halftime, half, clock, home_team_key, away_team_key, home_score, away_score
+		FROM espn_games WHERE date = $1`,
+		[iso]
+	);
+	if (rows.length === 0) return [];
+	const keys = [...new Set(rows.flatMap(r => [r.home_team_key, r.away_team_key]))];
+	const [records, ap, confs] = await Promise.all([
+		db.query<{ team: string; w: number; l: number }>(
+			`WITH g AS (SELECT * FROM espn_games WHERE season::int IN ($1, $2) AND status = 'final' AND date < $3)
+			SELECT team, SUM(w)::int AS w, SUM(l)::int AS l FROM (
+				SELECT home_team_key AS team, (home_score > away_score)::int AS w, (home_score < away_score)::int AS l FROM g
+				UNION ALL SELECT away_team_key, (away_score > home_score)::int, (away_score < home_score)::int FROM g
+			) x WHERE team = ANY($4) GROUP BY team`,
+			[season, 2000 + season, iso, keys]
+		),
+		db.query<{ team_key: string; rank: number }>(
+			`SELECT team_key, rank FROM ap_rankings WHERE date = (SELECT MAX(date) FROM ap_rankings WHERE date <= $1::date)`,
+			[iso]
+		),
+		db.query<{ team_key: string; conference: string }>(
+			`SELECT DISTINCT ON (team_key) team_key, conference FROM kenpom_rankings
+			WHERE team_key = ANY($1) AND season::int = $2 ORDER BY team_key, date DESC`,
+			[keys, season]
+		)
+	]);
+	const rec = new Map(records.map(r => [r.team, r]));
+	const apRank = new Map(ap.map(r => [r.team_key, r.rank]));
+	const conf = new Map(confs.map(r => [r.team_key, r.conference]));
+
+	return rows.map(r => {
+		const state: 'pre' | 'in' | 'post' = r.status === 'final' ? 'post' : r.status === 'in progress' ? 'in' : 'pre';
+		const team = (key: string, score: number, won: boolean): ScoreboardTeam => {
+			const meta = teamData[key];
+			const base = rec.get(key) ?? { w: 0, l: 0 };
+			const w = base.w + (state === 'post' && won ? 1 : 0);
+			const l = base.l + (state === 'post' && !won ? 1 : 0);
+			const rank = apRank.get(key);
+			return {
+				espnId: String(meta?.espn_id ?? ''),
+				name: meta?.short_name || meta?.school || key,
+				shortName: meta?.abbreviation ?? key,
+				abbreviation: meta?.abbreviation ?? key,
+				logo: '',
+				conferenceId: '',
+				color: meta?.color ?? '333333',
+				score: state === 'pre' ? undefined : score,
+				record: `${w}-${l}`,
+				curatedRank: rank && rank <= 25 ? rank : undefined,
+				teamKey: key,
+				periods: []
+			};
+		};
+		const hc = conf.get(r.home_team_key), ac = conf.get(r.away_team_key);
+		const homeWon = r.home_score > r.away_score;
+		const period = r.half || 0;
+		return {
+			id: r.game_id,
+			shortName: `${r.away_team_key} @ ${r.home_team_key}`,
+			date: r.date,
+			startDate: storedStart(r.date.slice(0, 10), r.clock),
+			status: {
+				state,
+				detail: state === 'post' ? (period > 2 ? `Final/${period === 3 ? '' : period - 2}OT` : 'Final') : r.is_halftime ? 'Halftime' : r.clock,
+				shortDetail: state === 'post' ? (period > 2 ? `Final/${period === 3 ? '' : period - 2}OT` : 'Final') : r.is_halftime ? 'Halftime' : r.clock,
+				displayClock: r.clock,
+				period
+			},
+			homeTeam: team(r.home_team_key, r.home_score, homeWon),
+			awayTeam: team(r.away_team_key, r.away_score, !homeWon),
+			conference: { id: '', name: '', shortName: hc && hc === ac ? hc : '' },
+			broadcast: r.broadcast ?? '',
+			odds: undefined,
+			line: null,
+			neutralSite: false
+		};
+	});
+}
+
+async function storedCount(dateParam: string): Promise<number | null> {
+	try {
+		const [row] = await db.query<{ n: number }>('SELECT COUNT(*)::int AS n FROM espn_games WHERE date = $1', [
+			fromDateParam(dateParam).toISOString().slice(0, 10)
+		]);
+		return row?.n || null;
+	} catch {
+		return null;
+	}
+}
+
 async function countGames(date: string): Promise<number | null> {
 	try {
 		const url = `https://site.web.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/scoreboard?dates=${date}&groups=50&tz=America%2FNew_York&region=us&lang=en`;
@@ -136,15 +257,32 @@ export async function getScoreboardData(dateParam: string): Promise<ScoreboardDa
 	const center = fromDateParam(dateParam);
 	const dayParams = [-3, -2, -1, 0, 1, 2, 3].map(o => toDateParam(new Date(center.getTime() + o * 86_400_000)));
 
-	const [games, ranks, teamData, counts] = await Promise.all([
-		getScoreboard(dateParam),
+	const [espnGames, ranks, teamData, counts, stored] = await Promise.all([
+		getScoreboard(dateParam).catch(err => {
+			console.error('[scoreboard] ESPN scoreboard failed, using stored games:', err);
+			return [] as ScoreboardGame[];
+		}),
 		getCompositeRanks(dateParam).catch(err => {
 			console.error('[scoreboard] composite ranks failed:', err);
 			return new Map<string, number>();
 		}),
 		getAllTeamData().catch(() => ({}) as Record<string, TeamData>),
-		Promise.all(dayParams.map(d => (d === dateParam ? Promise.resolve(null) : countGames(d))))
+		Promise.all(
+			dayParams.map(async d => {
+				if (d === dateParam) return null;
+				const [espn, db] = await Promise.all([countGames(d), storedCount(d)]);
+				return espn == null && db == null ? null : Math.max(espn ?? 0, db ?? 0);
+			})
+		),
+		getAllTeamData()
+			.then(td => getStoredScoreboard(dateParam, td))
+			.catch(err => {
+				console.error('[scoreboard] stored games failed:', err);
+				return [] as ScoreboardGame[];
+			})
 	]);
+	const espnIds = new Set(espnGames.map(g => g.id));
+	const games = [...espnGames, ...stored.filter(g => !espnIds.has(g.id))];
 
 	// Keep the stored current line fresh for games that haven't tipped
 	saveScoreboardLines(games).catch(err => console.error('[scoreboard] saving lines failed:', err));

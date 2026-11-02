@@ -94,3 +94,8 @@ export function pickEspnOdds(list: unknown, homeAbbr?: string, awayAbbr?: string
 	}
 	return null;
 }
+
+/** Win chance as a whole percent, kept between 1 and 99 (a model is never certain). */
+export function pctLabel(p: number): number {
+	return Math.min(99, Math.max(1, Math.round(p * 100)));
+}

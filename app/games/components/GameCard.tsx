@@ -2,7 +2,7 @@
 
 import PredBar from '@/components/PredBar';
 import TeamLogo from '@/components/TeamLogo';
-import { formatLine } from '@/lib/games/line-utils';
+import { formatLine, pctLabel } from '@/lib/games/line-utils';
 import type { CardTeam, ScoreboardCard } from '@/lib/games/scoreboard-data';
 import { Eye, Tv } from 'lucide-react';
 import Link from 'next/link';
@@ -143,7 +143,7 @@ export default function GameCard({
 							<div className="flex items-center justify-between gap-2 text-[11px] mb-1.5">
 								<span className="text-slate-500 shrink-0">{started ? 'Pregame model' : 'Model pick'}</span>
 								<span className="text-slate-300 truncate">
-									{fav.name} <span className="text-white font-semibold">{Math.round(Math.max(pHome, 1 - pHome) * 100)}%</span>
+									{fav.name} <span className="text-white font-semibold">{pctLabel(Math.max(pHome, 1 - pHome))}%</span>
 									{p.spread != null && <span className="text-slate-500"> · by {Math.abs(p.spread).toFixed(1)}</span>}
 								</span>
 							</div>
@@ -151,10 +151,10 @@ export default function GameCard({
 							<div className="flex justify-between mt-1 text-[10px] tabular-nums">
 								<span className={`flex items-center gap-1 min-w-0 ${awayFav ? 'text-slate-200' : 'text-slate-500'}`}>
 									<span className="size-1.5 rounded-full shrink-0" style={{ background: game.away.color }} />
-									<span className="truncate">{game.away.name}</span> {Math.round((1 - pHome) * 100)}%
+									<span className="truncate">{game.away.name}</span> {pctLabel(1 - pHome)}%
 								</span>
 								<span className={`flex items-center gap-1 min-w-0 ${awayFav ? 'text-slate-500' : 'text-slate-200'}`}>
-									<span className="truncate">{game.home.name}</span> {Math.round(pHome * 100)}%
+									<span className="truncate">{game.home.name}</span> {pctLabel(pHome)}%
 									<span className="size-1.5 rounded-full shrink-0" style={{ background: game.home.color }} />
 								</span>
 							</div>

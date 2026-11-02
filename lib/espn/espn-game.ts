@@ -352,7 +352,16 @@ export async function getPartialGame(gameId: string): Promise<PartialGame> {
 		return dbGame!;
 	}
 
-	return fetchFromEspn(gameId);
+	try {
+		return await fetchFromEspn(gameId);
+	} catch (err) {
+		// ESPN down or unknown id: the stored row is better than an error page
+		if (dbGame) {
+			console.error(`ESPN fetch for game ${gameId} failed, using the stored row:`, err);
+			return dbGame;
+		}
+		throw err;
+	}
 }
 
 export async function getPartialGames(gameIds: string[]): Promise<Map<string, PartialGame>> {
@@ -380,14 +389,15 @@ export async function getPartialGames(gameIds: string[]): Promise<Map<string, Pa
 
 export async function getGame(gameId: string): Promise<Game> {
 	const game = (await getPartialGame(gameId)) as Game;
-	// Profiles (ratings, schedule) for the season the game was played in, not the latest one
+	// Profiles (ratings) for the season the game was played in, not the latest one. Past games
+	// come from espn_games (lib/games/game-page.ts), so the schedule isn't enriched here.
 	const season = getSeasonForDate(game.date);
 
 	await Promise.all(
 		Object.entries(game.teams).map(async ([homeAway, { team_key: teamKey }]) => {
 			if (!teamKey) return;
 			const [profile, metadata] = await Promise.all([
-				getTeamProfile(teamKey, { enrichedSchedule: true, season }),
+				getTeamProfile(teamKey, { season }),
 				getTeamData(teamKey)
 			]);
 			game.teams[homeAway as 'home' | 'away'].profile = profile;

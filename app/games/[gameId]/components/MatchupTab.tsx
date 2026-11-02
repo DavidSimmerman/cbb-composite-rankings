@@ -26,7 +26,7 @@ function Rows({ data, rows, offSide }: { data: GamePageData; rows: CmpRow[]; off
 					<Dot color={col[defSide]} />
 				</span>
 			</div>
-			{rows.map(r => {
+			{rows.filter(r => r.off || r.def).map(r => {
 				const a = r.off && r.def ? advantage(r.off.rank, r.def.rank) : 0;
 				const offEdge = a < 0;
 				const w = Math.abs(a) * 50;
@@ -75,12 +75,19 @@ export default function MatchupTab({ data }: { data: GamePageData }) {
 			</Card>
 		);
 	}
+	const all = [...data.matchup.awayOff, ...data.matchup.homeOff];
+	const missing = all.length > 0 && all.filter(r => !r.off && !r.def).length >= all.length / 2;
 	return (
 		<Card
 			title="Matchup"
 			sub="Value and national rank. The bar grows toward the side with the edge; longer means a bigger edge. Overall efficiency shows KenPom points per 100 possessions with the composite rank"
 			right={<SideSeg value={side} onChange={setSide} label={s => `${data[s].abbr} has ball`} colors={colors} className="md:hidden" />}
 		>
+			{missing && (
+				<p className="text-[12px] text-slate-500 mb-3">
+					Shooting, turnover and rebounding numbers come from BartTorvik and ESPN, which haven&apos;t published this season&apos;s numbers yet.
+				</p>
+			)}
 			<div className="grid grid-cols-1 md:grid-cols-[1fr_1px_1fr] gap-6">
 				<div className={side === 'away' ? '' : 'hidden md:block'}>
 					<div className="hidden md:block text-[13px] font-semibold text-slate-300 mb-2">
