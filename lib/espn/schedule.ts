@@ -3,6 +3,7 @@ import { CompiledTeamData } from '../shared';
 import { getPartialGames, PartialGame } from './espn-game';
 import { getCurrentSeason, seasonFullYear } from '../season';
 import { ESPN_TEAM_IDS } from './espn-team-ids';
+import { PostgresService } from '../database';
 
 export interface LiveScore {
 	teamScore: number;
@@ -66,10 +67,18 @@ export async function getScheduleEnriched(teamKey: string, season = getCurrentSe
 }
 
 async function fetchEspnSchedule(teamId: string, season: number): Promise<EspnGame[]> {
-	const res = await fetch(
-		`https://www.espn.com/mens-college-basketball/team/schedule/_/id/${teamId}/season/${seasonFullYear(season)}`
-	);
-	const html = await res.text();
+	let html: string;
+	try {
+		const res = await fetch(
+			`https://www.espn.com/mens-college-basketball/team/schedule/_/id/${teamId}/season/${seasonFullYear(season)}`
+		);
+		if (!res.ok) throw new Error(`ESPN schedule ${res.status}`);
+		html = await res.text();
+	} catch (e) {
+		// ESPN unreachable: fall back to the games we have stored (D1 opponents only)
+		console.warn(`ESPN schedule failed for team ${teamId}, using stored games:`, e);
+		return storedSchedule(teamId, season);
+	}
 	const $ = cheerio.load(html);
 
 	const schedule = $('.Table__TR.Table__TR--sm')
@@ -130,4 +139,46 @@ async function fetchEspnSchedule(teamId: string, season: number): Promise<EspnGa
 		});
 
 	return schedule;
+}
+
+/** The team's season from espn_games, in the same shape the ESPN schedule page parses to.
+ *  espn_games has no neutral-site flag, so every game is home or away. */
+async function storedSchedule(teamId: string, season: number): Promise<EspnGame[]> {
+	const teamKey = Object.keys(ESPN_TEAM_IDS).find(k => ESPN_TEAM_IDS[k] === teamId);
+	if (!teamKey) return [];
+	const rows = await PostgresService.getInstance()
+		.query<{
+			game_id: string;
+			date: string;
+			status: string;
+			clock: string | null;
+			home_team_key: string;
+			away_team_key: string;
+			home_score: number | null;
+			away_score: number | null;
+		}>(
+			`SELECT game_id, date, status, clock, home_team_key, away_team_key, home_score, away_score
+			 FROM espn_games WHERE season = $1 AND (home_team_key = $2 OR away_team_key = $2) ORDER BY date`,
+			[seasonFullYear(season), teamKey]
+		)
+		.catch(() => []);
+	return rows.map(r => {
+		const home = r.home_team_key === teamKey;
+		const oppKey = home ? r.away_team_key : r.home_team_key;
+		const final = r.status === 'final' && r.home_score != null && r.away_score != null;
+		const us = (home ? r.home_score : r.away_score) ?? 0;
+		const them = (home ? r.away_score : r.home_score) ?? 0;
+		const live = r.status === 'in progress';
+		return {
+			game_id: r.game_id,
+			date: r.date.slice(0, 10),
+			homeAway: home ? 'home' : 'away',
+			opp: ESPN_TEAM_IDS[oppKey] ?? oppKey,
+			won: final ? us > them : undefined,
+			score: final ? `${Math.max(us, them)}-${Math.min(us, them)}` : undefined,
+			time: final || live ? undefined : (r.clock ?? undefined),
+			is_live: live,
+			live_score: live ? { teamScore: us, oppScore: them } : undefined
+		} satisfies EspnGame;
+	});
 }
