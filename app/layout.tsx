@@ -79,7 +79,7 @@ export const metadata = {
 			'Composite NCAA college basketball rankings combining KenPom, Evan Miya, Bart Torvik, and NET. AI bracket predictions and March Madness analysis.',
 		images: [{ url: '/open-graph-image.png', width: 1200, height: 630 }],
 		// 5s logo animation (scripts/brand/render-brand-assets.mts); platforms that play og:video show it
-		videos: [{ url: '/og-video.mp4', width: 1200, height: 630, type: 'video/mp4' }],
+		videos: [{ url: 'https://cbbcomposite.com/og-video.mp4', width: 1200, height: 630, type: 'video/mp4' }],
 		type: 'website',
 		siteName: 'CBB Composite Rankings',
 	},
