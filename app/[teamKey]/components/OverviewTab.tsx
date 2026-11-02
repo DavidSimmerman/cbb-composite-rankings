@@ -112,7 +112,8 @@ function NextGame({ game: g }: { game: ParsedEspnGame }) {
 	const profile = useTeamProfile();
 	const view = useTeamView();
 	const chances = useWinChances(profile.team_key, g.is_live ? [] : [g]);
-	const p = chances[g.game_id];
+	// No prediction for opponents outside the model (non-D1)
+	const p = g.opp.team_key ? chances[g.game_id] : null;
 	const [us, them] = matchupTones(view.meta, g.opp.metadata);
 	const oppName = g.opp.team_name ?? g.espn_id;
 	const date = new Date(`${g.date}T12:00:00Z`).toLocaleDateString('en-US', {

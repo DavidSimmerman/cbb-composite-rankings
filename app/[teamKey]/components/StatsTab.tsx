@@ -19,7 +19,7 @@ export default function StatsTab() {
 						<button
 							key={sec.key}
 							onClick={() => jump(sec.key)}
-							className={`${CARD} bg-white/[0.025] px-1.5 lg:px-2 py-2.5 text-center hover:bg-white/[0.05] transition-colors cursor-pointer min-w-0`}
+							className={`rounded-xl border border-white/10 bg-white/[0.025] px-1.5 lg:px-2 py-2.5 text-center hover:bg-white/[0.05] transition-colors cursor-pointer min-w-0`}
 						>
 							<div className="text-[10px] lg:text-[10.5px] text-slate-400 truncate">{sec.title}</div>
 							<div className="mt-1.5">
