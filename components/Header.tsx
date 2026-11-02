@@ -2,7 +2,7 @@
 
 import { useRankings } from '@/app/context/RankingsContext';
 import Fuse from 'fuse.js';
-import { CalendarDays, Command, GitBranch, LayoutList, Search, Trophy, X, Zap } from 'lucide-react';
+import { CalendarDays, Command, LayoutList, Lock, Search, Trophy, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -10,12 +10,13 @@ import Logo from './Logo';
 import TeamLogo from './TeamLogo';
 import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
 
-const NAV_LINKS = [
+// Upsets and Bracket are hidden until tournament season; March shows locked with a note.
+// The pages themselves still exist at their URLs.
+const LOCKED_NOTE = 'Available later in the season';
+const NAV_LINKS: { href: string; label: string; short: string; Icon: typeof LayoutList; locked?: boolean }[] = [
 	{ href: '/', label: 'Rankings', short: 'Rankings', Icon: LayoutList },
 	{ href: '/games', label: 'Scoreboard', short: 'Scores', Icon: CalendarDays },
-	{ href: '/march', label: 'March', short: 'March', Icon: Trophy },
-	{ href: '/upsets', label: 'Upsets', short: 'Upsets', Icon: Zap },
-	{ href: '/bracket', label: 'Bracket', short: 'Bracket', Icon: GitBranch }
+	{ href: '/march', label: 'March', short: 'March', Icon: Trophy, locked: true }
 ];
 
 export default function Header() {
@@ -23,6 +24,7 @@ export default function Header() {
 	const [open, setOpen] = useState(false);
 	const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 	const [selectedIndex, setSelectedIndex] = useState(-1);
+	const [lockedNote, setLockedNote] = useState(false);
 	const rankings = useRankings();
 	const router = useRouter();
 	const pathname = usePathname();
@@ -128,15 +130,25 @@ export default function Header() {
 
 					{/* Desktop nav */}
 					<nav className="hidden lg:flex ml-6 items-center gap-1 text-[13px] rounded-full border border-white/10 bg-white/[0.03] p-1">
-						{NAV_LINKS.map(link => (
-							<Link
-								key={link.href}
-								href={link.href}
-								className={`px-3.5 py-1.5 rounded-full whitespace-nowrap transition-colors ${isActive(link.href) ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-							>
-								{link.label}
-							</Link>
-						))}
+						{NAV_LINKS.map(link =>
+							link.locked ? (
+								<span key={link.href} className="group relative flex items-center gap-1.5 px-3.5 py-1.5 rounded-full whitespace-nowrap text-slate-600 cursor-default" aria-disabled>
+									{link.label}
+									<Lock className="size-3" />
+									<span role="tooltip" className="pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 rounded-lg border border-white/10 bg-[#0d0f18] px-2.5 py-1.5 text-[12px] text-slate-300 opacity-0 shadow-lg transition-opacity group-hover:opacity-100 z-50">
+										{LOCKED_NOTE}
+									</span>
+								</span>
+							) : (
+								<Link
+									key={link.href}
+									href={link.href}
+									className={`px-3.5 py-1.5 rounded-full whitespace-nowrap transition-colors ${isActive(link.href) ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+								>
+									{link.label}
+								</Link>
+							)
+						)}
 					</nav>
 
 					{/* Mobile search: a round button that expands into the input */}
@@ -221,16 +233,39 @@ export default function Header() {
 			<div aria-hidden className="lg:hidden order-last shrink-0 h-[calc(3.5rem+env(safe-area-inset-bottom))]" />
 			<nav className="lg:hidden fixed inset-x-0 bottom-0 z-50 font-grotesk border-t border-white/10 bg-[#07080f]/90 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
 				<div className="flex justify-around h-14 text-[10px]">
-					{NAV_LINKS.map(({ href, short, Icon }) => (
-						<Link
-							key={href}
-							href={href}
-							className={`flex flex-1 flex-col items-center justify-center gap-1 transition-colors ${isActive(href) ? 'text-white' : 'text-slate-500'}`}
-						>
-							<Icon className="size-[18px]" />
-							{short}
-						</Link>
-					))}
+					{NAV_LINKS.map(({ href, short, Icon, locked }) =>
+						locked ? (
+							<button
+								key={href}
+								type="button"
+								onClick={() => {
+									setLockedNote(true);
+									setTimeout(() => setLockedNote(false), 2500);
+								}}
+								className="relative flex flex-1 flex-col items-center justify-center gap-1 text-slate-600"
+							>
+								<span className="relative">
+									<Icon className="size-[18px]" />
+									<Lock className="absolute -right-1.5 -bottom-1 size-2.5" />
+								</span>
+								{short}
+								{lockedNote && (
+									<span className="absolute bottom-full mb-2 right-2 whitespace-nowrap rounded-lg border border-white/10 bg-[#0d0f18] px-2.5 py-1.5 text-[12px] text-slate-300 shadow-lg">
+										{LOCKED_NOTE}
+									</span>
+								)}
+							</button>
+						) : (
+							<Link
+								key={href}
+								href={href}
+								className={`flex flex-1 flex-col items-center justify-center gap-1 transition-colors ${isActive(href) ? 'text-white' : 'text-slate-500'}`}
+							>
+								<Icon className="size-[18px]" />
+								{short}
+							</Link>
+						)
+					)}
 				</div>
 			</nav>
 		</>
