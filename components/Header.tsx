@@ -118,7 +118,7 @@ export default function Header() {
 				<div className="flex items-center gap-3 h-14 lg:h-16 px-4 lg:px-6">
 					<Link href="/" aria-label="CBB Composite home" className="flex items-center gap-2.5 shrink-0 min-w-0">
 						{/* The logo carries the name, so no separate wordmark */}
-						<BrandLogo className="w-[62px] lg:w-[100px] shrink-0" />
+						<BrandLogo className="w-[52px] lg:w-[72px] shrink-0" />
 						{!mobileSearchOpen && (
 							<span className="lg:hidden text-white font-semibold whitespace-nowrap truncate">{section}</span>
 						)}
