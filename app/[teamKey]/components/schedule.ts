@@ -1,7 +1,6 @@
 import type { ParsedEspnGame } from '@/lib/espn/schedule';
-import type { CompositeRanking } from '@/lib/rankings/composite';
 import type { ProfileRatingsHistory } from '@/lib/rankings/profile';
-import { type CompiledTeamData, pickCompositeCombo } from '@/lib/shared';
+import { type CompiledTeamData, type CompositeCombo, pickCompositeCombo } from '@/lib/shared';
 
 export type RatingSource = 'composite' | 'kenpom' | 'evanmiya' | 'barttorvik';
 export type RatingType = 'rating' | 'offensiveRating' | 'defensiveRating';
@@ -106,8 +105,8 @@ export function ratingCell(
 		let rank: number | null = Number(game.opp[`${ratingKey}_rank` as keyof CompiledTeamData]);
 		if (ratingKey.startsWith('avg') && game.opp.team_key) {
 			const combo = pickCompositeCombo(game.opp.composite_combos, compositeKey);
-			value = Number(combo?.[ratingKey as keyof CompositeRanking]);
-			rank = Number(combo?.[`${ratingKey}_rank` as keyof CompositeRanking]);
+			value = Number(combo?.[ratingKey as keyof CompositeCombo]);
+			rank = Number(combo?.[`${ratingKey}_rank` as keyof CompositeCombo]);
 		}
 		if (!finite(value)) return { kind: 'none' };
 		return { kind: 'opponent', value, rank: finite(rank) ? rank : null };

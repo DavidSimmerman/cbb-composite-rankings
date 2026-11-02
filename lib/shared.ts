@@ -1,6 +1,12 @@
 import { TeamData } from './espn/espn-team-data';
 import { CompositeRanking } from './rankings/composite';
 
+/** One composite variant (a set of models) as sent to the browser: just the numbers it shows. */
+export type CompositeCombo = Pick<
+	CompositeRanking,
+	'sources' | 'avg_zscore' | 'avg_zscore_rank' | 'avg_offensive_zscore' | 'avg_offensive_zscore_rank' | 'avg_defensive_zscore' | 'avg_defensive_zscore_rank'
+>;
+
 export type BaseTeamData = {
 	team_key: string;
 	team_name: string;
@@ -54,7 +60,7 @@ export type CompiledTeamData = BaseTeamData & {
 	avg_offensive_zscore_rank: number;
 	avg_defensive_zscore: number;
 	avg_defensive_zscore_rank: number;
-	composite_combos: Record<string, CompositeRanking>;
+	composite_combos: Record<string, CompositeCombo>;
 	metadata: TeamData;
 };
 

@@ -5,7 +5,7 @@ import { type CompiledTeamData, computeAverageZScores, rerankColumns, sourceSyst
 import { seasonLabel } from '@/lib/season';
 import { ArrowDown, ArrowUp, Rows3, Table2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useState } from 'react';
 import { useCookie } from '../context/CookieContext';
 import { useRankings } from '../context/RankingsContext';
 import { allSources, p5Conferences } from './columns';
@@ -29,6 +29,8 @@ import {
 	valueOf,
 	type View
 } from './models';
+
+const INITIAL_ROWS = 40;
 
 // Solid surface behind sticky cells: the card's white/2% fill over the page background
 const SURFACE = '#0c0d14';
@@ -192,6 +194,17 @@ export default function TeamTable() {
 		);
 	}, [rerankedData, model, stat, split, shownSources]);
 
+	// Render the first rows straight away and all the rest in one update right after, so the page
+	// is usable quickly on phones instead of building all 365 rows (16k elements) before anything
+	// responds. Sorting and filtering always work on the full list.
+	const [shownCount, setShownCount] = useState(INITIAL_ROWS);
+	useEffect(() => {
+		if (shownCount >= rows.length) return;
+		const id = setTimeout(() => startTransition(() => setShownCount(Number.MAX_SAFE_INTEGER)), 0);
+		return () => clearTimeout(id);
+	}, [shownCount, rows.length]);
+	const visibleRows = shownCount >= rows.length ? rows : rows.slice(0, shownCount);
+
 	// Bar length: share of the range shown, floored so the shortest bar still reads
 	const barRange = useMemo(() => {
 		const values = rerankedData.map(t => valueOf(t, model, stat)).filter((v): v is number => v != null);
@@ -288,9 +301,7 @@ export default function TeamTable() {
 	const sortArrow = (on: boolean, size = 'size-[11px]') => (on ? <ArrowDown className={size} /> : null);
 
 	const thBase = 'sticky top-0 z-20 font-medium';
-	// translateZ(0) gives each pinned cell its own layer: without it iOS Safari paints pinned cells
-	// late during momentum scrolling, so the columns sliding underneath show through for a moment
-	const stickyTeam = 'sticky left-0 shadow-[1px_0_0_rgba(255,255,255,0.06)] [transform:translateZ(0)]';
+	const stickyTeam = 'sticky left-0 shadow-[1px_0_0_rgba(255,255,255,0.06)]';
 
 	const teamCell = (team: CompiledTeamData) => (
 		<td
@@ -491,7 +502,7 @@ export default function TeamTable() {
 									</tr>
 								</thead>
 								<tbody>
-									{rows.map(team => (
+									{visibleRows.map(team => (
 										<tr
 											key={team.team_key}
 											className="group h-[44px] lg:h-[46px] cursor-pointer"
@@ -575,7 +586,7 @@ export default function TeamTable() {
 									</tr>
 									<tr className="text-[10px] lg:text-[10.5px] text-slate-500 uppercase tracking-wider">
 										<th
-											className={`sticky top-8 z-30 left-0 shadow-[1px_0_0_rgba(255,255,255,0.06)] [transform:translateZ(0)] font-medium text-left pl-3 lg:pl-4 pr-3 py-2 border-b border-white/[0.06]`}
+											className={`sticky top-8 z-30 left-0 shadow-[1px_0_0_rgba(255,255,255,0.06)] font-medium text-left pl-3 lg:pl-4 pr-3 py-2 border-b border-white/[0.06]`}
 											style={{ background: SURFACE }}
 										>
 											<div className="flex items-center gap-2 lg:gap-2.5">
@@ -641,7 +652,7 @@ export default function TeamTable() {
 									</tr>
 								</thead>
 								<tbody>
-									{rows.map(team => (
+									{visibleRows.map(team => (
 										<tr
 											key={team.team_key}
 											className="group h-[42px] cursor-pointer"

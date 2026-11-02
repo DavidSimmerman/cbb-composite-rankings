@@ -2,9 +2,9 @@ import { chromium } from 'playwright';
 import { PostgresService } from '../database';
 import { ApPollTeam, getApPollRankings } from '../espn/ap-poll';
 import { getAllTeamData, TeamData } from '../espn/espn-team-data';
-import { CompiledTeamData, computeAverageZScores } from '../shared';
+import { CompiledTeamData, CompositeCombo, computeAverageZScores } from '../shared';
 import { updateBartTorvik } from './barttorvik';
-import { CompositeRanking, updateComposite } from './composite';
+import { updateComposite } from './composite';
 import { updateEvanMiya } from './evanmiya';
 import { updateKenPom } from './kenpom';
 import { updateNet } from './net';
@@ -70,8 +70,12 @@ export async function getRankings(season?: number): Promise<CompiledTeamData[]> 
 		getAllTeamData()
 	]);
 
-	const compositeRankings: CompositeRanking[] = await db.query(
-		`SELECT * FROM composite_rankings
+	// Only the columns the browser shows: every page carries these for all 365 teams and up to 15
+	// model combinations each, so ids/dates/timestamps would add hundreds of KB for nothing
+	const compositeRankings: (CompositeCombo & { team_key: string })[] = await db.query(
+		`SELECT team_key, sources, avg_zscore, avg_zscore_rank, avg_offensive_zscore, avg_offensive_zscore_rank,
+			avg_defensive_zscore, avg_defensive_zscore_rank
+		FROM composite_rankings
 		WHERE season::int = $1
 			AND date = (SELECT MAX(date) FROM composite_rankings WHERE season::int = $1)
 		ORDER BY team_key`,
@@ -82,13 +86,8 @@ export async function getRankings(season?: number): Promise<CompiledTeamData[]> 
 
 	let teams = computeAverageZScores(baseTeams);
 
-	const compositeMap = compositeRankings.reduce<Record<string, Record<string, CompositeRanking>>>(
-		(groups, curr) => ({
-			...groups,
-			[curr.team_key]: { ...groups[curr.team_key], [curr.sources]: curr }
-		}),
-		{}
-	);
+	const compositeMap: Record<string, Record<string, CompositeCombo>> = {};
+	for (const { team_key, ...combo } of compositeRankings) (compositeMap[team_key] ??= {})[combo.sources] = combo;
 
 	teams = teams.map(t => ({ ...t, composite_combos: compositeMap[t.team_key], metadata: teamData[t.team_key] }));
 
