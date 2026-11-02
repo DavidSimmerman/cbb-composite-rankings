@@ -30,7 +30,8 @@ import {
 import { CARD, CardTitle, RankChip, Seg, TIER_LEGEND, tierChip } from './ui';
 import { useWinChances } from './useWinChances';
 
-const STICKY = 'sticky left-0 z-10 bg-[#0b0c14] shadow-[1px_0_0_rgba(255,255,255,0.06)]';
+// translateZ(0): own layer, so iOS Safari doesn't paint the pinned column late while scrolling
+const STICKY = 'sticky left-0 z-10 bg-[#0b0c14] shadow-[1px_0_0_rgba(255,255,255,0.06)] [transform:translateZ(0)]';
 const COLS: { type: RatingType; label: string; delta: string }[] = [
 	{ type: 'rating', label: 'Rating', delta: 'Δ Rtg' },
 	{ type: 'offensiveRating', label: 'Off', delta: 'Δ Off' },

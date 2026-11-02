@@ -1,5 +1,9 @@
 export async function register() {
 	if (process.env.NEXT_RUNTIME === 'nodejs') {
+		// Bring the database schema up to date before anything uses it (scripts/migrations/*.sql)
+		const { runMigrations } = await import('./lib/migrations');
+		await runMigrations();
+
 		const cron = await import('node-cron');
 		const { updateRankings } = await import('./lib/rankings/rankings');
 

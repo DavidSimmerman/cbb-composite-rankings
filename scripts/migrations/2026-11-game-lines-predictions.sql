@@ -1,5 +1,5 @@
 -- Betting lines and frozen pre-game predictions for the scoreboard and game pages.
--- Safe to run more than once. The app treats both tables as empty until this has been run.
+-- Applied automatically at server start (lib/migrations.ts). Safe to run more than once.
 
 -- One line per game. home_spread is the home team's spread: negative = home favored
 -- (FLA -2.5 at home is -2.5). Upcoming games hold the current line, finished games the closing line.

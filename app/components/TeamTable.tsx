@@ -303,7 +303,9 @@ export default function TeamTable() {
 	const sortArrow = (on: boolean, size = 'size-[11px]') => (on ? <ArrowDown className={size} /> : null);
 
 	const thBase = 'sticky top-0 z-20 font-medium';
-	const stickyTeam = 'sticky left-0 shadow-[1px_0_0_rgba(255,255,255,0.06)]';
+	// translateZ(0) gives each pinned cell its own layer: without it iOS Safari paints pinned cells
+	// late during momentum scrolling, so the columns sliding underneath show through for a moment
+	const stickyTeam = 'sticky left-0 shadow-[1px_0_0_rgba(255,255,255,0.06)] [transform:translateZ(0)]';
 
 	const teamCell = (team: CompiledTeamData) => (
 		<td
@@ -590,7 +592,7 @@ export default function TeamTable() {
 									</tr>
 									<tr className="text-[10px] lg:text-[10.5px] text-slate-500 uppercase tracking-wider">
 										<th
-											className={`sticky top-8 z-30 left-0 shadow-[1px_0_0_rgba(255,255,255,0.06)] font-medium text-left pl-3 lg:pl-4 pr-3 py-2 border-b border-white/[0.06]`}
+											className={`sticky top-8 z-30 left-0 shadow-[1px_0_0_rgba(255,255,255,0.06)] [transform:translateZ(0)] font-medium text-left pl-3 lg:pl-4 pr-3 py-2 border-b border-white/[0.06]`}
 											style={{ background: SURFACE }}
 										>
 											<div className="flex items-center gap-2 lg:gap-2.5">
