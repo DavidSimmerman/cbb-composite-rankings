@@ -6,7 +6,7 @@ import { CalendarDays, Command, LayoutList, Lock, Search, Trophy, X } from 'luci
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import Logo from './Logo';
+import BrandLogo from './BrandLogo';
 import TeamLogo from './TeamLogo';
 import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
 
@@ -116,13 +116,9 @@ export default function Header() {
 		<>
 			<header className="sticky top-0 z-50 w-full shrink-0 font-grotesk text-slate-300 border-b border-white/[0.06] bg-[#07080f]/80 backdrop-blur-md">
 				<div className="flex items-center gap-3 h-14 lg:h-16 px-4 lg:px-6">
-					<Link href="/" className="flex items-center gap-2.5 shrink-0 min-w-0">
-						<span className="size-7 rounded-lg bg-violet-500 grid place-items-center shrink-0">
-							<Logo className="size-[18px] text-white" />
-						</span>
-						<span className="hidden lg:inline text-white font-semibold text-[17px] tracking-tight whitespace-nowrap">
-							CBB Composite
-						</span>
+					<Link href="/" aria-label="CBB Composite home" className="flex items-center gap-2.5 shrink-0 min-w-0">
+						{/* The logo carries the name, so no separate wordmark */}
+						<BrandLogo className="w-[62px] lg:w-[78px] shrink-0" />
 						{!mobileSearchOpen && (
 							<span className="lg:hidden text-white font-semibold whitespace-nowrap truncate">{section}</span>
 						)}

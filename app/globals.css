@@ -161,7 +161,8 @@
 }
 
 .bracket-line {
-  stroke-dasharray: 1 1;
+  /* dash 1, gap 2: the wider gap hides the sliver that 1 1 leaves on curved segments */
+  stroke-dasharray: 1 2;
   stroke-dashoffset: 1;
 }
 
