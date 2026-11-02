@@ -23,7 +23,18 @@ export async function register() {
 			updateEspnStats();
 		});
 
-		const { saveScoreboardGames } = await import('./lib/espn/scoreboard');
+		const { saveScoreboardGames, refreshSlate } = await import('./lib/espn/scoreboard');
+
+		// Current betting lines and pre-game model predictions for today's and tomorrow's games
+		// (Eastern dates), so every game has a prediction saved before it tips off
+		cron.schedule('20 * * * *', async () => {
+			const etDate = (offsetDays: number) => {
+				const d = new Date(Date.now() + offsetDays * 86_400_000);
+				return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' }).replace(/-/g, '');
+			};
+			await refreshSlate(etDate(0));
+			if (new Date().getHours() % 6 === 0) await refreshSlate(etDate(1));
+		});
 
 		cron.schedule('0 6 * * *', () => {
 			const yesterday = new Date();

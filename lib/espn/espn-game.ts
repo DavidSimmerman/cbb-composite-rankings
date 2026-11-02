@@ -1,5 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- parses untyped ESPN API JSON */
 import { PostgresService } from '../database';
+import { pickEspnOdds } from '../games/line-utils';
+import { saveLines } from '../games/store';
 import { getTeamProfile, TeamProfile } from '../rankings/profile';
+import { getSeasonForDate } from '../season';
 import { camelToSnake } from '../utils';
 import { getTeamData, TeamData } from './espn-team-data';
 import { ESPN_TO_TEAM_KEY } from './espn-team-ids';
@@ -44,6 +48,8 @@ export interface GameTeamStats {
 	rebound_rate: number;
 	defensive_rebound_rate: number;
 	offensive_rebound_rate: number;
+	/** Points per period (halves, then overtimes). Only on games fetched since this was added. */
+	periods?: number[];
 }
 
 export type GameStatus = 'final' | 'not started' | 'in progress';
@@ -67,6 +73,11 @@ export interface Game {
 	is_halftime: boolean;
 	half: number;
 	clock: string;
+	/** From a fresh ESPN fetch only (not stored in espn_games) */
+	venue?: string;
+	neutral_site?: boolean;
+	/** ISO start time, from a fresh ESPN fetch only */
+	start?: string;
 }
 
 export type PartialGame = Omit<Game, 'teams'> & { teams: Record<string, Omit<GameTeam, 'profile' | 'metadata'>> };
@@ -184,6 +195,28 @@ function saveGameToDb(gameId: string, game: PartialGame): void {
 	).catch(err => console.error(`Failed to save game ${gameId} to db:`, err));
 }
 
+// ── Betting lines ──
+
+// Current line while the game is upcoming, closing line once it's over. Lines move during a
+// game, so nothing is written while it's in progress.
+function saveLineFromSummary(gameId: string, status: GameStatus, data: any, competition: any): void {
+	if (status === 'in progress') return;
+	const comps = competition?.competitors ?? [];
+	const homeAbbr = comps.find((c: any) => c.homeAway === 'home')?.team?.abbreviation;
+	const awayAbbr = comps.find((c: any) => c.homeAway === 'away')?.team?.abbreviation;
+	const odds = pickEspnOdds(data?.pickcenter, homeAbbr, awayAbbr) ?? pickEspnOdds(data?.odds, homeAbbr, awayAbbr);
+	if (!odds) return;
+	const provider = odds.provider ?? 'ESPN';
+	saveLines([
+		{
+			gameId,
+			homeSpread: odds.homeSpread,
+			overUnder: odds.overUnder,
+			source: `${provider} ${status === 'final' ? 'close' : 'current'}`
+		}
+	]).catch(err => console.error(`Failed to save line for ${gameId}:`, err));
+}
+
 // ── ESPN API fetch ──
 
 function fetchFromEspn(gameId: string): Promise<PartialGame> {
@@ -210,6 +243,13 @@ function fetchFromEspn(gameId: string): Promise<PartialGame> {
 			}
 
 			const rawDate = new Date(competition.date);
+			game.start = rawDate.toISOString();
+			game.neutral_site = !!competition.neutralSite;
+			const venue = data.gameInfo?.venue;
+			if (venue?.fullName) {
+				const place = [venue.address?.city, venue.address?.state].filter(Boolean).join(', ');
+				game.venue = place ? `${venue.fullName} · ${place}` : venue.fullName;
+			}
 			game.date = rawDate.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
 			game.is_halftime = competition.status.type?.name === 'STATUS_HALFTIME';
 			game.half = parseInt(competition.status.displayPeriod) || competition.status.period || 0;
@@ -250,6 +290,10 @@ function fetchFromEspn(gameId: string): Promise<PartialGame> {
 					Math.round((teamStats.free_throws_attempted / teamStats.field_goals_attempted) * 1000) / 10;
 				teamStats.assist_percentage = Math.round((teamStats.assists / teamStats.field_goals_made) * 1000) / 10;
 				teamStats.turnover_percentage = Math.round((teamStats.turnovers / possessions) * 1000) / 10;
+				const periods = (compTeam.linescores ?? [])
+					.map((l: any) => parseInt(l.displayValue ?? l.value))
+					.filter((v: number) => Number.isFinite(v));
+				if (periods.length) (teamStats as unknown as GameTeamStats).periods = periods;
 
 				game.teams[t.homeAway] = {
 					team_key: teamKey,
@@ -286,6 +330,8 @@ function fetchFromEspn(gameId: string): Promise<PartialGame> {
 						team.stats.offensive_rebounds / (team.stats.offensive_rebounds + opp.stats.defensive_rebounds);
 				});
 			}
+
+			saveLineFromSummary(gameId, game.status, data, competition);
 
 			console.log(`Getting game ${gameId} took ${Math.round((performance.now() - start) / 10) / 100}s`);
 
@@ -334,12 +380,14 @@ export async function getPartialGames(gameIds: string[]): Promise<Map<string, Pa
 
 export async function getGame(gameId: string): Promise<Game> {
 	const game = (await getPartialGame(gameId)) as Game;
+	// Profiles (ratings, schedule) for the season the game was played in, not the latest one
+	const season = getSeasonForDate(game.date);
 
 	await Promise.all(
 		Object.entries(game.teams).map(async ([homeAway, { team_key: teamKey }]) => {
 			if (!teamKey) return;
 			const [profile, metadata] = await Promise.all([
-				getTeamProfile(teamKey, { enrichedSchedule: true }),
+				getTeamProfile(teamKey, { enrichedSchedule: true, season }),
 				getTeamData(teamKey)
 			]);
 			game.teams[homeAway as 'home' | 'away'].profile = profile;

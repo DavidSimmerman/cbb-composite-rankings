@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- parses untyped ESPN API JSON */
+import { pickEspnOdds } from '../games/line-utils';
+import { fetchModelPrediction, mapLimit, toStored } from '../games/model';
+import { getStoredPredictions, saveLines, savePregamePrediction } from '../games/store';
 import { getPartialGames } from './espn-game';
 import { ESPN_TEAM_IDS } from './espn-team-ids';
 
@@ -19,6 +23,8 @@ export interface ScoreboardTeam {
 	record: string;
 	curatedRank: number | undefined;
 	teamKey: string | undefined;
+	/** Points per period, once the game has started */
+	periods: number[];
 }
 
 export interface ScoreboardGame {
@@ -42,6 +48,9 @@ export interface ScoreboardGame {
 	};
 	broadcast: string;
 	odds: { spread: string; overUnder: string } | undefined;
+	/** Parsed line: home spread (negative = home favored) and total */
+	line: { homeSpread: number | null; overUnder: number | null; provider: string | null } | null;
+	neutralSite: boolean;
 }
 
 export interface ScoreboardGameEnriched extends ScoreboardGame {
@@ -67,7 +76,10 @@ function parseCompetitor(competitor: any): ScoreboardTeam {
 		score: competitor.score ? parseInt(competitor.score, 10) : undefined,
 		record,
 		curatedRank: curatedRank && curatedRank <= 25 ? curatedRank : undefined,
-		teamKey: ESPN_ID_TO_TEAM_KEY[team.id]
+		teamKey: ESPN_ID_TO_TEAM_KEY[team.id],
+		periods: (competitor.linescores ?? [])
+			.map((l: any) => Number(l.value ?? l.displayValue))
+			.filter((v: number) => Number.isFinite(v))
 	};
 }
 
@@ -107,7 +119,9 @@ function parseEvent(event: any): ScoreboardGame {
 			shortName: groups.shortName || ''
 		},
 		broadcast: competition.broadcast || competition.broadcasts?.[0]?.names?.[0] || '',
-		odds: parsedOdds
+		odds: parsedOdds,
+		line: pickEspnOdds(competition.odds, homeCompetitor.team?.abbreviation, awayCompetitor.team?.abbreviation),
+		neutralSite: !!competition.neutralSite
 	};
 }
 
@@ -119,6 +133,54 @@ export async function getScoreboard(date: string): Promise<ScoreboardGame[]> {
 	}
 	const data = await res.json();
 	return (data.events || []).map(parseEvent);
+}
+
+/** Stores the current line of every game that hasn't tipped yet (closing lines come from the
+ *  game summary once a game is final, see espn-game.ts). */
+export async function saveScoreboardLines(games: ScoreboardGame[]): Promise<void> {
+	await saveLines(
+		games
+			.filter(g => g.status.state === 'pre' && g.line)
+			.map(g => ({
+				gameId: g.id,
+				homeSpread: g.line!.homeSpread,
+				overUnder: g.line!.overUnder,
+				source: `${g.line!.provider ?? 'ESPN'} current`
+			}))
+	);
+}
+
+/** Model predictions for games that haven't tipped, stored so they can be shown after the game.
+ *  Skips games predicted within the last `freshMinutes`. */
+export async function savePregamePredictions(games: ScoreboardGame[], freshMinutes = 90): Promise<number> {
+	const pre = games.filter(g => g.status.state === 'pre' && g.homeTeam.teamKey && g.awayTeam.teamKey);
+	if (pre.length === 0) return 0;
+	const stored = await getStoredPredictions(pre.map(g => g.id));
+	const cutoff = Date.now() - freshMinutes * 60_000;
+	const todo = pre.filter(g => {
+		const s = stored.get(g.id);
+		return !s?.createdAt || new Date(s.createdAt).getTime() < cutoff;
+	});
+	let saved = 0;
+	await mapLimit(todo, 4, async g => {
+		const p = await fetchModelPrediction(g.homeTeam.teamKey!, g.awayTeam.teamKey!);
+		if (!p) return;
+		await savePregamePrediction(toStored(g.id, p));
+		saved++;
+	});
+	return saved;
+}
+
+/** Cron: current lines and fresh pre-game predictions for one day's slate. */
+export async function refreshSlate(date: string): Promise<void> {
+	try {
+		const games = await getScoreboard(date);
+		await saveScoreboardLines(games);
+		const saved = await savePregamePredictions(games);
+		console.log(`[refreshSlate] ${date}: ${games.length} games, ${saved} predictions saved`);
+	} catch (err) {
+		console.error(`[refreshSlate] ${date} failed:`, err);
+	}
 }
 
 export async function saveScoreboardGames(date: string): Promise<void> {
