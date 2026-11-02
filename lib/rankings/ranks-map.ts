@@ -27,7 +27,13 @@ export interface TeamRanks {
 
 export type RanksMap = Record<string, TeamRanks>;
 
-export async function getTeamRanksMap(): Promise<RanksMap> {
+// Each source's last snapshot of a season (default: the latest season it has)
+export async function getTeamRanksMap(season?: number): Promise<RanksMap> {
+	const latestOf = (table: string) =>
+		season == null
+			? `date = (SELECT MAX(date) FROM ${table}) AND season = (SELECT MAX(season) FROM ${table})`
+			: `season::int = ${Number(season)} AND date = (SELECT MAX(date) FROM ${table} WHERE season::int = ${Number(season)})`;
+
 	const [btRows, compRows, espnRows, emRows, kpRows] = await Promise.all([
 		db.query<{
 			team_key: string;
@@ -49,8 +55,7 @@ export async function getTeamRanksMap(): Promise<RanksMap> {
 				ftr_rank, ftrd_rank, tor_rank, tord_rank, orb_rank, drb_rank,
 				efg_pct_rank, efgd_pct_rank
 			FROM barttorvik_rankings
-			WHERE date = (SELECT MAX(date) FROM barttorvik_rankings)
-				AND season = (SELECT MAX(season) FROM barttorvik_rankings)`
+			WHERE ${latestOf('barttorvik_rankings')}`
 		),
 		db.query<{
 			team_key: string;
@@ -59,8 +64,7 @@ export async function getTeamRanksMap(): Promise<RanksMap> {
 		}>(
 			`SELECT team_key, avg_offensive_zscore_rank, avg_defensive_zscore_rank
 			FROM composite_rankings
-			WHERE date = (SELECT MAX(date) FROM composite_rankings)
-				AND season = (SELECT MAX(season) FROM composite_rankings)
+			WHERE ${latestOf('composite_rankings')}
 				AND sources = 'kp,em,bt,net'`
 		),
 		db.query<{
@@ -70,7 +74,7 @@ export async function getTeamRanksMap(): Promise<RanksMap> {
 		}>(
 			`SELECT team_key, off_assist_percentage_rank, opp_off_assist_percentage_rank
 			FROM espn_stats
-			WHERE season = (SELECT MAX(season) FROM espn_stats)`
+			WHERE ${season == null ? 'season = (SELECT MAX(season) FROM espn_stats)' : `season::int = ${Number(season)}`}`
 		),
 		db.query<{
 			team_key: string;
@@ -79,8 +83,7 @@ export async function getTeamRanksMap(): Promise<RanksMap> {
 		}>(
 			`SELECT team_key, kill_shots_per_game_rank, kill_shots_conceded_per_game_rank
 			FROM evanmiya_rankings
-			WHERE date = (SELECT MAX(date) FROM evanmiya_rankings)
-				AND season = (SELECT MAX(season) FROM evanmiya_rankings)`
+			WHERE ${latestOf('evanmiya_rankings')}`
 		),
 		db.query<{
 			team_key: string;
@@ -88,8 +91,7 @@ export async function getTeamRanksMap(): Promise<RanksMap> {
 		}>(
 			`SELECT team_key, adjusted_tempo_rank
 			FROM kenpom_rankings
-			WHERE date = (SELECT MAX(date) FROM kenpom_rankings)
-				AND season = (SELECT MAX(season) FROM kenpom_rankings)`
+			WHERE ${latestOf('kenpom_rankings')}`
 		)
 	]);
 
