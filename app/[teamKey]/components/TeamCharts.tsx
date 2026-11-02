@@ -1,29 +1,19 @@
 'use client';
 
 import { allSources } from '@/app/components/columns';
-import { pickCompositeCombo } from '@/lib/shared';
 import SourcesFilter from '@/app/components/SourcesFilter';
 import { useCookie } from '@/app/context/CookieContext';
 import { useTeamProfile } from '@/app/context/TeamProfileContext';
 import TeamLogo from '@/components/TeamLogo';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { ChartContainer, ChartTooltip } from '@/components/ui/chart';
-import {
-	DropdownMenu,
-	DropdownMenuCheckboxItem,
-	DropdownMenuContent,
-	DropdownMenuGroup,
-	DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { Toggle } from '@/components/ui/toggle';
+import { pickCompositeCombo } from '@/lib/shared';
+import { FoldVertical, UnfoldVertical } from 'lucide-react';
 import { useEffect, useMemo, useRef } from 'react';
-import { PiChartLineBold } from 'react-icons/pi';
-import { RiCollapseVerticalLine, RiExpandVerticalLine } from 'react-icons/ri';
 import { CartesianGrid, Line, LineChart, ReferenceArea, ReferenceLine, XAxis, YAxis } from 'recharts';
 import { twMerge } from 'tailwind-merge';
+import { CARD, CardTitle, MODEL_COLORS, Seg } from './ui';
 
-export default function TeamCharts({ className }: { className: string }) {
+export default function TeamCharts({ className }: { className?: string }) {
 	const [zoom, setZoom] = useCookie<boolean>('chart_zoom', false);
 	const [dashedLines, setDashedLines] = useCookie<boolean>('dashed_lines', false);
 	const [gameLines, setGameLines] = useCookie<boolean>('chart_game_lines', true);
@@ -35,7 +25,6 @@ export default function TeamCharts({ className }: { className: string }) {
 
 	const { ratings_history: history, season } = useTeamProfile();
 
-	const sourceOrder = ['kp', 'em', 'bt', 'net'];
 	const sourcesKey = useMemo(() => {
 		if (sourcesFilter.length) {
 			return sourcesFilter
@@ -102,7 +91,7 @@ export default function TeamCharts({ className }: { className: string }) {
 	const offensiveData = buildData(offensivePoint);
 	const defensiveData = buildData(defensivePoint);
 
-	const range = useMemo(() => {
+	const range = useMemo<string[] | number[]>(() => {
 		if (zoom) {
 			return ['dataMin - 0.1', 'dataMax + 0.1'];
 		} else if (rank) {
@@ -112,192 +101,112 @@ export default function TeamCharts({ className }: { className: string }) {
 		}
 	}, [zoom, rank]);
 
+	const chartKey = activeChart === 'rating' ? 'rating' : activeChart === 'offensive' ? 'offensive' : 'defensive';
+	const shownLines = LINES.filter(l => (sourcesFilter.length === 0 || sourcesFilter.includes(l.source)) && (chartKey === 'rating' || l.key !== 'net'));
+
+	const iconToggle = (pressed: boolean, onChange: (v: boolean) => void, title: string, icon: React.ReactNode) => (
+		<button
+			onClick={() => onChange(!pressed)}
+			title={title}
+			aria-label={title}
+			aria-pressed={pressed}
+			className={`grid place-items-center shrink-0 size-[26px] rounded-lg border cursor-pointer transition-colors ${pressed ? 'border-white/20 bg-white/10 text-white' : 'border-white/10 bg-white/[0.02] text-slate-500 hover:text-slate-300'}`}
+		>
+			{icon}
+		</button>
+	);
+
 	return (
-		<div className={twMerge(`flex flex-col w-full min-h-0 border border-neutral-800 rounded-lg p-3 md:p-4`, className)}>
-			<div className="flex flex-col md:flex-row">
-				<div className="text-2xl font-bold text-neutral-600 h-full align-top mb-2 md:mb-0">Rating History</div>
-
-				<div className="ml-auto mr-0 flex gap-2 z-1">
-					<div className="flex rounded-md border border-input text-xs md:text-sm shrink-0">
-						{(
-							[
-								{ key: 'season', label: 'This season', short: 'Season' },
-								{ key: 'two', label: 'Last 2 seasons', short: '2 seasons' }
-							] as const
-						).map(opt => (
-							<button
-								key={opt.key}
-								onClick={() => setSeasonRange(opt.key)}
-								className={`px-2 md:px-2.5 cursor-pointer first:rounded-l-md last:rounded-r-md transition-colors ${
-									seasonRange === opt.key ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'
-								}`}
-							>
-								<span className="hidden md:inline">{opt.label}</span>
-								<span className="md:hidden">{opt.short}</span>
-							</button>
-						))}
-					</div>
-					<Toggle
-						className={`cursor-pointer [&_svg]:transition-transform [&_svg]:duration-200 ${zoom ? 'hover:[&_svg]:scale-75' : 'hover:[&_svg]:scale-125'}`}
-						pressed={zoom}
-						onPressedChange={setZoom}
-					>
-						{zoom ? <RiCollapseVerticalLine /> : <RiExpandVerticalLine />}
-					</Toggle>
-					<Toggle className="cursor-pointer group/dash" pressed={dashedLines} onPressedChange={setDashedLines}>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth={2.5}
-							strokeLinecap="round"
-							className="size-4"
-						>
-							<path
-								d="M3 8 C8 4, 14 14, 21 6"
-								strokeDasharray={dashedLines ? '3 3' : '100'}
-								className={
-									dashedLines
-										? 'group-hover/dash:[stroke-dasharray:100]'
-										: 'group-hover/dash:[stroke-dasharray:3_3]'
-								}
-							/>
-							<path
-								d="M3 18 C8 12, 14 20, 21 14"
-								strokeDasharray={dashedLines ? '3 3' : '100'}
-								className={
-									dashedLines
-										? 'group-hover/dash:[stroke-dasharray:100]'
-										: 'group-hover/dash:[stroke-dasharray:3_3]'
-								}
-							/>
-						</svg>
-					</Toggle>
-					<Toggle className="cursor-pointer group/wl" pressed={gameLines} onPressedChange={setGameLines}>
-						<svg
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							className="size-4"
-						>
-							<line
-								x1="6"
-								y1="4"
-								x2="6"
-								y2="20"
-								className="stroke-white group-hover/wl:stroke-green-500 transition-colors"
-							/>
-							<line
-								x1="12"
-								y1="4"
-								x2="12"
-								y2="20"
-								className="stroke-white group-hover/wl:stroke-red-500 transition-colors"
-							/>
-							<line
-								x1="18"
-								y1="4"
-								x2="18"
-								y2="20"
-								className="stroke-white group-hover/wl:stroke-green-500 transition-colors"
-							/>
-						</svg>
-					</Toggle>
-
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<Button className="cursor-pointer" variant="outline">
-								<PiChartLineBold />
-								<span className="hidden md:inline">{rank ? 'Rank' : 'Z-Score'}</span>
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent className="">
-							<DropdownMenuGroup>
-								<DropdownMenuCheckboxItem
-									checked={!rank}
-									onCheckedChange={() => setRank(false)}
-									className="px-6 flex gap-0 justify-center cursor-pointer capitalize"
-								>
-									Z-Score
-								</DropdownMenuCheckboxItem>
-								<DropdownMenuCheckboxItem
-									checked={rank}
-									onCheckedChange={() => setRank(true)}
-									className="px-6 flex gap-0 justify-center cursor-pointer capitalize"
-								>
-									Rank
-								</DropdownMenuCheckboxItem>
-							</DropdownMenuGroup>
-						</DropdownMenuContent>
-					</DropdownMenu>
-					<SourcesFilter sourcesFilter={sourcesFilter} onChange={setSourcesFilter} />
-				</div>
+		<div className={twMerge(`${CARD} p-3.5 lg:p-4 flex flex-col min-w-0`, className)}>
+			<div className="flex items-center justify-between gap-2">
+				<CardTitle>Rating history</CardTitle>
+				<Seg
+					small
+					options={[
+						{ key: 'rating', label: 'Rating' },
+						{ key: 'offensive', label: 'Off' },
+						{ key: 'defensive', label: 'Def' }
+					]}
+					value={activeChart}
+					onChange={setActiveChart}
+				/>
+			</div>
+			{/* One row of controls; swipes sideways on narrow screens rather than wrapping */}
+			<div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto -mx-3.5 px-3.5 lg:mx-0 lg:px-0">
+				<Seg
+					small
+					options={[
+						{ key: 'season', label: 'Season', title: 'This season' },
+						{ key: 'two', label: '2 seasons', title: 'Last 2 seasons' }
+					]}
+					value={seasonRange}
+					onChange={setSeasonRange}
+				/>
+				<Seg
+					small
+					options={[
+						{ key: 'z', label: 'Z-score' },
+						{ key: 'rank', label: 'Rank' }
+					]}
+					value={rank ? 'rank' : 'z'}
+					onChange={v => setRank(v === 'rank')}
+				/>
+				{iconToggle(
+					zoom,
+					setZoom,
+					zoom ? 'Fixed scale' : 'Zoom to fit',
+					zoom ? <FoldVertical className="size-3.5" /> : <UnfoldVertical className="size-3.5" />
+				)}
+				{iconToggle(
+					dashedLines,
+					setDashedLines,
+					'Dashed lines',
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" className="size-3.5">
+						<path d="M3 8 C8 4, 14 14, 21 6" strokeDasharray={dashedLines ? '3 3' : undefined} />
+						<path d="M3 18 C8 12, 14 20, 21 14" strokeDasharray={dashedLines ? '3 3' : undefined} />
+					</svg>
+				)}
+				{iconToggle(
+					gameLines,
+					setGameLines,
+					'Game lines: a line on each game day, green for a win and red for a loss',
+					<svg viewBox="0 0 24 24" fill="none" strokeWidth="2.2" strokeLinecap="round" className="size-3.5">
+						<line x1="6" y1="4" x2="6" y2="20" stroke="#4ade80" />
+						<line x1="12" y1="4" x2="12" y2="20" stroke="#f87171" />
+						<line x1="18" y1="4" x2="18" y2="20" stroke="#4ade80" />
+					</svg>
+				)}
+				<SourcesFilter
+					aurora
+					compact
+					sourcesFilter={sourcesFilter}
+					onChange={setSourcesFilter}
+					className="lg:hidden rounded-lg h-[26px] px-2 text-[11px]"
+				/>
+				<SourcesFilter
+					aurora
+					sourcesFilter={sourcesFilter}
+					onChange={setSourcesFilter}
+					className="hidden lg:flex rounded-lg h-[26px] px-2 text-[11px]"
+				/>
+			</div>
+			<div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] mt-2.5 mb-1">
+				{shownLines.map(l => (
+					<span key={l.key} className="flex items-center gap-1.5 text-slate-400 whitespace-nowrap">
+						<span className="w-3 h-0.5 rounded" style={{ background: l.color }} />
+						{l.source}
+					</span>
+				))}
 			</div>
 
-			<div className="flex flex-col md:flex-row mt-3 flex-1 min-h-0">
-				<div className="hidden md:flex flex-col -mr-px z-10">
-					{(
-						[
-							{ key: 'rating', label: 'Rating' },
-							{ key: 'offensive', label: 'Off' },
-							{ key: 'defensive', label: 'Def' }
-						] as const
-					).map(tab => (
-						<button
-							key={tab.key}
-							onClick={() => setActiveChart(tab.key)}
-							className={`flex-1 px-1.5 py-3 text-md font-bold cursor-pointer border border-border border-l-0 first:rounded-br-xl last:rounded-tr-xl transition-colors [writing-mode:vertical-lr] rotate-180 ${
-								activeChart === tab.key
-									? 'bg-card text-foreground border-r-transparent'
-									: 'bg-transparent text-muted-foreground hover:text-foreground border-r-border'
-							}`}
-						>
-							{tab.label}
-						</button>
-					))}
-				</div>
-				<div className="w-full min-w-0 h-full">
-					<ChartCard
-						chartData={
-							activeChart === 'rating' ? ratingData : activeChart === 'offensive' ? offensiveData : defensiveData
-						}
-						metric={
-							activeChart === 'rating'
-								? 'rating'
-								: activeChart === 'offensive'
-									? 'offensive_rating'
-									: 'defensive_rating'
-						}
-						range={range}
-						sources={sourcesFilter}
-						dashed={dashedLines}
-						gameLines={gameLines}
-					/>
-				</div>
-				<div className="flex md:hidden -mt-px z-10">
-					{(
-						[
-							{ key: 'rating', label: 'Rating' },
-							{ key: 'offensive', label: 'Off' },
-							{ key: 'defensive', label: 'Def' }
-						] as const
-					).map(tab => (
-						<button
-							key={tab.key}
-							onClick={() => setActiveChart(tab.key)}
-							className={`flex-1 px-3 py-1.5 text-md font-bold cursor-pointer border border-border border-t-0 first:rounded-bl-xl last:rounded-br-xl transition-colors ${
-								activeChart === tab.key
-									? 'bg-card text-foreground border-t-transparent'
-									: 'bg-transparent text-muted-foreground hover:text-foreground border-t-border'
-							}`}
-						>
-							{tab.label}
-						</button>
-					))}
-				</div>
-			</div>
+			<ChartCard
+				chartData={activeChart === 'rating' ? ratingData : activeChart === 'offensive' ? offensiveData : defensiveData}
+				metric={activeChart === 'rating' ? 'rating' : activeChart === 'offensive' ? 'offensive_rating' : 'defensive_rating'}
+				range={range}
+				sources={sourcesFilter}
+				dashed={dashedLines}
+				gameLines={gameLines}
+			/>
 		</div>
 	);
 }
@@ -310,9 +219,9 @@ function ChartCard({
 	dashed,
 	gameLines: showGameLines
 }: {
-	chartData: Record<string, any>[];
+	chartData: ({ date: string } & Record<string, unknown>)[];
 	metric: string;
-	range: any[2];
+	range: string[] | number[];
 	sources: string[];
 	dashed: boolean;
 	gameLines: boolean;
@@ -325,26 +234,11 @@ function ChartCard({
 	}, []);
 
 	const chartConfig = {
-		composite: {
-			label: 'Composite',
-			color: 'var(--color-purple-500)'
-		},
-		kenpom: {
-			label: 'KenPom',
-			color: 'var(--color-blue-500)'
-		},
-		evanmiya: {
-			label: 'EvanMiya',
-			color: 'var(--color-green-500)'
-		},
-		barttorvik: {
-			label: 'BartTorvik',
-			color: 'var(--color-yellow-500)'
-		},
-		net: {
-			label: 'NET',
-			color: 'var(--color-red-500)'
-		}
+		composite: { label: 'Composite', color: MODEL_COLORS.composite },
+		kenpom: { label: 'KenPom', color: MODEL_COLORS.kenpom },
+		evanmiya: { label: 'EvanMiya', color: MODEL_COLORS.evanmiya },
+		barttorvik: { label: 'BartTorvik', color: MODEL_COLORS.barttorvik },
+		net: { label: 'NET', color: MODEL_COLORS.net }
 	};
 
 	const nameToSource: Record<string, string> = {
@@ -367,25 +261,24 @@ function ChartCard({
 
 	if (!chartData.length) {
 		return (
-			<Card className="w-full h-76 md:h-full p-3 rounded-b-none md:rounded-br-xl md:rounded-tl-none flex items-center justify-center text-sm text-muted-foreground">
+			<div className="h-60 lg:h-72 grid place-items-center rounded-lg border border-dashed border-white/10 text-[13px] text-slate-500">
 				Rating history for this season starts November 1.
-			</Card>
+			</div>
 		);
 	}
 
 	return (
-		<Card ref={scrollRef} className="w-full h-76 md:h-full overflow-auto p-3 rounded-b-none md:rounded-br-xl md:rounded-tl-none md:border-l-none select-none">
-			<ChartContainer config={chartConfig} className="aspect-auto h-full w-[150dvw] md:w-full">
+		<div ref={scrollRef} className="w-full h-64 lg:h-72 overflow-x-auto overflow-y-hidden select-none -mx-1">
+			<ChartContainer config={chartConfig} className="aspect-auto h-full w-[150dvw] lg:w-full">
 				<LineChart data={chartData} margin={{ left: 12, right: 12 }}>
-					<CartesianGrid vertical={false} />
+					<CartesianGrid vertical={false} stroke="rgba(255,255,255,0.05)" />
 					{showGameLines &&
 						games.map(g => (
 							<ReferenceLine
 								key={g.date}
 								x={g.date}
 								xAxisId="dates"
-								stroke={g.won ? 'var(--color-green-800)' : 'var(--color-red-800)'}
-								strokeOpacity={0.9}
+								stroke={g.won ? 'rgba(74,222,128,0.28)' : 'rgba(248,113,113,0.35)'}
 							/>
 						))}
 					<XAxis
@@ -415,6 +308,7 @@ function ChartCard({
 						axisLine={false}
 						tickMargin={8}
 						minTickGap={20}
+						tick={{ fill: '#64748b', fontSize: 11 }}
 						tickFormatter={(value: string) => (isOffseason(value) ? '' : value.replace(/^\d{4}-/, ''))}
 					/>
 					<YAxis domain={range} hide />
@@ -441,8 +335,8 @@ function ChartCard({
 							}
 
 							return (
-								<div className="border-border/50 bg-background grid min-w-32 items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
-									<div className="font-medium">{label}</div>
+								<div className="font-grotesk grid min-w-40 items-start gap-1.5 rounded-lg border border-white/10 bg-[#0d0f18]/95 px-2.5 py-1.5 text-xs text-slate-300 shadow-xl">
+									<div className="font-medium text-white">{label}</div>
 									<div className="grid gap-1.5">
 										{game && (
 											<div className="flex w-full mb-2">
@@ -452,9 +346,9 @@ function ChartCard({
 												<span className="mx-1">
 													{typeof game.won === 'boolean' &&
 														(game.won ? (
-															<span className="font-bold text-green-500">W</span>
+															<span className="font-bold text-emerald-300">W</span>
 														) : (
-															<span className="font-bold text-red-500">L</span>
+															<span className="font-bold text-rose-300">L</span>
 														))}
 												</span>
 												<span className="w-fit">{game.score}</span>
@@ -505,15 +399,15 @@ function ChartCard({
 							x1={offseason[0]}
 							x2={offseason.at(-1)}
 							fill="url(#offseason-hatch)"
-							stroke="var(--color-neutral-700)"
+							stroke="rgba(255,255,255,0.12)"
 							strokeDasharray="3 3"
 							ifOverflow="visible"
-							label={{ value: 'OFFSEASON', position: 'insideTop', fill: 'var(--color-neutral-500)', fontSize: 10 }}
+							label={{ value: 'OFFSEASON', position: 'insideTop', fill: '#64748b', fontSize: 10 }}
 						/>
 					)}
 					<defs>
 						<pattern id="offseason-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-							<line x1="0" y1="0" x2="0" y2="6" stroke="var(--color-neutral-800)" strokeWidth="2" />
+							<line x1="0" y1="0" x2="0" y2="6" stroke="rgba(255,255,255,0.05)" strokeWidth="2" />
 						</pattern>
 					</defs>
 
@@ -525,7 +419,7 @@ function ChartCard({
 								dataKey={line.key + suffix}
 								type="monotone"
 								stroke={line.color}
-								strokeWidth={suffix ? 2 : 3}
+								strokeWidth={suffix ? 1.5 : line.key === 'composite' ? 3 : 2}
 								strokeDasharray={dashed && line.dashOffset !== null ? '5 15' : undefined}
 								strokeDashoffset={dashed && line.dashOffset !== null ? line.dashOffset : undefined}
 								dot={false}
@@ -537,18 +431,19 @@ function ChartCard({
 					)}
 				</LineChart>
 			</ChartContainer>
-		</Card>
+		</div>
 	);
 }
 
+const sourceOrder = ['kp', 'em', 'bt', 'net'];
 const OFFSEASON = 'offseason-';
 const isOffseason = (date: string) => date.startsWith(OFFSEASON);
 const baseKey = (dataKey: string) => dataKey.replace(/_prev$/, '');
 
 const LINES = [
-	{ key: 'composite', source: 'Composite', color: 'var(--color-purple-500)', dashOffset: null },
-	{ key: 'kenpom', source: 'KenPom', color: 'var(--color-blue-500)', dashOffset: 0 },
-	{ key: 'evanmiya', source: 'EvanMiya', color: 'var(--color-green-500)', dashOffset: -5 },
-	{ key: 'barttorvik', source: 'BartTorvik', color: 'var(--color-yellow-500)', dashOffset: -10 },
-	{ key: 'net', source: 'NET', color: 'var(--color-red-500)', dashOffset: -15 }
+	{ key: 'composite', source: 'Composite', color: MODEL_COLORS.composite, dashOffset: null },
+	{ key: 'kenpom', source: 'KenPom', color: MODEL_COLORS.kenpom, dashOffset: 0 },
+	{ key: 'evanmiya', source: 'EvanMiya', color: MODEL_COLORS.evanmiya, dashOffset: -5 },
+	{ key: 'barttorvik', source: 'BartTorvik', color: MODEL_COLORS.barttorvik, dashOffset: -10 },
+	{ key: 'net', source: 'NET', color: MODEL_COLORS.net, dashOffset: -15 }
 ] as const;

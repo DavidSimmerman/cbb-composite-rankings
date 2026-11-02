@@ -5,6 +5,9 @@ import { getPartialGame } from '../espn/espn-game';
 import { EspnStats } from '../espn/espn-stats';
 import { EspnGame, getSchedule, getScheduleEnriched, ParsedEspnGame } from '../espn/schedule';
 import { ESPN_TEAM_IDS } from '../espn/espn-team-ids';
+import { getTeamData, type TeamData } from '../espn/espn-team-data';
+import type { StatSection } from '../grades';
+import { getTeamStatSections } from './team-stats';
 import { BartTorvikRanking } from './barttorvik';
 import { CompositeRanking } from './composite';
 import { EvanMiyaRanking } from './evanmiya';
@@ -227,6 +230,10 @@ export interface TeamProfile {
 	season_snapshots: SeasonSnapshot[];
 	schedule: EspnGame[];
 	march_analysis: MarchAnalysis | null;
+	/** Stats tab: every stat with its D1 rank and percentile for the selected season */
+	stat_sections: StatSection[];
+	/** team_data row (colours, mascot) */
+	team_data: TeamData | null;
 }
 
 async function getFullRatings(teamKey: string, season: number, isLatestSeason: boolean) {
@@ -244,7 +251,7 @@ async function getFullRatings(teamKey: string, season: number, isLatestSeason: b
 		db.query(
 			getQuery(
 				'kenpom_rankings',
-				`season, rank, win_loss, offensive_rating, defensive_rating,
+				`season, rank, conference, win_loss, offensive_rating, defensive_rating,
 				adjusted_tempo, adjusted_tempo_rank,
 				sos_offensive_rating, sos_offensive_rating_rank,
 				sos_defensive_rating, sos_defensive_rating_rank`
@@ -1915,10 +1922,13 @@ export async function getTeamProfile(
 		options?.enrichedSchedule ? getScheduleEnriched(teamKey, season) : getSchedule(teamKey, season)
 	]);
 
-	const [teamNameRow] = await db.query<{ team: string }>(
-		`SELECT team FROM evanmiya_rankings WHERE team_key = $1 ORDER BY date DESC LIMIT 1`,
-		[teamKey]
-	);
+	const [[teamNameRow], statSections, teamData] = await Promise.all([
+		db.query<{ team: string }>(`SELECT team FROM evanmiya_rankings WHERE team_key = $1 ORDER BY date DESC LIMIT 1`, [
+			teamKey
+		]),
+		getTeamStatSections(teamKey, season),
+		getTeamData(teamKey)
+	]);
 	const teamName = teamNameRow?.team ?? teamKey;
 
 	// Drop each season's trailing run of unchanged rows (the scrapers keep re-saving the final
@@ -2001,6 +2011,8 @@ export async function getTeamProfile(
 		ratings_history,
 		// ESPN lists a finished season's postseason games first
 		schedule: schedule.toSorted((a, b) => a.date.localeCompare(b.date)),
-		march_analysis: marchAnalysis
+		march_analysis: marchAnalysis,
+		stat_sections: statSections,
+		team_data: teamData
 	};
 }

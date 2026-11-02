@@ -98,7 +98,7 @@ export default function SourcesFilter({ sourcesFilter, onChange, aurora, classNa
 						<>
 							<DropdownMenuSeparator />
 							<DropdownMenuItem className="cursor-pointer justify-center" onClick={() => onChange([...allSources])}>
-								Use all sources
+								Use all models
 							</DropdownMenuItem>
 						</>
 					)}

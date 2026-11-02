@@ -2,12 +2,11 @@ import type { Metadata } from 'next';
 import Header from '@/components/Header';
 import { getTeamProfile } from '@/lib/rankings/profile';
 import { getTeamData } from '@/lib/espn/espn-team-data';
+import { teamTone } from '@/lib/team-colors';
 import { TeamProfileProvider } from '../context/TeamProfileContext';
-import TeamCharts from './components/TeamCharts';
-import TeamProfileBanner from './components/TeamProfileBanner';
-import BottomSection from './components/BottomSection';
-import TeamSchedule from './components/TeamSchedule';
-import TeamStats from './components/TeamStats';
+import TeamHero from './components/TeamHero';
+import { type Tab, TABS } from './components/tabs';
+import TeamTabs from './components/TeamTabs';
 
 export async function generateMetadata({ params }: { params: Promise<{ teamKey: string }> }): Promise<Metadata> {
 	const { teamKey } = await params;
@@ -29,12 +28,14 @@ export default async function TeamPage({
 	searchParams
 }: {
 	params: Promise<{ teamKey: string }>;
-	searchParams: Promise<{ season?: string }>;
+	searchParams: Promise<{ season?: string; tab?: string }>;
 }) {
 	const { teamKey } = await params;
-	const { season } = await searchParams;
+	const { season, tab } = await searchParams;
 
 	const profile = await getTeamProfile(teamKey, { season: season ? parseInt(season) : undefined });
+	const initialTab: Tab = TABS.includes(tab as Tab) ? (tab as Tab) : 'overview';
+	const glow = teamTone(profile.team_data?.color, profile.team_data?.secondary_color);
 
 	const teamJsonLd = {
 		'@context': 'https://schema.org',
@@ -50,21 +51,21 @@ export default async function TeamPage({
 
 	return (
 		<TeamProfileProvider profile={profile}>
-			<div className="h-dvh flex flex-col">
+			<div className="relative h-dvh flex flex-col overflow-hidden bg-[#07080f] text-slate-300 font-grotesk">
+				{/* One faint wash of the team's colour at the top */}
+				<div
+					className="pointer-events-none absolute -top-40 left-0 lg:left-[10%] w-[340px] lg:w-[700px] h-[220px] lg:h-[300px] rounded-full blur-[90px] lg:blur-[120px] opacity-[0.13]"
+					style={{ background: glow }}
+				/>
 				<Header />
 				<script
 					type="application/ld+json"
 					dangerouslySetInnerHTML={{ __html: JSON.stringify(teamJsonLd) }}
 				/>
-				<div className="flex-1 min-h-0 overflow-auto">
-					<div className="max-w-340 mx-auto px-2 md:px-4 pb-4 md:pb-8">
-						<TeamProfileBanner />
-						<div className="flex flex-col md:grid md:grid-cols-3 md:auto-rows-[480px] gap-3 md:gap-6 mt-4 md:mt-6">
-							<TeamStats className="order-2 md:order-0 md:row-span-2" />
-							<TeamCharts className="order-1 md:order-0 md:col-span-2 min-h-76" />
-							<TeamSchedule className="order-3 md:order-0 md:col-span-2 min-h-76" />
-						</div>
-						<BottomSection className="mt-3 md:mt-6" />
+				<div className="relative flex-1 min-h-0 overflow-auto">
+					<div className="max-w-340 mx-auto pb-6 lg:pb-10">
+						<TeamHero />
+						<TeamTabs initialTab={initialTab} />
 					</div>
 				</div>
 			</div>
