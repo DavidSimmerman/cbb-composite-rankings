@@ -61,8 +61,12 @@ export default function OverviewTab() {
 		return { rows, picks };
 	}, [profile.stat_sections]);
 
-	const strengths = [...picks].sort((a, b) => b.stat.pct - a.stat.pct).slice(0, 5);
-	const weaknesses = [...picks].sort((a, b) => a.stat.pct - b.stat.pct).slice(0, 5);
+	// A stat is a strength only if it's above the national middle and a weakness only if below, so
+	// nothing appears in both lists. A value of 0 means no games yet (e.g. preseason killshots,
+	// where every team ties for #1), so it can't be either.
+	const real = picks.filter(p => p.stat.value !== 0);
+	const strengths = real.filter(p => p.stat.pct >= 0.5).sort((a, b) => b.stat.pct - a.stat.pct).slice(0, 5);
+	const weaknesses = real.filter(p => p.stat.pct < 0.5).sort((a, b) => a.stat.pct - b.stat.pct).slice(0, 5);
 	const played = profile.schedule.filter(g => g.score);
 	const next = profile.season === profile.latest_season ? profile.schedule.find(g => !g.score) : undefined;
 

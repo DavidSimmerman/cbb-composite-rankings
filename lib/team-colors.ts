@@ -2,12 +2,10 @@
 // Raw team colours are saturated print colours and shout next to the soft model colours, so every
 // bar, dot and accent uses the "Aurora tone": the team's hue, moved into the lightness band the
 // model colours sit in (Tailwind 400s). Rules:
-//  - a primary too dark to read (black, navy) falls back to the secondary
+//  - a near-black primary falls back to the secondary (navy and dark purple tone into soft shades)
 //  - two teams in one bar never share a colour family (two reds can't both show red); the clash
 //    check runs on the toned colours, since toning pulls colours closer together
 // Inputs are team_data.color / secondary_color: hex with or without '#'.
-
-const BG = '#07080f'; // Aurora page canvas
 
 const norm = (hex: string | null | undefined) => {
 	const h = (hex ?? '').replace('#', '').trim();
@@ -16,14 +14,6 @@ const norm = (hex: string | null | undefined) => {
 const rgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
 const toLin = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
 const fromLin = (c: number) => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
-const relLum = (hex: string) => {
-	const [r, g, b] = rgb(hex).map(v => toLin(v / 255));
-	return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-};
-const contrast = (a: string, b: string) => {
-	const [x, y] = [relLum(a), relLum(b)].sort((p, q) => q - p);
-	return (x + 0.05) / (y + 0.05);
-};
 
 function lab(hex: string) {
 	const [r, g, b] = rgb(hex).map(v => toLin(v / 255));
@@ -63,8 +53,6 @@ function hexFromOklch(L: number, C: number, h: number): string {
 	return '#a1a1aa';
 }
 
-/** Reads on the dark canvas: at least 2:1 contrast (a bar segment or underline, not body text). */
-const readable = (hex: string) => contrast(hex, BG) >= 2;
 
 /** Two colours a fan would call the same: close overall, or the same hue family. */
 export function clash(a: string, b: string) {
@@ -85,10 +73,16 @@ export function tone(hex: string) {
 
 const FALLBACK = '#a78bfa';
 
-/** One team's colour: primary if it reads on the canvas, else secondary; toned. */
+/** Black or close to it: toning can't turn it into a colour, so the team's secondary is used. */
+const nearBlack = (hex: string) => oklch(hex)[0] < 0.25 && oklch(hex)[1] < 0.06;
+/** Usable as a team colour once toned: anything but near-black. Toning lifts dark navies and
+ *  purples into soft, readable shades of the same hue, so they keep their identity. */
+const usable = (hex: string | null): hex is string => !!hex && !nearBlack(hex);
+
+/** One team's colour: the primary unless it's near-black, else the secondary; toned. */
 export function teamTone(primary?: string | null, secondary?: string | null) {
 	const p = norm(primary), s = norm(secondary);
-	const pick = p && readable(p) ? p : s && readable(s) ? s : p ?? s;
+	const pick = usable(p) ? p : usable(s) ? s : (p ?? s);
 	return pick ? tone(pick) : FALLBACK;
 }
 
@@ -99,10 +93,7 @@ export function matchupTones(
 	home: { color?: string | null; secondary_color?: string | null } | null | undefined
 ): [string, string] {
 	const opts = (t: typeof away) => {
-		const p = norm(t?.color), s = norm(t?.secondary_color);
-		// toning lifts dark colours, so only near-black is unusable
-		const ok = (h: string | null): h is string => !!h && (readable(h) || oklch(h)[0] > 0.2);
-		const list = [p && readable(p) ? p : null, s, p].filter(ok).map(tone);
+		const list = [norm(t?.color), norm(t?.secondary_color)].filter(usable).map(tone);
 		return list.length ? [...new Set(list)] : [FALLBACK];
 	};
 	const A = opts(away), H = opts(home);
