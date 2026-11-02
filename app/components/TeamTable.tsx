@@ -455,7 +455,7 @@ export default function TeamTable() {
 												title="Sort by how much the models disagree"
 												className="uppercase tracking-wider cursor-pointer hover:text-slate-300"
 											>
-												Source ranks <span className="hidden lg:inline">· {statLabel}</span>
+												Model ranks <span className="hidden lg:inline">· {statLabel}</span>
 											</button>
 											<div className="flex items-center justify-center gap-2.5 normal-case tracking-normal text-[10px] mt-0.5">
 												{shownSources.map(s => (
