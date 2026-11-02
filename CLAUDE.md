@@ -14,16 +14,20 @@
 ```
 app/
   page.tsx                    # Rankings table (home page)
-  [teamKey]/                  # Team profile pages
+  [teamKey]/                  # Team profile pages (Aurora layout: header + tabs)
     page.tsx                  # Server component, fetches profile data
     components/
-      TeamProfileBanner.tsx   # Team header with logo, record, colors
-      TeamCharts.tsx          # Rating trend line charts (Recharts)
-      TeamStats.tsx           # Full stats table
-      TeamSchedule.tsx        # Schedule with game results
-      TeamHistory.tsx         # Season history bar charts (dynamic import, client-only)
-      MarchProfile.tsx        # March tournament analysis (hidden if avg_seed is null, dynamic import)
-      BottomSection.tsx       # Stacks TeamHistory + MarchProfile vertically
+      TeamHero.tsx            # Logo, name, AP rank, season picker, record bar (record, conf, Q1-4), Composite/Off/Def tiles
+      TeamTabs.tsx            # Overview / Stats / Schedule / History / March tabs (?tab=), underline in teamTone
+      OverviewTab.tsx         # Next game + model win chance, style gauges, strengths/weaknesses, results, rating chart
+      StatsTab.tsx            # Report card of 8 letter grades + 8 graded sections (data: profile.stat_sections)
+      TeamCharts.tsx          # Rating trend line charts (Recharts, dynamic import ssr:false from OverviewTab)
+      TeamSchedule.tsx        # Schedule: opponent ratings / game delta per model, quad, result, win chance
+      schedule.ts             # Quadrant rules, rating/game-delta cell values, time formatting
+      TeamHistory.tsx         # Season history bars (plain divs)
+      MarchProfile.tsx        # March tab: shared MarchCards restyled; locked before Feb 1, hidden for past seasons
+      useTeamView.ts          # Header data for the latest season (live rankings) or a past one (final snapshot)
+      useWinChances.ts        # Upcoming-game win chances from /api/games/predict
   games/
     page.tsx                  # Scoreboard
     [gameId]/
@@ -80,8 +84,11 @@ components/
     MarchCards.tsx             # Shared March profile cards (SeedLineCard, SimilarTeamsCard, StyleFactorsCard)
     MarchScoreBadge.tsx        # Score badge + getMarchScoreColor() color gradient
 lib/
+  grades.ts                   # Team page letter grades: percentile vs all D1 teams -> A+..F
+  team-colors.ts              # teamTone / matchupTones: team colours toned for the dark canvas, no clashes
   rankings/
     profile.ts                # getTeamProfile(), getSeasonSnapshots(), getMarchPageData(), getBracketPageData()
+    team-stats.ts             # Stats tab sections: every stat ranked against all D1 teams that season
   bracket/
     predictions.ts            # Auto-fill algorithm: initializeBracket(), autoFillBracket(), computeBlendedProbability()
     evaluation.ts             # Bracket realism scoring (0-100), style tiers, finding severity levels
@@ -143,12 +150,12 @@ ml/
 ## Recharts / Hydration
 - Recharts generates auto-incrementing clipPath IDs that differ between SSR and client
 - **Always use `dynamic(() => import(...), { ssr: false })` for Recharts components**
-- TeamHistory and SimilarGames both use this pattern
+- TeamCharts (team page) and SimilarGames use this pattern
 - Radix UI (shadcn) also has ID mismatches - `suppressHydrationWarning` on DropdownMenuTrigger
 - For date-dependent renders, use `suppressHydrationWarning` on the element
 
 ## Season History (TeamHistory.tsx)
-- Bar chart showing stats across past seasons with horizontal scroll
+- Bar chart (plain divs, no Recharts) showing stats across past seasons with horizontal scroll
 - Stat groups: Rankings (composite), Efficiency (KenPom + ESPN), Shooting (ESPN + BartTorvik), Other (KenPom tempo + ESPN)
 - Rank mode: 50/50 blend of absolute (vs 363 teams) and relative (vs own seasons)
 - Stat mode: relative positioning with 40% floor, `lowerBetter` flag flips direction
