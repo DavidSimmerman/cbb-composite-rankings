@@ -27,12 +27,12 @@ interface SourcesFilterProps {
 
 const ratingSources = allSources.filter(s => s !== 'Composite');
 
-// Trigger label: "All sources" until one is left out, then what's left out or how many remain
+// Trigger label: "All models" until one is left out, then what's left out or how many remain
 function sourcesLabel(sourcesFilter: string[]) {
 	const on = ratingSources.filter(s => sourcesFilter.length === 0 || sourcesFilter.includes(s));
-	if (on.length === ratingSources.length) return 'All sources';
+	if (on.length === ratingSources.length) return 'All models';
 	if (on.length === ratingSources.length - 1) return `No ${ratingSources.find(s => !on.includes(s))}`;
-	return `${on.length} sources`;
+	return `${on.length} models`;
 }
 
 export default function SourcesFilter({ sourcesFilter, onChange, aurora, className, compact }: SourcesFilterProps) {
@@ -68,7 +68,7 @@ export default function SourcesFilter({ sourcesFilter, onChange, aurora, classNa
 			<DropdownMenu>
 				<DropdownMenuTrigger
 					suppressHydrationWarning
-					title="Sources used in the composite"
+					title="Models used in the composite"
 					className={twMerge(
 						'flex items-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer rounded-xl border border-white/10 bg-white/[0.03] px-3 text-slate-400 hover:text-slate-200 transition-colors',
 						className
@@ -79,7 +79,7 @@ export default function SourcesFilter({ sourcesFilter, onChange, aurora, classNa
 					{compact && filtered && <span className="size-1.5 rounded-full bg-violet-400" />}
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" className="w-52 font-grotesk">
-					<div className="px-2 pt-1.5 pb-1 text-[11px] text-slate-500">Sources in the composite</div>
+					<div className="px-2 pt-1.5 pb-1 text-[11px] text-slate-500">Models in the composite</div>
 					<DropdownMenuGroup>
 						{ratingSources.map(src => (
 							<DropdownMenuCheckboxItem
@@ -119,7 +119,7 @@ export default function SourcesFilter({ sourcesFilter, onChange, aurora, classNa
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild className="cursor-pointer">
 				<Button variant="outline">
-					<PiColumnsPlusRightFill /> <span className="hidden md:block">Sources</span>
+					<PiColumnsPlusRightFill /> <span className="hidden md:block">Models</span>
 				</Button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent className="">

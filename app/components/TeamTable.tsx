@@ -248,7 +248,7 @@ export default function TeamTable() {
 
 	const statLabel = statInfo(stat).label.toLowerCase();
 	const sortDescription = split
-		? `Sorted by ${split === 'asc' ? 'closest agreement' : 'biggest disagreement'} between sources (${statLabel} rank)`
+		? `Sorted by ${split === 'asc' ? 'closest agreement' : 'biggest disagreement'} between models (${statLabel} rank)`
 		: `Sorted by ${modelInfo(model).label} ${model === 'net' ? 'rank' : statLabel}`;
 
 	const netStatDisabled = (s: Stat) => !hasStat(model, s);
@@ -452,7 +452,7 @@ export default function TeamTable() {
 										>
 											<button
 												onClick={toggleSplit}
-												title="Sort by how much the sources disagree"
+												title="Sort by how much the models disagree"
 												className="uppercase tracking-wider cursor-pointer hover:text-slate-300"
 											>
 												Source ranks <span className="hidden lg:inline">· {statLabel}</span>
@@ -473,7 +473,7 @@ export default function TeamTable() {
 										>
 											<button
 												onClick={toggleSplit}
-												title="Gap between a team's best and worst source rank. Click to sort by it."
+												title="Gap between a team's best and worst model rank. Click to sort by it."
 												className={`inline-flex items-center gap-0.5 uppercase tracking-wider cursor-pointer ${split ? 'text-white font-semibold' : 'hover:text-slate-300'}`}
 											>
 												{split === 'asc' && <ArrowUp className="size-[11px]" />}
