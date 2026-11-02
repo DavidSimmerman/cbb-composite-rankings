@@ -3,14 +3,14 @@
 //   public/open-graph-image.png 1200x630 share image: the logo with the four models below
 //   public/og-video.mp4         1200x630, 5s: the logo loads in (ball, letters, brackets drawn in
 //                               stage by stage like the loader), then the models appear
-// Run: node --experimental-strip-types scripts/brand/render-brand-assets.mts
+// Run: npx tsx scripts/brand/render-brand-assets.mts
 // Needs Playwright's Chromium and ffmpeg on PATH. Fonts: Space Grotesk from Google Fonts.
 import { chromium } from 'playwright';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { logoSvg, VIEWBOX_SQUARE, VIEWBOX_TIGHT } from '../../lib/brand/logo.ts';
+import { logoSvg, VIEWBOX_SQUARE, VIEWBOX_TIGHT } from '../../lib/brand/logo';
 
 const root = resolve(import.meta.dirname, '../..');
 const MODELS: [string, string][] = [['KenPom', '#60a5fa'], ['EvanMiya', '#34d399'], ['BartTorvik', '#fb923c'], ['NET', '#f87171']];
