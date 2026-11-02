@@ -4,22 +4,16 @@ export type Model = 'comp' | 'kp' | 'em' | 'bt' | 'net';
 export type Stat = 'r' | 'o' | 'd';
 export type View = 'focus' | 'all';
 
-// Source colours are the brand: every column, header, chip and bar for a source uses its colour
-export const MODELS: { key: Model; label: string; short: string; color: string; url?: string }[] = [
+// Model colours are the brand: every column, header, chip and bar for a source uses its colour
+export const MODELS: { key: Model; label: string; short: string; color: string }[] = [
 	{ key: 'comp', label: 'Composite', short: 'CMP', color: '#a78bfa' },
-	{ key: 'kp', label: 'KenPom', short: 'KP', color: '#60a5fa', url: 'https://kenpom.com' },
-	{ key: 'em', label: 'EvanMiya', short: 'EM', color: '#34d399', url: 'https://evanmiya.com' },
-	{ key: 'bt', label: 'BartTorvik', short: 'BT', color: '#fb923c', url: 'https://barttorvik.com' },
-	{
-		key: 'net',
-		label: 'NET',
-		short: 'NET',
-		color: '#f87171',
-		url: 'https://www.ncaa.com/rankings/basketball-men/d1/ncaa-mens-basketball-net-rankings'
-	}
+	{ key: 'kp', label: 'KenPom', short: 'KP', color: '#60a5fa' },
+	{ key: 'em', label: 'EvanMiya', short: 'EM', color: '#34d399' },
+	{ key: 'bt', label: 'BartTorvik', short: 'BT', color: '#fb923c' },
+	{ key: 'net', label: 'NET', short: 'NET', color: '#f87171' }
 ];
 
-// The three rating sources the "Source ranks" strip and Gap compare
+// The three rating models the "Model ranks" strip and Gap compare
 export const SOURCE_MODELS = MODELS.filter(m => m.key === 'kp' || m.key === 'em' || m.key === 'bt');
 
 export const STATS: { key: Stat; label: string; short: string }[] = [

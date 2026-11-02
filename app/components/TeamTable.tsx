@@ -3,7 +3,7 @@
 import TeamLogo from '@/components/TeamLogo';
 import { type CompiledTeamData, computeAverageZScores, rerankColumns, sourceSystems } from '@/lib/shared';
 import { seasonLabel } from '@/lib/season';
-import { ArrowDown, ArrowUp, ExternalLink, Rows3, Table2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Rows3, Table2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useCookie } from '../context/CookieContext';
@@ -59,21 +59,6 @@ function Chip({ rank, color, small }: { rank: number | null; color: string; smal
 		>
 			{rank}
 		</span>
-	);
-}
-
-function SourceLink({ label, url }: { label: string; url: string }) {
-	return (
-		<a
-			href={url}
-			target="_blank"
-			rel="noopener noreferrer"
-			title={`Open ${label} in a new tab`}
-			aria-label={`Open ${label} in a new tab`}
-			className="grid place-items-center self-stretch rounded-md px-1 text-slate-600 hover:text-slate-200 hover:bg-white/10 transition-colors"
-		>
-			<ExternalLink className="size-[11px]" />
-		</a>
 	);
 }
 
@@ -348,13 +333,13 @@ export default function TeamTable() {
 						{shownModels.map(m => (
 							<div
 								key={m.key}
-								className={`flex items-center rounded-lg pr-1 transition-colors ${model === m.key && !split ? 'bg-white/10' : ''}`}
+								className={`flex items-center rounded-lg transition-colors ${model === m.key && !split ? 'bg-white/10' : ''}`}
 							>
 								<button
 									onClick={() => selectModel(m.key)}
 									disabled={!available[m.key]}
 									title={available[m.key] ? `Rank by ${m.label}` : unavailableTitle(m.label)}
-									className={`flex items-center gap-1.5 pl-3 py-1.5 cursor-pointer disabled:cursor-not-allowed disabled:text-slate-600 ${m.url ? 'pr-1' : 'pr-2'} ${model === m.key && !split ? 'text-white' : 'text-slate-400 hover:text-slate-200'}`}
+									className={`flex items-center gap-1.5 pl-3 py-1.5 cursor-pointer disabled:cursor-not-allowed disabled:text-slate-600 pr-2 ${model === m.key && !split ? 'text-white' : 'text-slate-400 hover:text-slate-200'}`}
 								>
 									<span
 										className={`size-1.5 rounded-full ${available[m.key] ? '' : 'opacity-50'}`}
@@ -362,7 +347,6 @@ export default function TeamTable() {
 									/>
 									{m.label}
 								</button>
-								{m.url && <SourceLink label={m.label} url={m.url} />}
 							</div>
 						))}
 					</div>
@@ -390,7 +374,7 @@ export default function TeamTable() {
 								onClick={() => selectModel(m.key)}
 								disabled={!available[m.key]}
 								title={available[m.key] ? `Rank by ${m.label}` : unavailableTitle(m.label)}
-								className={`flex items-center gap-1.5 pl-2.5 py-1.5 whitespace-nowrap cursor-pointer disabled:cursor-not-allowed disabled:text-slate-600 ${m.url ? 'pr-1' : 'pr-2.5'} ${model === m.key && !split ? 'text-white' : 'text-slate-400'}`}
+								className={`flex items-center gap-1.5 pl-2.5 py-1.5 whitespace-nowrap cursor-pointer disabled:cursor-not-allowed disabled:text-slate-600 pr-2.5 ${model === m.key && !split ? 'text-white' : 'text-slate-400'}`}
 							>
 								<span
 									className={`size-1.5 rounded-full ${available[m.key] ? '' : 'opacity-50'}`}
@@ -398,7 +382,6 @@ export default function TeamTable() {
 								/>
 								{m.label}
 							</button>
-							{m.url && <SourceLink label={m.label} url={m.url} />}
 						</div>
 					))}
 				</div>
