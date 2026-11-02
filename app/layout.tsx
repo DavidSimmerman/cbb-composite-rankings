@@ -1,6 +1,6 @@
 import { GoogleAnalytics } from '@next/third-parties/google';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { Geist, Geist_Mono, Inter } from 'next/font/google';
+import { Geist, Geist_Mono, Inter, Space_Grotesk } from 'next/font/google';
 import localFont from 'next/font/local';
 import { cookies } from 'next/headers';
 import PathnameKey from '@/components/PathnameKey';
@@ -15,6 +15,12 @@ const geistSans = Geist({
 
 const inter = Inter({
 	variable: '--font-inter',
+	subsets: ['latin']
+});
+
+// UI font of the Aurora redesign (header, rankings)
+const spaceGrotesk = Space_Grotesk({
+	variable: '--font-space-grotesk',
 	subsets: ['latin']
 });
 
@@ -93,7 +99,7 @@ export default async function RootLayout({
 
 	return (
 		<html lang="en" className="dark">
-			<body className={`${geistSans.variable} ${geistMono.variable} ${kanit.variable} ${inter.variable} antialiased`}>
+			<body className={`${geistSans.variable} ${geistMono.variable} ${kanit.variable} ${inter.variable} ${spaceGrotesk.variable} antialiased`}>
 				<script
 					type="application/ld+json"
 					dangerouslySetInnerHTML={{

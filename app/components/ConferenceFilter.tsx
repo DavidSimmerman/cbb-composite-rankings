@@ -1,6 +1,5 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import {
 	DropdownMenu,
 	DropdownMenuCheckboxItem,
@@ -10,7 +9,8 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { HiMiniUserGroup } from 'react-icons/hi2';
+import { Filter } from 'lucide-react';
+import { twMerge } from 'tailwind-merge';
 import { p5Conferences } from './columns';
 
 interface ConferenceFilterProps {
@@ -18,13 +18,25 @@ interface ConferenceFilterProps {
 	onChange: (conferences: string[]) => void;
 	relativeRankings: boolean;
 	onRelRankChange: (arg0: boolean) => void;
+	className?: string;
+	// Phones: icon only, with a dot while a filter is on
+	compact?: boolean;
+}
+
+// Trigger label: "All conferences" until a subset is picked, then the picks themselves
+function filterLabel(conferenceFilter: string[]) {
+	if (conferenceFilter.length === 0 || conferenceFilter.length === 6) return 'All conferences';
+	if (conferenceFilter.length > 2) return `${conferenceFilter.length} conferences`;
+	return conferenceFilter.map(c => (c === 'mid-major' ? 'Mid-Major' : c)).join(', ');
 }
 
 export default function ConferenceFilter({
 	conferenceFilter,
 	onChange,
 	relativeRankings,
-	onRelRankChange
+	onRelRankChange,
+	className,
+	compact
 }: ConferenceFilterProps) {
 	function toggleConference(conference: string) {
 		if (conferenceFilter.includes(conference)) {
@@ -44,12 +56,20 @@ export default function ConferenceFilter({
 
 	return (
 		<DropdownMenu>
-			<DropdownMenuTrigger asChild className="cursor-pointer">
-				<Button variant="outline">
-					<HiMiniUserGroup /> <span className="hidden md:block">Conferences</span>
-				</Button>
+			<DropdownMenuTrigger
+				suppressHydrationWarning
+				className={twMerge(
+					'flex items-center gap-1.5 shrink-0 whitespace-nowrap cursor-pointer rounded-xl border border-white/10 bg-white/[0.03] px-3 text-slate-400 hover:text-slate-200 transition-colors',
+					className
+				)}
+			>
+				<Filter className="size-3.5" />
+				<span className={compact ? 'sr-only' : ''}>{filterLabel(conferenceFilter)}</span>
+				{compact && conferenceFilter.length > 0 && conferenceFilter.length !== 6 && (
+					<span className="size-1.5 rounded-full bg-violet-400" />
+				)}
 			</DropdownMenuTrigger>
-			<DropdownMenuContent className="w-30">
+			<DropdownMenuContent align="end" className="w-36 font-grotesk">
 				<DropdownMenuGroup>
 					{p5Conferences.map(c => (
 						<DropdownMenuCheckboxItem

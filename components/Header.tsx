@@ -2,21 +2,20 @@
 
 import { useRankings } from '@/app/context/RankingsContext';
 import Fuse from 'fuse.js';
-import { Menu, Search } from 'lucide-react';
+import { CalendarDays, Command, GitBranch, LayoutList, Search, Trophy, X, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Logo from './Logo';
 import TeamLogo from './TeamLogo';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Popover, PopoverAnchor, PopoverContent } from './ui/popover';
 
 const NAV_LINKS = [
-	{ href: '/', label: 'Rankings' },
-	{ href: '/games', label: 'Scoreboard' },
-	{ href: '/march', label: 'March Profiles' },
-	{ href: '/upsets', label: 'Upsets' },
-	{ href: '/bracket', label: 'Bracket' },
+	{ href: '/', label: 'Rankings', short: 'Rankings', Icon: LayoutList },
+	{ href: '/games', label: 'Scoreboard', short: 'Scores', Icon: CalendarDays },
+	{ href: '/march', label: 'March', short: 'March', Icon: Trophy },
+	{ href: '/upsets', label: 'Upsets', short: 'Upsets', Icon: Zap },
+	{ href: '/bracket', label: 'Bracket', short: 'Bracket', Icon: GitBranch }
 ];
 
 export default function Header() {
@@ -37,9 +36,14 @@ export default function Header() {
 		return fuse.search(search, { limit: 10 }).map(r => r.item);
 	}, [fuse, search]);
 
-	useEffect(() => {
+	const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
+	const section = NAV_LINKS.find(link => isActive(link.href))?.label ?? 'CBB Composite';
+
+	function updateSearch(value: string) {
+		setSearch(value);
 		setSelectedIndex(-1);
-	}, [results]);
+		setOpen(true);
+	}
 
 	function handleSearchKeyDown(e: React.KeyboardEvent) {
 		if (e.key === 'ArrowDown') {
@@ -73,166 +77,162 @@ export default function Header() {
 		}
 	}, [mobileSearchOpen]);
 
-	return (
-		<div className="sticky top-0 z-50 w-full bg-neutral-900 flex items-stretch justify-between md:gap-5 border-b border-neutral-700 py-3 px-4 md:px-6">
-			<Link
-				href="/"
-				className={`cursor-pointer font-kanit font-medium italic text-2xl md:text-4xl flex gap-1 shrink-0 transition-all duration-200 overflow-hidden ${mobileSearchOpen ? 'max-w-10' : 'max-w-80'}`}
-			>
-				<Logo className="h-lh w-auto shrink-0" />
-				<span
-					className={`transition-opacity duration-200 whitespace-nowrap ${mobileSearchOpen ? 'opacity-0' : 'opacity-100'}`}
+	// Cmd/Ctrl+K jumps to team search from anywhere
+	useEffect(() => {
+		function onKeyDown(e: KeyboardEvent) {
+			if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'k') return;
+			e.preventDefault();
+			if (inputRef.current?.offsetParent) inputRef.current.focus();
+			else setMobileSearchOpen(true);
+		}
+		window.addEventListener('keydown', onKeyDown);
+		return () => window.removeEventListener('keydown', onKeyDown);
+	}, []);
+
+	const resultsList = (
+		<div className="max-h-75 overflow-y-auto p-1">
+			{results.map((team, i) => (
+				<button
+					key={team.team_key}
+					onClick={() => selectTeam(team.team_key)}
+					className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm cursor-pointer text-slate-200 hover:bg-white/10 ${i === selectedIndex ? 'bg-white/10' : ''}`}
 				>
-					CBB Composite
-				</span>
-			</Link>
-
-			{/* Mobile hamburger + search */}
-			<div className="md:hidden flex items-center gap-2 ml-auto">
-				{!mobileSearchOpen && (
-					<>
-						<button
-							className="flex items-center cursor-pointer"
-							onClick={() => {
-								setMobileSearchOpen(true);
-								mobileInputRef.current?.focus();
-							}}
-						>
-							<Search className="size-5 text-muted-foreground" />
-						</button>
-						<DropdownMenu>
-							<DropdownMenuTrigger className="flex items-center cursor-pointer">
-								<Menu className="size-5 text-muted-foreground" />
-							</DropdownMenuTrigger>
-							<DropdownMenuContent align="end">
-								{NAV_LINKS.map(link => {
-									const isActive = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href);
-									return (
-										<DropdownMenuItem key={link.href} asChild>
-											<Link href={link.href} className={isActive ? 'font-medium' : ''}>
-												{link.label}
-											</Link>
-										</DropdownMenuItem>
-									);
-								})}
-							</DropdownMenuContent>
-						</DropdownMenu>
-					</>
-				)}
-			</div>
-
-			{/* Mobile search bar */}
-			<Popover open={open && results.length > 0 && mobileSearchOpen} onOpenChange={setOpen}>
-				<PopoverAnchor asChild>
-					<div
-						className={`md:hidden relative flex items-center rounded-md border bg-transparent text-sm transition-all duration-200 ${mobileSearchOpen ? 'flex-1 opacity-100 px-3 py-1 border-input' : 'w-0 opacity-0 border-transparent pointer-events-none p-0 overflow-hidden'}`}
-					>
-						<input
-							ref={mobileInputRef}
-							placeholder="Search for teams..."
-							value={search}
-							onChange={e => {
-								setSearch(e.target.value);
-								setOpen(true);
-							}}
-							onFocus={() => search.trim() && setOpen(true)}
-							onBlur={() => {
-								setTimeout(closeMobileSearch, 150);
-							}}
-							onKeyDown={e => {
-								if (e.key === 'Escape') closeMobileSearch();
-								else handleSearchKeyDown(e);
-							}}
-							className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
-							tabIndex={mobileSearchOpen ? 0 : -1}
-						/>
-						<Search className="size-4 text-muted-foreground" />
-					</div>
-				</PopoverAnchor>
-				<PopoverContent
-					className="w-(--radix-popover-trigger-width) p-0"
-					align="start"
-					sideOffset={4}
-					onOpenAutoFocus={e => e.preventDefault()}
-				>
-					<div className="max-h-75 overflow-y-auto p-1">
-						{results.map((team, i) => (
-							<button
-								key={team.team_key}
-								onClick={() => selectTeam(team.team_key)}
-								className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground ${i === selectedIndex ? 'bg-accent text-accent-foreground' : ''}`}
-							>
-								<TeamLogo teamKey={team.team_key} size={40} className="size-5" />
-								<span>
-									{team.ap_rank && <span className="text-muted-foreground text-xs mr-1">{team.ap_rank}</span>}
-									{team.team_name}
-								</span>
-								<span className="ml-auto text-xs text-muted-foreground">{team.conference}</span>
-							</button>
-						))}
-					</div>
-				</PopoverContent>
-			</Popover>
-
-			{/* Desktop search bar */}
-			<Popover open={open && results.length > 0 && !mobileSearchOpen} onOpenChange={setOpen}>
-				<PopoverAnchor asChild>
-					<div className="hidden md:flex relative items-center w-96 rounded-md border border-input bg-transparent px-3 py-1 text-sm">
-						<input
-							ref={inputRef}
-							placeholder="Search for teams..."
-							value={search}
-							onChange={e => {
-								setSearch(e.target.value);
-								setOpen(true);
-							}}
-							onFocus={() => search.trim() && setOpen(true)}
-							onKeyDown={handleSearchKeyDown}
-							className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
-						/>
-						<Search className="size-4 text-muted-foreground" />
-					</div>
-				</PopoverAnchor>
-				<PopoverContent
-					className="w-(--radix-popover-trigger-width) p-0"
-					align="start"
-					sideOffset={4}
-					onOpenAutoFocus={e => e.preventDefault()}
-				>
-					<div className="max-h-75 overflow-y-auto p-1">
-						{results.map((team, i) => (
-							<button
-								key={team.team_key}
-								onClick={() => selectTeam(team.team_key)}
-								className={`flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground ${i === selectedIndex ? 'bg-accent text-accent-foreground' : ''}`}
-							>
-								<TeamLogo teamKey={team.team_key} size={40} className="size-5" />
-								<span>
-									{team.ap_rank && <span className="text-muted-foreground text-xs mr-1">{team.ap_rank}</span>}
-									{team.team_name}
-								</span>
-								<span className="ml-auto text-xs text-muted-foreground">{team.conference}</span>
-							</button>
-						))}
-					</div>
-				</PopoverContent>
-			</Popover>
-
-			{/* Desktop nav links */}
-			<nav className="hidden md:flex items-center gap-1 ml-auto">
-				{NAV_LINKS.map(link => {
-					const isActive = link.href === '/' ? pathname === '/' : pathname.startsWith(link.href);
-					return (
-						<Link
-							key={link.href}
-							href={link.href}
-							className={`px-3 py-1.5 rounded-md text-sm transition-colors ${isActive ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'}`}
-						>
-							{link.label}
-						</Link>
-					);
-				})}
-			</nav>
+					<TeamLogo teamKey={team.team_key} size={40} className="size-5" />
+					<span>
+						{team.ap_rank && <span className="text-slate-500 text-xs mr-1">{team.ap_rank}</span>}
+						{team.team_name}
+					</span>
+					<span className="ml-auto text-xs text-slate-500">{team.conference}</span>
+				</button>
+			))}
 		</div>
+	);
+
+	const resultsClass = 'w-(--radix-popover-trigger-width) p-0 font-grotesk rounded-xl border-white/10 bg-[#0c0d16]';
+
+	return (
+		<>
+			<header className="sticky top-0 z-50 w-full shrink-0 font-grotesk text-slate-300 border-b border-white/[0.06] bg-[#07080f]/80 backdrop-blur-md">
+				<div className="flex items-center gap-3 h-14 lg:h-16 px-4 lg:px-6">
+					<Link href="/" className="flex items-center gap-2.5 shrink-0 min-w-0">
+						<span className="size-7 rounded-lg bg-violet-500 grid place-items-center shrink-0">
+							<Logo className="size-[18px] text-white" />
+						</span>
+						<span className="hidden lg:inline text-white font-semibold text-[17px] tracking-tight whitespace-nowrap">
+							CBB Composite
+						</span>
+						{!mobileSearchOpen && (
+							<span className="lg:hidden text-white font-semibold whitespace-nowrap truncate">{section}</span>
+						)}
+					</Link>
+
+					{/* Desktop nav */}
+					<nav className="hidden lg:flex ml-6 items-center gap-1 text-[13px] rounded-full border border-white/10 bg-white/[0.03] p-1">
+						{NAV_LINKS.map(link => (
+							<Link
+								key={link.href}
+								href={link.href}
+								className={`px-3.5 py-1.5 rounded-full whitespace-nowrap transition-colors ${isActive(link.href) ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+							>
+								{link.label}
+							</Link>
+						))}
+					</nav>
+
+					{/* Mobile search: a round button that expands into the input */}
+					{!mobileSearchOpen && (
+						<button
+							aria-label="Search teams"
+							className="lg:hidden ml-auto size-9 grid place-items-center rounded-full border border-white/10 cursor-pointer"
+							onClick={() => setMobileSearchOpen(true)}
+						>
+							<Search className="size-4" />
+						</button>
+					)}
+					<Popover open={open && results.length > 0 && mobileSearchOpen} onOpenChange={setOpen}>
+						<PopoverAnchor asChild>
+							<div
+								className={`lg:hidden items-center gap-2 h-9 px-3 rounded-full border border-white/10 bg-white/[0.03] text-sm ${mobileSearchOpen ? 'flex flex-1' : 'hidden'}`}
+							>
+								<Search className="size-4 shrink-0 text-slate-500" />
+								<input
+									ref={mobileInputRef}
+									placeholder="Search teams"
+									value={search}
+									onChange={e => updateSearch(e.target.value)}
+									onFocus={() => search.trim() && setOpen(true)}
+									onBlur={() => {
+										setTimeout(closeMobileSearch, 150);
+									}}
+									onKeyDown={e => {
+										if (e.key === 'Escape') closeMobileSearch();
+										else handleSearchKeyDown(e);
+									}}
+									className="flex-1 min-w-0 bg-transparent outline-none text-slate-200 placeholder:text-slate-500"
+									tabIndex={mobileSearchOpen ? 0 : -1}
+								/>
+								<button aria-label="Close search" className="cursor-pointer" onClick={closeMobileSearch}>
+									<X className="size-4 text-slate-500" />
+								</button>
+							</div>
+						</PopoverAnchor>
+						<PopoverContent
+							className={resultsClass}
+							align="start"
+							sideOffset={6}
+							onOpenAutoFocus={e => e.preventDefault()}
+						>
+							{resultsList}
+						</PopoverContent>
+					</Popover>
+
+					{/* Desktop search */}
+					<Popover open={open && results.length > 0 && !mobileSearchOpen} onOpenChange={setOpen}>
+						<PopoverAnchor asChild>
+							<div className="hidden lg:flex ml-auto items-center gap-2 h-9 w-56 px-3 rounded-full border border-white/10 bg-white/[0.03] text-[13px] focus-within:border-white/20">
+								<Search className="size-3.5 shrink-0 text-slate-500" />
+								<input
+									ref={inputRef}
+									placeholder="Search teams"
+									value={search}
+									onChange={e => updateSearch(e.target.value)}
+									onFocus={() => search.trim() && setOpen(true)}
+									onKeyDown={handleSearchKeyDown}
+									className="flex-1 min-w-0 bg-transparent outline-none text-slate-200 placeholder:text-slate-500"
+								/>
+								<span className="flex items-center gap-0.5 text-[11px] text-slate-500">
+									<Command className="size-[11px]" />K
+								</span>
+							</div>
+						</PopoverAnchor>
+						<PopoverContent
+							className={resultsClass}
+							align="start"
+							sideOffset={6}
+							onOpenAutoFocus={e => e.preventDefault()}
+						>
+							{resultsList}
+						</PopoverContent>
+					</Popover>
+				</div>
+			</header>
+
+			{/* Phones: bottom tab bar. The spacer sits last in the page's flex column so content ends above the bar */}
+			<div aria-hidden className="lg:hidden order-last shrink-0 h-[calc(3.5rem+env(safe-area-inset-bottom))]" />
+			<nav className="lg:hidden fixed inset-x-0 bottom-0 z-50 font-grotesk border-t border-white/10 bg-[#07080f]/90 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+				<div className="flex justify-around h-14 text-[10px]">
+					{NAV_LINKS.map(({ href, short, Icon }) => (
+						<Link
+							key={href}
+							href={href}
+							className={`flex flex-1 flex-col items-center justify-center gap-1 transition-colors ${isActive(href) ? 'text-white' : 'text-slate-500'}`}
+						>
+							<Icon className="size-[18px]" />
+							{short}
+						</Link>
+					))}
+				</div>
+			</nav>
+		</>
 	);
 }

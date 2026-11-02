@@ -1,52 +1,13 @@
 import Header from '@/components/Header';
-import TitleBar from '@/components/TitleBar';
 import TeamTable from './components/TeamTable';
 
 export default async function Home() {
 	return (
-		<div className="h-dvh flex flex-col overflow-hidden">
+		<div className="relative h-dvh flex flex-col overflow-hidden bg-[#07080f] text-slate-300 font-grotesk">
+			{/* One faint violet wash at the top, nothing else */}
+			<div className="pointer-events-none absolute -top-48 left-1/3 w-[700px] h-[300px] rounded-full bg-violet-500/[0.07] blur-[120px]" />
 			<Header />
-			<div className="flex flex-col overflow-hidden mx-2 md:mx-8">
-				<TitleBar title={<h1>CBB Composite Rankings</h1>} />
-				<div className="flex justify-center items-center gap-2 text-xs md:text-base text-muted-foreground mt-2 md:mt-1">
-					<a
-						href="https://kenpom.com"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="no-underline hover:underline cursor-pointer"
-					>
-						KenPom
-					</a>
-					<span>&#x2022;</span>
-					<a
-						href="https://evanmiya.com"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="no-underline hover:underline cursor-pointer"
-					>
-						EvanMiya
-					</a>
-					<span>&#x2022;</span>
-					<a
-						href="https://barttorvik.com"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="no-underline hover:underline cursor-pointer"
-					>
-						BartTorvik
-					</a>
-					<span>&#x2022;</span>
-					<a
-						href="https://www.ncaa.com/rankings/basketball-men/d1/ncaa-mens-basketball-net-rankings"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="no-underline hover:underline cursor-pointer"
-					>
-						NET
-					</a>
-				</div>
-					<TeamTable />
-			</div>
+			<TeamTable />
 		</div>
 	);
 }
