@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Header from '@/components/Header';
-import { getScoreboard, type ScoreboardGame, type ScoreboardGameEnriched } from '@/lib/espn/scoreboard';
-import { getRankings } from '@/lib/rankings/rankings';
+import { getScoreboardData } from '@/lib/games/scoreboard-data';
 import ScoreboardView from './components/ScoreboardView';
 
 export const metadata: Metadata = {
@@ -10,8 +9,8 @@ export const metadata: Metadata = {
 		'Live college basketball scoreboard with NCAA game scores, AI-powered predictions, and matchup analysis. Powered by KenPom, Evan Miya, Bart Torvik, and NET ratings.',
 	openGraph: {
 		title: 'College Basketball Scoreboard',
-		description: 'NCAA basketball scores with AI game predictions and composite ratings analysis.',
-	},
+		description: 'NCAA basketball scores with AI game predictions and composite ratings analysis.'
+	}
 };
 
 export const dynamic = 'force-dynamic';
@@ -29,52 +28,18 @@ function formatDateParam(date?: string): string {
 	return `${y}${m}${d}`;
 }
 
-function enrichGames(games: ScoreboardGame[], rankings: any[]): ScoreboardGameEnriched[] {
-	const ratingMap = new Map<string, number>();
-	for (const team of rankings) {
-		ratingMap.set(team.team_key, team.avg_zscore_rank);
-	}
-
-	return games.map(game => {
-		const homeRating = game.homeTeam.teamKey ? ratingMap.get(game.homeTeam.teamKey) : undefined;
-		const awayRating = game.awayTeam.teamKey ? ratingMap.get(game.awayTeam.teamKey) : undefined;
-
-		const ratingsAvailable = homeRating !== undefined && awayRating !== undefined;
-		const highestRating = ratingsAvailable ? Math.min(homeRating, awayRating) : 999;
-		const averageRating = ratingsAvailable ? (homeRating + awayRating) / 2 : 999;
-
-		let spread = 999;
-		if (game.status.state !== 'pre' && game.homeTeam.score !== undefined && game.awayTeam.score !== undefined) {
-			spread = Math.abs(game.homeTeam.score - game.awayTeam.score);
-		} else if (ratingsAvailable) {
-			spread = Math.abs(homeRating - awayRating);
-		}
-
-		return {
-			...game,
-			homeTeamRating: homeRating,
-			awayTeamRating: awayRating,
-			highestRating,
-			averageRating,
-			spread,
-		};
-	});
-}
-
-export default async function GamesPage({ searchParams }: { searchParams: { date?: string } }) {
+export default async function GamesPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
 	const { date } = await searchParams;
-	const dateParam = formatDateParam(date);
-
-	const [games, rankings] = await Promise.all([getScoreboard(dateParam), getRankings()]);
-
-	const enrichedGames = enrichGames(games, rankings);
+	const data = await getScoreboardData(formatDateParam(date));
 
 	return (
-		<div className="h-dvh flex flex-col">
+		<div className="relative h-dvh flex flex-col overflow-hidden bg-[#07080f] text-slate-300 font-grotesk">
+			<div className="pointer-events-none absolute -top-48 left-1/3 w-[700px] h-[300px] rounded-full bg-violet-500/[0.07] blur-[120px]" />
 			<Header />
-			<h1 className="sr-only">College Basketball Scoreboard — NCAA Game Scores & Predictions</h1>
-			<div className="max-w-340 w-full mx-auto px-2 md:px-4 pb-4 md:pb-8">
-				<ScoreboardView games={enrichedGames} currentDate={dateParam} />
+			<div className="relative flex-1 min-h-0 overflow-auto">
+				<div className="max-w-340 w-full mx-auto px-3 md:px-6 pb-6 md:pb-10">
+					<ScoreboardView data={data} />
+				</div>
 			</div>
 		</div>
 	);

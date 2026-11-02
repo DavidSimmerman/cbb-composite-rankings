@@ -1,128 +1,151 @@
 'use client';
 
-import { useGame } from '@/app/context/GameContext';
-import TeamLogo from '@/components/TeamLogo';
-import { Card, CardContent } from '@/components/ui/card';
-import { Game, GameTeam } from '@/lib/espn/espn-game';
+import { formatLine } from '@/lib/games/line-utils';
+import type { GamePageData, Side } from '@/lib/games/game-page';
+import { MapPin, Tv } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { LogoBox } from './ui';
 
-export default function GameHeader() {
-	const { game } = useGame();
-
-	const awayColor = game.teams.away.metadata?.color;
-	const homeColor = game.teams.home.metadata?.color;
-	const hasColors = awayColor && homeColor;
-
-	return (
-		<Card
-			className="mt-4 md:mt-8 p-2 md:p-4 md:px-6"
-			style={hasColors ? {
-				background: `linear-gradient(135deg, #${awayColor}40 0%, #${awayColor}15 30%, #${homeColor}15 70%, #${homeColor}40 100%)`,
-				borderColor: `color-mix(in srgb, #${awayColor} 40%, #${homeColor} 40%)`,
-			} : undefined}
+function TeamBlock({ data, side, winner }: { data: GamePageData; side: Side; winner: Side | null }) {
+	const t = data[side];
+	const dim = winner !== null && winner !== side;
+	const home = side === 'home';
+	const inner = (
+		<div
+			className={`flex flex-col items-center text-center gap-1.5 md:flex-row md:gap-4 md:text-left ${home ? 'md:flex-row-reverse md:text-right' : ''} min-w-0 ${dim ? 'opacity-60' : ''}`}
 		>
-			<CardContent className="flex items-center gap-2 md:gap-0">
-				<div className="flex-1 flex justify-start">
-					<TeamHeader team={game.teams.away} />
+			<span className="md:hidden">
+				<LogoBox teamKey={t.teamKey} size={46} />
+			</span>
+			<span className="hidden md:block">
+				<LogoBox teamKey={t.teamKey} size={64} />
+			</span>
+			<div className="min-w-0">
+				<div className="text-[17px] md:text-[26px] font-semibold text-white tracking-tight leading-tight group-hover:underline decoration-white/30 underline-offset-4">
+					{t.ap && <span className="text-slate-500 font-normal text-[12px] md:text-[15px] mr-1">{t.ap}</span>}
+					<span className="md:hidden">{t.abbr}</span>
+					<span className="hidden md:inline">{t.name}</span>
 				</div>
-				<div className="text-center flex flex-col gap-1 shrink-0">
-					{game.status === 'final' && <FinalScore game={game} />}
-					{game.status === 'in progress' && <InProgress game={game} />}
-					{game.status === 'not started' && <Pregame game={game} />}
-				</div>
-				<div className="flex-1 flex justify-end">
-					<TeamHeader team={game.teams.home} />
-				</div>
-			</CardContent>
-		</Card>
-	);
-}
-
-function getGameDate(dateStr: string): string {
-	const [, mm, dd] = dateStr.split('-');
-	return `${Number(mm)}/${Number(dd)}`;
-}
-
-function FinalScore({ game }: { game: Game }) {
-	const date = useMemo(() => getGameDate(game.date), [game]);
-
-	return (
-		<>
-			<div className="text-muted-foreground text-xs md:text-base">{date}</div>
-			<div className="text-3xl md:text-5xl">
-				<span className={`font-bold ${game.teams.away.won ? '' : 'text-muted-foreground'}`}>{game.teams.away.score}</span>
-				<span className="font-medium text-muted-foreground"> - </span>
-				<span className={`font-bold ${game.teams.home.won ? '' : 'text-muted-foreground'}`}>{game.teams.home.score}</span>
+				{(t.record || t.conference) && (
+					<div className="text-[11.5px] text-slate-400 mt-0.5">{[t.record, t.conference].filter(Boolean).join(' · ')}</div>
+				)}
+				{t.comp?.rank != null && (
+					<div className={`flex items-center gap-1 mt-1 justify-center ${home ? 'md:justify-end' : 'md:justify-start'}`}>
+						<span className="text-[10.5px] rounded px-1.5 py-0.5 font-medium" style={{ background: '#a78bfa26', color: '#a78bfa' }}>
+							CMP #{t.comp.rank}
+						</span>
+						{t.comp.ork != null && t.comp.drk != null && (
+							<span className="hidden md:inline text-[10.5px] text-slate-500">
+								O #{t.comp.ork} · D #{t.comp.drk}
+							</span>
+						)}
+					</div>
+				)}
 			</div>
-			<div className="capitalize text-muted-foreground text-xs md:text-base">{game.status}</div>
-		</>
-	);
-}
-
-function InProgress({ game }: { game: Game }) {
-	const date = useMemo(() => getGameDate(game.date), [game]);
-
-	return (
-		<>
-			<div className="text-muted-foreground text-xs md:text-base">{date}</div>
-			<div className="text-3xl md:text-5xl">
-				<span className={`font-bold`}>{game.teams.away.score}</span>
-				<span className="font-medium text-muted-foreground"> - </span>
-				<span className={`font-bold`}>{game.teams.home.score}</span>
-			</div>
-			<div className="capitalize text-muted-foreground text-xs md:text-base">{game.is_halftime ? 'Half' : `${game.clock} ${game.half}`}</div>
-		</>
-	);
-}
-
-function Pregame({ game }: { game: Game }) {
-	const date = useMemo(() => getGameDate(game.date), [game]);
-
-	return (
-		<div className="text-xs md:text-md text-muted-foreground">
-			<div>{date}</div>
-			<div>{game.clock}</div>
-			<div>{game.broadcast}</div>
 		</div>
 	);
+	return t.teamKey ? (
+		<Link href={`/${t.teamKey}`} className="group block min-w-0">
+			{inner}
+		</Link>
+	) : (
+		inner
+	);
 }
 
-function TeamHeader({ team }: { team: GameTeam }) {
-	const fullRatings = useMemo(() => {
-		if (!team.profile) return undefined;
-		const season = Object.keys(team.profile.full_ratings).sort().at(-1)!;
-		return team.profile.full_ratings[season];
-	}, [team]);
+export default function GameHeader({ data }: { data: GamePageData }) {
+	const started = data.phase !== 'pre';
+	const winner: Side | null =
+		data.phase === 'final' && data.away.score != null && data.home.score != null
+			? data.away.score > data.home.score
+				? 'away'
+				: 'home'
+			: null;
+	const line = formatLine(data.line?.homeSpread, data.home.abbr, data.away.abbr);
+	const ou = data.line?.overUnder;
+	const periods =
+		data.away.periods && data.home.periods && data.away.periods.length === data.home.periods.length ? data.away.periods.map((a, i) => [a, data.home.periods![i]]) : null;
+	const periodName = (i: number) => (i === 0 ? '1st' : i === 1 ? '2nd' : i === 2 ? 'OT' : `${i - 1}OT`);
 
-	const reverse = team.home_away !== 'home';
-
-	const teamName = team.profile?.team_name ?? (team.name || 'TBD');
-	const abbreviation = team.metadata?.abbreviation ?? (team.name || 'TBD');
-
-	const content = (
-		<div>
-			{team.profile && <TeamLogo teamKey={team.team_key || ''} className="h-12 md:h-20 m-auto" />}
-			<div className="text-center text-sm md:text-2xl font-medium">
-				{fullRatings?.ap_rank && <span className="text-xs md:text-lg text-muted-foreground">#{fullRatings.ap_rank} </span>}
-				<span className="group-hover:underline hidden md:inline">{teamName}</span>
-				<span className="group-hover:underline md:hidden">{abbreviation}</span>
+	return (
+		<div className="px-1 md:px-0 pt-3 md:pt-7">
+			<div className="flex items-center justify-between gap-1 md:gap-6">
+				<div className="flex-1 min-w-0">
+					<TeamBlock data={data} side="away" winner={winner} />
+				</div>
+				<div className="text-center shrink-0 w-[118px] md:w-[260px]">
+					{started ? (
+						<>
+							<div className="text-[34px] md:text-[52px] font-semibold text-white tabular-nums leading-none tracking-tight">
+								<span className={winner === 'home' ? 'text-slate-500' : ''}>{data.away.score ?? 0}</span>
+								<span className="text-slate-600 mx-1.5">-</span>
+								<span className={winner === 'away' ? 'text-slate-500' : ''}>{data.home.score ?? 0}</span>
+							</div>
+							{data.phase === 'live' ? (
+								<div className="mt-2 flex items-center justify-center gap-1.5 text-[12px] text-rose-300 font-medium">
+									<span className="size-1.5 rounded-full bg-rose-400 animate-pulse" />
+									{data.clockLabel}
+								</div>
+							) : (
+								<div className="mt-2 text-[12px] text-slate-400 font-medium">
+									Final{data.overtimes === 1 ? '/OT' : data.overtimes > 1 ? `/${data.overtimes}OT` : ''}
+								</div>
+							)}
+							{periods && (
+								<div className="mt-1.5 text-[10.5px] text-slate-500 tabular-nums">
+									{periods.map(([a, h], i) => `${periodName(i)} ${a}-${h}`).join(' · ')}
+								</div>
+							)}
+							<div className="mt-1 text-[10.5px] text-slate-600">{data.dateLabel}</div>
+						</>
+					) : (
+						<>
+							<div className="text-[11px] uppercase tracking-wider text-slate-500">{data.dateLabel}</div>
+							<div className="text-[22px] md:text-[30px] font-semibold text-white leading-tight">{data.timeLabel ?? 'TBD'}</div>
+							{data.broadcast && (
+								<div className="flex items-center justify-center gap-1 text-[11.5px] text-slate-400 mt-1">
+									<Tv className="size-3" />
+									{data.broadcast}
+								</div>
+							)}
+							{data.venue && (
+								<div className="hidden md:flex items-center justify-center gap-1 text-[11px] text-slate-500 mt-1">
+									<MapPin className="size-[11px] shrink-0" />
+									<span className="truncate">{data.venue}</span>
+								</div>
+							)}
+						</>
+					)}
+				</div>
+				<div className="flex-1 min-w-0">
+					<TeamBlock data={data} side="home" winner={winner} />
+				</div>
 			</div>
-			{fullRatings && (
-				<div className="text-center text-xs md:text-base text-muted-foreground">
-					{fullRatings.net_conf} • {fullRatings.kp_win_loss}
+			{!started && data.venue && (
+				<div className="md:hidden flex items-center justify-center gap-1 text-[11px] text-slate-500 mt-3">
+					<MapPin className="size-[11px] shrink-0" />
+					{data.venue}
 				</div>
 			)}
+			<div className="mt-3 flex items-center justify-center gap-3 text-[11px] text-slate-500">
+				{line || ou != null ? (
+					<>
+						{line && (
+							<span>
+								{data.phase === 'final' ? 'Closing line' : 'Line'} <span className="text-slate-300">{line}</span>
+							</span>
+						)}
+						{ou != null && (
+							<span>
+								O/U <span className="text-slate-300">{ou}</span>
+							</span>
+						)}
+						{data.neutral && <span>Neutral site</span>}
+					</>
+				) : (
+					<span>{data.neutral ? 'Neutral site · ' : ''}No betting line saved</span>
+				)}
+			</div>
 		</div>
-	);
-
-	if (!team.profile) {
-		return <div className={`flex gap-8 ${reverse && 'flex-row-reverse'}`}>{content}</div>;
-	}
-
-	return (
-		<Link href={`/${team.profile.team_key}`} className={`flex gap-8 group ${reverse && 'flex-row-reverse'}`}>
-			{content}
-		</Link>
 	);
 }
