@@ -5,7 +5,7 @@ import { type CompiledTeamData, computeAverageZScores, rerankColumns, sourceSyst
 import { seasonLabel } from '@/lib/season';
 import { ArrowDown, ArrowUp, Rows3, Table2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { startTransition, useEffect, useMemo, useState } from 'react';
+import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
 import { useCookie } from '../context/CookieContext';
 import { useRankings } from '../context/RankingsContext';
 import { allSources, p5Conferences } from './columns';
@@ -204,6 +204,17 @@ export default function TeamTable() {
 		return () => clearTimeout(id);
 	}, [shownCount, rows.length]);
 	const visibleRows = shownCount >= rows.length ? rows : rows.slice(0, shownCount);
+
+	// Width of the pinned team column, for the backing strip below
+	const scrollerRef = useRef<HTMLDivElement>(null);
+	const [pinWidth, setPinWidth] = useState(0);
+	useEffect(() => {
+		const cell = scrollerRef.current?.querySelector('tbody td');
+		if (!cell) return;
+		const ro = new ResizeObserver(() => setPinWidth(cell.getBoundingClientRect().width));
+		ro.observe(cell);
+		return () => ro.disconnect();
+	}, [view, visibleRows.length]);
 
 	// Bar length: share of the range shown, floored so the shortest bar still reads
 	const barRange = useMemo(() => {
@@ -406,7 +417,17 @@ export default function TeamTable() {
 
 			{/* Table card */}
 			<div className="relative flex-1 min-h-0 flex flex-col lg:mx-6 lg:mt-4 lg:mb-6 lg:rounded-xl border-y lg:border border-white/10 bg-white/[0.02] overflow-hidden">
-				<div className="flex-1 min-h-0 overflow-auto overscroll-none">
+				{/* A still, dark strip behind the pinned team column. iOS Safari sometimes draws the pinned
+				    cells a moment late while scrolling; this keeps that gap dark instead of showing the
+				    columns sliding underneath. It sits above the data cells and below the pinned cells. */}
+				{pinWidth > 0 && (
+					<div
+						aria-hidden
+						className="pointer-events-none absolute left-0 top-0 bottom-10 z-[5] shadow-[1px_0_0_rgba(255,255,255,0.06)]"
+						style={{ width: pinWidth, background: SURFACE }}
+					/>
+				)}
+				<div ref={scrollerRef} className="flex-1 min-h-0 overflow-auto overscroll-none">
 					<table className="w-full text-[12.5px] lg:text-[13px] tabular-nums whitespace-nowrap border-separate border-spacing-0">
 						{view === 'focus' ? (
 							<>

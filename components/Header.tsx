@@ -1,6 +1,6 @@
 'use client';
 
-import { useRankings } from '@/app/context/RankingsContext';
+import { useAllRankings } from '@/app/context/RankingsContext';
 import Fuse from 'fuse.js';
 import { CalendarDays, Command, LayoutList, Lock, Search, Trophy, X } from 'lucide-react';
 import Link from 'next/link';
@@ -25,7 +25,7 @@ export default function Header() {
 	const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 	const [selectedIndex, setSelectedIndex] = useState(-1);
 	const [lockedNote, setLockedNote] = useState(false);
-	const rankings = useRankings();
+	const rankings = useAllRankings();
 	const router = useRouter();
 	const pathname = usePathname();
 	const inputRef = useRef<HTMLInputElement>(null);

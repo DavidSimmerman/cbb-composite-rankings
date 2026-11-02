@@ -5,6 +5,8 @@ import { getTeamData } from '@/lib/espn/espn-team-data';
 import { getRankings } from '@/lib/rankings/rankings';
 import { teamTone } from '@/lib/team-colors';
 import { TeamProfileProvider } from '../context/TeamProfileContext';
+import { RankingsProvider } from '../context/RankingsContext';
+import { ESPN_TO_TEAM_KEY } from '@/lib/espn/espn-team-ids';
 import TeamHero from './components/TeamHero';
 import { type Tab, TABS } from './components/tabs';
 import TeamTabs from './components/TeamTabs';
@@ -35,8 +37,11 @@ export default async function TeamPage({
 	const { season, tab } = await searchParams;
 
 	const profile = await getTeamProfile(teamKey, { season: season ? parseInt(season) : undefined });
-	// Viewing a past season: opponents' records, ranks and quadrants come from that season
-	const seasonRankings = profile.season !== profile.latest_season ? await getRankings(profile.season) : undefined;
+	// Only the teams this page shows (this team and its opponents), not all 365: keeps the page
+	// small. A past season uses that season's final rankings for records, ranks and quadrants.
+	const allRankings = await getRankings(profile.season !== profile.latest_season ? profile.season : undefined);
+	const wanted = new Set([teamKey, ...profile.schedule.map(g => ESPN_TO_TEAM_KEY[g.opp]).filter(Boolean)]);
+	const pageRankings = allRankings.filter(t => wanted.has(t.team_key));
 	const initialTab: Tab = TABS.includes(tab as Tab) ? (tab as Tab) : 'overview';
 	const glow = teamTone(profile.team_data?.color, profile.team_data?.secondary_color);
 
@@ -53,7 +58,8 @@ export default async function TeamPage({
 	};
 
 	return (
-		<TeamProfileProvider profile={profile} seasonRankings={seasonRankings}>
+		<RankingsProvider initial={pageRankings}>
+		<TeamProfileProvider profile={profile}>
 			<div className="relative h-dvh flex flex-col overflow-hidden bg-[#07080f] text-slate-300 font-grotesk">
 				{/* One faint wash of the team's colour at the top */}
 				<div
@@ -73,5 +79,6 @@ export default async function TeamPage({
 				</div>
 			</div>
 		</TeamProfileProvider>
+		</RankingsProvider>
 	);
 }

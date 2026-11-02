@@ -4,7 +4,6 @@ import { Geist, Geist_Mono, Inter, Space_Grotesk } from 'next/font/google';
 import localFont from 'next/font/local';
 import { cookies } from 'next/headers';
 import PathnameKey from '@/components/PathnameKey';
-import RankingsLoader from './components/RankingsLoader';
 import { CookieProvider } from './context/CookieContext';
 import './globals.css';
 
@@ -121,11 +120,9 @@ export default async function RootLayout({
 					}}
 				/>
 				<CookieProvider cookies={Object.fromEntries(cookieStore.getAll().map(c => [c.name, c.value]))}>
-					<RankingsLoader>
-						<TooltipProvider>
-							<PathnameKey>{children}</PathnameKey>
-						</TooltipProvider>
-					</RankingsLoader>
+					<TooltipProvider>
+						<PathnameKey>{children}</PathnameKey>
+					</TooltipProvider>
 				</CookieProvider>
 				{process.env.NEXT_PUBLIC_GA_ID && <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />}
 			</body>

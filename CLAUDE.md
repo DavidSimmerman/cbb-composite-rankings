@@ -59,7 +59,7 @@ app/
         SeedMatchupStats.tsx        # Historical seed vs seed win rates
         BracketImpact.tsx           # Seed pick tracking, next opponent, path to title
   context/
-    RankingsContext.tsx        # Global rankings data
+    RankingsContext.tsx        # Rankings for client components: page-provided subset, or full list fetched from /api/rankings (RankingsGate shows the loader)
     TeamProfileContext.tsx     # Team profile data provider
     CookieContext.tsx          # Cookie-based persistent state (useCookie hook)
   march/

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRankings } from '@/app/context/RankingsContext';
+import { useAllRankings } from '@/app/context/RankingsContext';
 import TeamLogo from '@/components/TeamLogo';
 import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -248,7 +248,7 @@ function TeamScoreRow({ teamKey, score, winner }: {
 	score: number;
 	winner: boolean;
 }) {
-	const rankings = useRankings();
+	const rankings = useAllRankings();
 	const displayName =
 		rankings.find(t => t.metadata?.team_key === teamKey)?.metadata?.abbreviation ??
 		teamKey.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
