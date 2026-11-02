@@ -95,8 +95,12 @@ export function availableModels(data: CompiledTeamData[]): Record<Model, boolean
 }
 
 // How much the sources disagree: gap between a team's best and worst source rank, std dev breaks ties
-export function sourceSplit(team: CompiledTeamData, s: Stat): { range: number; sd: number } | null {
-	const ranks = SOURCE_MODELS.map(m => rankOf(team, m.key, s)).filter((r): r is number => r != null);
+export function sourceSplit(
+	team: CompiledTeamData,
+	s: Stat,
+	sources = SOURCE_MODELS
+): { range: number; sd: number } | null {
+	const ranks = sources.map(m => rankOf(team, m.key, s)).filter((r): r is number => r != null);
 	if (ranks.length < 2) return null;
 	const mean = ranks.reduce((a, b) => a + b, 0) / ranks.length;
 	return {

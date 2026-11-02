@@ -1,15 +1,16 @@
 'use client';
 
 import TeamLogo from '@/components/TeamLogo';
-import { type CompiledTeamData, rerankColumns } from '@/lib/shared';
+import { type CompiledTeamData, computeAverageZScores, rerankColumns, sourceSystems } from '@/lib/shared';
 import { seasonLabel } from '@/lib/season';
 import { ArrowDown, ArrowUp, ExternalLink, Rows3, Table2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { useCookie } from '../context/CookieContext';
 import { useRankings } from '../context/RankingsContext';
-import { p5Conferences } from './columns';
+import { allSources, p5Conferences } from './columns';
 import ConferenceFilter from './ConferenceFilter';
+import SourcesFilter from './SourcesFilter';
 import {
 	availableModels,
 	chipStyle,
@@ -76,8 +77,18 @@ function SourceLink({ label, url }: { label: string; url: string }) {
 	);
 }
 
-function SourceStrip({ team, stat, model }: { team: CompiledTeamData; stat: Stat; model: Model }) {
-	const marks = SOURCE_MODELS.map(s => ({ ...s, rank: rankOf(team, s.key, stat) })).filter(
+function SourceStrip({
+	team,
+	stat,
+	model,
+	sources
+}: {
+	team: CompiledTeamData;
+	stat: Stat;
+	model: Model;
+	sources: typeof SOURCE_MODELS;
+}) {
+	const marks = sources.map(s => ({ ...s, rank: rankOf(team, s.key, stat) })).filter(
 		(s): s is typeof s & { rank: number } => s.rank != null
 	);
 	const ranks = marks.map(m => m.rank);
@@ -124,16 +135,34 @@ export default function TeamTable() {
 	const [modelPref, setModelPref] = useCookie<Model>('rankings_model', 'comp');
 	const [statPref, setStatPref] = useCookie<Stat>('rankings_stat', 'r');
 	const [viewPref, setViewPref] = useCookie<View>('rankings_view', 'focus');
+	// Shared with the team page charts: which sources build the composite and show in the table
+	const [sourcesFilter, setSourcesFilter] = useCookie<string[]>('sources_filter', [...allSources]);
 	// Sort by how much the sources disagree instead of by rank; a second click flips to closest agreement
 	const [splitSort, setSplitSort] = useState<SplitSort>(null);
 
-	const data = useRankings();
+	const rankings = useRankings();
 	const router = useRouter();
+
+	const included = (m: Model) =>
+		m === 'comp' || sourcesFilter.length === 0 || sourcesFilter.includes(modelInfo(m).label);
+	const shownModels = useMemo(
+		() => MODELS.filter(m => m.key === 'comp' || sourcesFilter.length === 0 || sourcesFilter.includes(m.label)),
+		[sourcesFilter]
+	);
+	const shownSources = useMemo(() => SOURCE_MODELS.filter(m => shownModels.includes(m)), [shownModels]);
+
+	// Rebuild the composite from only the chosen sources (e.g. leave NET out)
+	const data = useMemo(() => {
+		const active = sourceSystems.filter(s => sourcesFilter.includes(s.key));
+		if (active.length === sourceSystems.length || active.length === 0) return rankings;
+		return computeAverageZScores(rankings, active);
+	}, [rankings, sourcesFilter]);
 
 	const available = useMemo(() => availableModels(data), [data]);
 
 	// A saved choice can go stale (a source with no data yet, or an old cookie): fall back to Composite rating
-	const model: Model = MODELS.some(m => m.key === modelPref) && available[modelPref] ? modelPref : 'comp';
+	const model: Model =
+		MODELS.some(m => m.key === modelPref) && available[modelPref] && included(modelPref) ? modelPref : 'comp';
 	const stat: Stat = STATS.some(s => s.key === statPref) && hasStat(model, statPref) ? statPref : 'r';
 	const view: View = viewPref === 'all' ? 'all' : 'focus';
 	const split = view === 'focus' ? splitSort : null;
@@ -164,8 +193,8 @@ export default function TeamTable() {
 		const last = Number.MAX_SAFE_INTEGER;
 		if (split) {
 			return rerankedData.toSorted((a, b) => {
-				const x = sourceSplit(a, stat);
-				const y = sourceSplit(b, stat);
+				const x = sourceSplit(a, stat, shownSources);
+				const y = sourceSplit(b, stat, shownSources);
 				if (!x || !y) return (x ? 0 : 1) - (y ? 0 : 1);
 				const d = y.range - x.range || y.sd - x.sd;
 				return split === 'asc' ? -d : d;
@@ -176,7 +205,7 @@ export default function TeamTable() {
 				(rankOf(a, model, stat) ?? last) - (rankOf(b, model, stat) ?? last) ||
 				a.avg_zscore_rank - b.avg_zscore_rank
 		);
-	}, [rerankedData, model, stat, split]);
+	}, [rerankedData, model, stat, split, shownSources]);
 
 	// Bar length: share of the range shown, floored so the shortest bar still reads
 	const barRange = useMemo(() => {
@@ -314,7 +343,7 @@ export default function TeamTable() {
 				<div className="flex items-center gap-3 flex-nowrap">
 					<span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-slate-500">Rank by</span>
 					<div className="flex rounded-xl border border-white/10 bg-white/[0.03] p-1">
-						{MODELS.map(m => (
+						{shownModels.map(m => (
 							<div
 								key={m.key}
 								className={`flex items-center rounded-lg pr-1 transition-colors ${model === m.key && !split ? 'bg-white/10' : ''}`}
@@ -340,14 +369,17 @@ export default function TeamTable() {
 				<div className="flex items-center gap-3 flex-nowrap h-[42px]">
 					<span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-slate-500">Sort</span>
 					<div className="flex rounded-xl border border-white/10 bg-white/[0.03] p-1">{statButtons(false)}</div>
-					{conferenceFilterEl('ml-auto h-[42px]')}
+					<div className="ml-auto flex gap-2">
+						<SourcesFilter aurora sourcesFilter={sourcesFilter} onChange={setSourcesFilter} className="h-[42px]" />
+						{conferenceFilterEl('h-[42px]')}
+					</div>
 				</div>
 			</div>
 
 			{/* Phone toolbar: the same controls, model chips swipe sideways */}
 			<div className="lg:hidden px-4 pb-3 space-y-2">
 				<div className="flex gap-1.5 text-[12px] overflow-x-auto -mx-4 px-4">
-					{MODELS.map(m => (
+					{shownModels.map(m => (
 						<div
 							key={m.key}
 							className={`shrink-0 flex items-center rounded-lg pr-0.5 ${model === m.key && !split ? 'bg-white/10 ring-1 ring-white/15' : 'border border-white/10'}`}
@@ -371,6 +403,7 @@ export default function TeamTable() {
 				<div className="flex gap-2 text-[12px]">
 					<div className="flex flex-1 rounded-lg border border-white/10 bg-white/[0.03] p-0.5">{statButtons(true)}</div>
 					{viewToggle(true)}
+					<SourcesFilter aurora compact sourcesFilter={sourcesFilter} onChange={setSourcesFilter} className="rounded-lg px-2.5" />
 					{conferenceFilterEl('rounded-lg px-2.5', true)}
 				</div>
 			</div>
@@ -425,7 +458,7 @@ export default function TeamTable() {
 												Source ranks <span className="hidden lg:inline">· {statLabel}</span>
 											</button>
 											<div className="flex items-center justify-center gap-2.5 normal-case tracking-normal text-[10px] mt-0.5">
-												{SOURCE_MODELS.map(s => (
+												{shownSources.map(s => (
 													<span key={s.key} className="flex items-center gap-1">
 														<span className="w-1 h-2.5 rounded-sm" style={{ background: s.color }} />
 														{s.short}
@@ -448,7 +481,7 @@ export default function TeamTable() {
 												Gap
 											</button>
 										</th>
-										{MODELS.map(m => (
+										{shownModels.map(m => (
 											<th
 												key={m.key}
 												className={`${thBase} text-center px-2 border-b border-white/[0.06]`}
@@ -513,16 +546,16 @@ export default function TeamTable() {
 											})}
 											<td className="px-2.5 lg:px-3 border-b border-white/[0.05]">
 												<div className="flex justify-center">
-													<SourceStrip team={team} stat={stat} model={model} />
+													<SourceStrip team={team} stat={stat} model={model} sources={shownSources} />
 												</div>
 											</td>
 											<td
 												className={`text-center px-2 border-b border-white/[0.05] ${split ? 'text-white font-semibold' : 'text-slate-400'}`}
 												style={split ? { background: 'rgba(255,255,255,0.04)' } : undefined}
 											>
-												{sourceSplit(team, stat)?.range ?? '—'}
+												{sourceSplit(team, stat, shownSources)?.range ?? '—'}
 											</td>
-											{MODELS.map(m => (
+											{shownModels.map(m => (
 												<td
 													key={m.key}
 													className="text-center px-2 border-b border-white/[0.05]"
@@ -544,7 +577,7 @@ export default function TeamTable() {
 											className={`${thBase} ${stickyTeam} z-30 h-8`}
 											style={{ background: SURFACE }}
 										/>
-										{MODELS.map(m => (
+										{shownModels.map(m => (
 											<th
 												key={m.key}
 												colSpan={m.key === 'net' ? (available.net ? 1 + NET_QUADS.length : 1) : 3}
@@ -565,7 +598,7 @@ export default function TeamTable() {
 												Team
 											</div>
 										</th>
-										{MODELS.filter(m => m.key !== 'net').map(m =>
+										{shownModels.filter(m => m.key !== 'net').map(m =>
 											STATS.map((s, k) => {
 												const active = model === m.key && stat === s.key;
 												return (
@@ -630,7 +663,7 @@ export default function TeamTable() {
 											onClick={() => router.push(`/${team.team_key}`)}
 										>
 											{teamCell(team)}
-											{MODELS.filter(m => m.key !== 'net').map(m =>
+											{shownModels.filter(m => m.key !== 'net').map(m =>
 												STATS.map((s, k) => {
 													const active = model === m.key && stat === s.key;
 													return (
