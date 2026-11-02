@@ -59,12 +59,14 @@ export async function updateRankings(rankings: Ranking[]) {
 	console.log(`RANKINGS FETCH: Finished fetching rankings.`);
 }
 
-export async function getRankings(): Promise<CompiledTeamData[]> {
+/** Every team's compiled ratings for a season (default: the latest). For a past season the AP
+ *  poll is left out, since the stored poll is the current one. */
+export async function getRankings(season?: number): Promise<CompiledTeamData[]> {
 	const start = performance.now();
 
 	const [snapshot, apRankings, teamData]: [SeasonSnapshot, ApPollTeam[], Record<string, TeamData>] = await Promise.all([
-		getSeasonSnapshot(),
-		getApPollRankings(),
+		getSeasonSnapshot(season),
+		season === undefined ? getApPollRankings() : Promise.resolve([]),
 		getAllTeamData()
 	]);
 

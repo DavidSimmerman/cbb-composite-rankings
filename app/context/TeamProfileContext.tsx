@@ -2,13 +2,24 @@
 
 import { ESPN_TO_TEAM_KEY } from '@/lib/espn/espn-team-ids';
 import { ParsedTeamProfile, TeamProfile } from '@/lib/rankings/profile';
+import type { CompiledTeamData } from '@/lib/shared';
 import { createContext, useContext, useMemo } from 'react';
 import { useRankings } from './RankingsContext';
 
 const TeamProfileContext = createContext<ParsedTeamProfile | null>(null);
 
-export function TeamProfileProvider({ profile, children }: { profile: TeamProfile; children: React.ReactNode }) {
-	const rankings = useRankings();
+export function TeamProfileProvider({
+	profile,
+	seasonRankings,
+	children
+}: {
+	profile: TeamProfile;
+	/** Opponents' ratings for a past season; the current season uses the global rankings */
+	seasonRankings?: CompiledTeamData[];
+	children: React.ReactNode;
+}) {
+	const globalRankings = useRankings();
+	const rankings = seasonRankings ?? globalRankings;
 
 	const parsedProfile = useMemo<ParsedTeamProfile>(
 		() =>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Header from '@/components/Header';
 import { getTeamProfile } from '@/lib/rankings/profile';
 import { getTeamData } from '@/lib/espn/espn-team-data';
+import { getRankings } from '@/lib/rankings/rankings';
 import { teamTone } from '@/lib/team-colors';
 import { TeamProfileProvider } from '../context/TeamProfileContext';
 import TeamHero from './components/TeamHero';
@@ -34,6 +35,8 @@ export default async function TeamPage({
 	const { season, tab } = await searchParams;
 
 	const profile = await getTeamProfile(teamKey, { season: season ? parseInt(season) : undefined });
+	// Viewing a past season: opponents' records, ranks and quadrants come from that season
+	const seasonRankings = profile.season !== profile.latest_season ? await getRankings(profile.season) : undefined;
 	const initialTab: Tab = TABS.includes(tab as Tab) ? (tab as Tab) : 'overview';
 	const glow = teamTone(profile.team_data?.color, profile.team_data?.secondary_color);
 
@@ -50,7 +53,7 @@ export default async function TeamPage({
 	};
 
 	return (
-		<TeamProfileProvider profile={profile}>
+		<TeamProfileProvider profile={profile} seasonRankings={seasonRankings}>
 			<div className="relative h-dvh flex flex-col overflow-hidden bg-[#07080f] text-slate-300 font-grotesk">
 				{/* One faint wash of the team's colour at the top */}
 				<div
