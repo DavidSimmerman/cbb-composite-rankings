@@ -122,6 +122,7 @@ ml/
   - `sources` column: comma-separated like 'kp,em,bt,net' (varies by season/availability)
   - Older seasons have fewer sources (no NET, no BT before season 8, no EM before season 10)
   - Use `ORDER BY array_length(string_to_array(sources, ','), 1) DESC` to get best composite
+  - `per70_rating` / `per70_offensive_rating` / `per70_defensive_rating`: what the site shows. The averaged z-score put on KenPom's scale that day × 0.7 (`toPer70` in lib/shared.ts); defense is points allowed (lower is better). Ranks still come from the `avg_*zscore_rank` columns; ML and March analysis keep using the z-scores
 - `espn_stats` - ESPN team stats (250+ columns, joins on `season` not `date`)
   - Opponent stats (opp_off_*) only available from ~2014-15 season onward
 - `espn_games` - Game data (date is TEXT type, not DATE - need ::date cast in joins)

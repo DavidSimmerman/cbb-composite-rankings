@@ -51,15 +51,15 @@ export function localTime(time: string | undefined) {
 }
 
 const keyMap: Record<RatingType, Record<RatingSource, keyof CompiledTeamData>> = {
-	rating: { composite: 'avg_zscore', kenpom: 'kp_rating', evanmiya: 'em_rating', barttorvik: 'bt_rating' },
+	rating: { composite: 'per70_rating', kenpom: 'kp_rating', evanmiya: 'em_rating', barttorvik: 'bt_rating' },
 	offensiveRating: {
-		composite: 'avg_offensive_zscore',
+		composite: 'per70_offensive_rating',
 		kenpom: 'kp_offensive_rating',
 		evanmiya: 'em_offensive_rating',
 		barttorvik: 'bt_offensive_rating'
 	},
 	defensiveRating: {
-		composite: 'avg_defensive_zscore',
+		composite: 'per70_defensive_rating',
 		kenpom: 'kp_defensive_rating',
 		evanmiya: 'em_defensive_rating',
 		barttorvik: 'bt_defensive_rating'
@@ -99,14 +99,17 @@ export function ratingCell(
 	compositeKey: string
 ): CellValue {
 	const ratingKey = keyMap[ratingType][source];
+	// The composite shows its per-70 value but ranks by its z-score
+	const isComposite = source === 'composite';
+	const rankKey = isComposite ? `${zscoreKeyMap[ratingType].composite}_rank` : `${ratingKey}_rank`;
 
 	if (viewMode !== 'game_delta') {
 		let value = Number(game.opp[ratingKey]);
-		let rank: number | null = Number(game.opp[`${ratingKey}_rank` as keyof CompiledTeamData]);
-		if (ratingKey.startsWith('avg') && game.opp.team_key) {
+		let rank: number | null = Number(game.opp[rankKey as keyof CompiledTeamData]);
+		if (isComposite && game.opp.team_key) {
 			const combo = pickCompositeCombo(game.opp.composite_combos, compositeKey);
 			value = Number(combo?.[ratingKey as keyof CompositeCombo]);
-			rank = Number(combo?.[`${ratingKey}_rank` as keyof CompositeCombo]);
+			rank = Number(combo?.[rankKey as keyof CompositeCombo]);
 		}
 		if (!finite(value)) return { kind: 'none' };
 		return { kind: 'opponent', value, rank: finite(rank) ? rank : null };
@@ -119,13 +122,16 @@ export function ratingCell(
 	if (!before || !after) return { kind: 'none' };
 
 	let beforeValue: number, afterValue: number, beforeRank: number, afterRank: number, beforeZ: number, afterZ: number;
-	if (ratingKey.startsWith('avg')) {
+	if (isComposite) {
 		const b = pickCompositeCombo(before.composite_combos, compositeKey) as unknown as Record<string, number> | undefined;
 		const a = pickCompositeCombo(after.composite_combos, compositeKey) as unknown as Record<string, number> | undefined;
-		beforeValue = beforeZ = b?.[ratingKey] ?? NaN;
-		afterValue = afterZ = a?.[ratingKey] ?? NaN;
-		beforeRank = b?.[`${ratingKey}_rank`] ?? NaN;
-		afterRank = a?.[`${ratingKey}_rank`] ?? NaN;
+		const zKey = zscoreKeyMap[ratingType].composite;
+		beforeValue = b?.[ratingKey] ?? NaN;
+		afterValue = a?.[ratingKey] ?? NaN;
+		beforeZ = b?.[zKey] ?? NaN;
+		afterZ = a?.[zKey] ?? NaN;
+		beforeRank = b?.[rankKey] ?? NaN;
+		afterRank = a?.[rankKey] ?? NaN;
 	} else {
 		const b = before as unknown as Record<string, number>;
 		const a = after as unknown as Record<string, number>;
@@ -139,8 +145,8 @@ export function ratingCell(
 	}
 
 	let delta = Math.round((afterValue - beforeValue) * 100) / 100;
-	// KenPom and BartTorvik defense are points allowed: going down is good
-	if (ratingKey === 'kp_defensive_rating' || ratingKey === 'bt_defensive_rating') delta *= -1;
+	// KenPom, BartTorvik and composite defense are points allowed: going down is good
+	if (['kp_defensive_rating', 'bt_defensive_rating', 'per70_defensive_rating'].includes(ratingKey)) delta *= -1;
 	if (!finite(delta)) return { kind: 'none' };
 	return { kind: 'delta', delta, rankDelta: beforeRank - afterRank, zPct: ((afterZ - beforeZ) / 5) * 100 };
 }

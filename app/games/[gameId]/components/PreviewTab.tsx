@@ -138,7 +138,6 @@ function TapeCard({ data }: { data: GamePageData }) {
 function fmtModel(k: ModelKey, v: number | null) {
 	if (v == null) return '';
 	if (k === 'bt') return v.toFixed(3).replace(/^0/, '');
-	if (k === 'comp') return v.toFixed(2);
 	return `${v > 0 ? '+' : ''}${v.toFixed(1)}`;
 }
 

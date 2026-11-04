@@ -4,7 +4,16 @@ import { CompositeRanking } from './rankings/composite';
 /** One composite variant (a set of models) as sent to the browser: just the numbers it shows. */
 export type CompositeCombo = Pick<
 	CompositeRanking,
-	'sources' | 'avg_zscore' | 'avg_zscore_rank' | 'avg_offensive_zscore' | 'avg_offensive_zscore_rank' | 'avg_defensive_zscore' | 'avg_defensive_zscore_rank'
+	| 'sources'
+	| 'avg_zscore'
+	| 'avg_zscore_rank'
+	| 'avg_offensive_zscore'
+	| 'avg_offensive_zscore_rank'
+	| 'avg_defensive_zscore'
+	| 'avg_defensive_zscore_rank'
+	| 'per70_rating'
+	| 'per70_offensive_rating'
+	| 'per70_defensive_rating'
 >;
 
 export type BaseTeamData = {
@@ -60,6 +69,9 @@ export type CompiledTeamData = BaseTeamData & {
 	avg_offensive_zscore_rank: number;
 	avg_defensive_zscore: number;
 	avg_defensive_zscore_rank: number;
+	per70_rating: number | null;
+	per70_offensive_rating: number | null;
+	per70_defensive_rating: number | null;
 	composite_combos: Record<string, CompositeCombo>;
 	metadata: TeamData;
 };
@@ -110,6 +122,9 @@ export function computeAverageZScores(
 		team.avg_defensive_zscore = average(team, defensiveKeys);
 	});
 
+	const scale = kenPomScale(teams);
+	teams.forEach(team => Object.assign(team, toPer70(team, scale)));
+
 	teams.toSorted((a, b) => b.avg_zscore - a.avg_zscore).forEach((t, i) => (t.avg_zscore_rank = i + 1));
 	teams
 		.toSorted((a, b) => b.avg_offensive_zscore - a.avg_offensive_zscore)
@@ -119,6 +134,46 @@ export function computeAverageZScores(
 		.forEach((t, i) => (t.avg_defensive_zscore_rank = i + 1));
 
 	return teams;
+}
+
+type Spread = { mean: number; sd: number };
+export type KenPomScale = { rating: Spread; offensive: Spread; defensive: Spread };
+
+function spread(values: number[]): Spread | null {
+	if (!values.length) return null;
+	const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
+	return { mean, sd: Math.sqrt(values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length) };
+}
+
+/** KenPom's average and spread across every team, for putting composite z-scores on its scale. */
+export function kenPomScale(teams: BaseTeamData[]): KenPomScale | null {
+	const values = (k: 'kp_rating' | 'kp_offensive_rating' | 'kp_defensive_rating') =>
+		teams.map(t => t[k]).filter((v): v is number => typeof v === 'number');
+	const rating = spread(values('kp_rating'));
+	const offensive = spread(values('kp_offensive_rating'));
+	const defensive = spread(values('kp_defensive_rating'));
+	return rating && offensive && defensive ? { rating, offensive, defensive } : null;
+}
+
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
+/**
+ * Composite ratings read like KenPom's, per 70 possessions instead of 100: the averaged z-score is put
+ * back on KenPom's scale that day, then scaled by 0.7. Rating is a net margin, offense is points
+ * scored and defense is points allowed (lower is better; a positive defensive z-score is a good defense).
+ * scripts/migrations/2026-11-composite-per70.sql does the same for stored rows.
+ */
+export function toPer70(
+	z: Pick<CompiledTeamData, 'avg_zscore' | 'avg_offensive_zscore' | 'avg_defensive_zscore'>,
+	scale: KenPomScale | null
+): Pick<CompiledTeamData, 'per70_rating' | 'per70_offensive_rating' | 'per70_defensive_rating'> {
+	if (!scale) return { per70_rating: null, per70_offensive_rating: null, per70_defensive_rating: null };
+	const { rating: r, offensive: o, defensive: d } = scale;
+	return {
+		per70_rating: round2((r.mean + z.avg_zscore * r.sd) * 0.7),
+		per70_offensive_rating: round2((o.mean + z.avg_offensive_zscore * o.sd) * 0.7),
+		per70_defensive_rating: round2((d.mean - z.avg_defensive_zscore * d.sd) * 0.7)
+	};
 }
 
 export function rerankColumns(teams: CompiledTeamData[]): CompiledTeamData[] {

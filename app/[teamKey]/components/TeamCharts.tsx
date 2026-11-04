@@ -67,7 +67,9 @@ export default function TeamCharts({ className }: { className?: string }) {
 	// "offseason" slots stands in for the summer before this season starts
 	const buildData = (point: (h: HistoryRow) => Record<string, number | undefined>) => {
 		const rows = Object.values(history).sort((a, b) => a.date.localeCompare(b.date));
-		const current = rows.filter(h => h.season === season).map(h => ({ date: h.date, ...point(h), full: h }));
+		const current = rows
+			.filter(h => h.season === season)
+			.map(h => ({ date: h.date, ...point(h), full: h, comp: compositeFor(h) }));
 
 		if (seasonRange !== 'two') return current;
 
@@ -76,7 +78,8 @@ export default function TeamCharts({ className }: { className?: string }) {
 			.map(h => ({
 				date: h.date,
 				...Object.fromEntries(Object.entries(point(h)).map(([k, v]) => [`${k}_prev`, v])),
-				full: h
+				full: h,
+				comp: compositeFor(h)
 			}));
 
 		if (!previous.length) return current;
@@ -358,9 +361,12 @@ function ChartCard({
 										{visible.map(item => {
 											const name = baseKey(item.dataKey as string);
 											let key = '';
+											let rankKey = '';
 
 											if (name === 'composite') {
-												key = `avg_${metric.replace('rating', 'zscore')}`;
+												// Shown per 70 possessions; ranked by the z-score
+												key = `per70_${metric}`;
+												rankKey = `avg_${metric.replace('rating', 'zscore')}_rank`;
 											} else if (name === 'kenpom') {
 												key = `kp_${metric}`;
 											} else if (name === 'evanmiya') {
@@ -371,6 +377,9 @@ function ChartCard({
 												key = `net_rank`;
 											}
 
+											// The composite line is the combo for the selected sources, not the row's default
+											const src = name === 'composite' ? (item.payload.comp ?? {}) : item.payload.full;
+
 											return (
 												<div key={item.dataKey as string} className="flex w-full items-center gap-2">
 													<div
@@ -379,9 +388,9 @@ function ChartCard({
 													/>
 													{chartConfig[name as keyof typeof chartConfig]?.label || name}
 													<div className="text-foreground ml-auto flex items-baseline gap-0.5 font-mono font-medium tabular-nums">
-														{Math.round(item.payload.full[key] * 100) / 100}
+														{Math.round(src[key] * 100) / 100}
 														<span className="text-muted-foreground font-normal ml-0.5">
-															{name === 'net' || item.payload.full[key + '_rank']}
+															{name === 'net' || src[rankKey || key + '_rank']}
 														</span>
 													</div>
 												</div>

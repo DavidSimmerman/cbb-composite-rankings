@@ -63,12 +63,15 @@ export async function GET() {
 								avg_zscore, avg_zscore_rank,
 								avg_offensive_zscore, avg_offensive_zscore_rank,
 								avg_defensive_zscore, avg_defensive_zscore_rank,
+								per70_rating, per70_offensive_rating, per70_defensive_rating,
 								sources
-							) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+							) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 							ON CONFLICT (date, team_key, sources) DO UPDATE SET
 								avg_zscore = EXCLUDED.avg_zscore, avg_zscore_rank = EXCLUDED.avg_zscore_rank,
 								avg_offensive_zscore = EXCLUDED.avg_offensive_zscore, avg_offensive_zscore_rank = EXCLUDED.avg_offensive_zscore_rank,
-								avg_defensive_zscore = EXCLUDED.avg_defensive_zscore, avg_defensive_zscore_rank = EXCLUDED.avg_defensive_zscore_rank
+								avg_defensive_zscore = EXCLUDED.avg_defensive_zscore, avg_defensive_zscore_rank = EXCLUDED.avg_defensive_zscore_rank,
+								per70_rating = EXCLUDED.per70_rating, per70_offensive_rating = EXCLUDED.per70_offensive_rating,
+								per70_defensive_rating = EXCLUDED.per70_defensive_rating
 						`,
 						params: [
 							t.team_key,
@@ -79,6 +82,9 @@ export async function GET() {
 							t.avg_offensive_zscore_rank,
 							t.avg_defensive_zscore,
 							t.avg_defensive_zscore_rank,
+							t.per70_rating,
+							t.per70_offensive_rating,
+							t.per70_defensive_rating,
 							sourceList.map(s => s.key.replaceAll(/[a-z]+/g, '').toLocaleLowerCase()).join(',')
 						]
 					});

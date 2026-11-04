@@ -87,6 +87,9 @@ interface CompositeProfileRow extends TeamProfileRow {
 	avg_offensive_zscore_rank: number;
 	avg_defensive_zscore: number;
 	avg_defensive_zscore_rank: number;
+	per70_rating: number | null;
+	per70_offensive_rating: number | null;
+	per70_defensive_rating: number | null;
 	sources: string;
 }
 
@@ -286,7 +289,8 @@ async function getFullRatings(teamKey: string, season: number, isLatestSeason: b
 		),
 		db.query(
 			// Prefer kp,em,bt (what the March model was trained on), else the widest combo that season has
-			`SELECT avg_zscore, avg_zscore_rank, avg_offensive_zscore, avg_offensive_zscore_rank, avg_defensive_zscore, avg_defensive_zscore_rank
+			`SELECT avg_zscore, avg_zscore_rank, avg_offensive_zscore, avg_offensive_zscore_rank, avg_defensive_zscore, avg_defensive_zscore_rank,
+				per70_rating, per70_offensive_rating, per70_defensive_rating
 			FROM composite_rankings
 			WHERE team_key = $1
 				AND season::int = $2
@@ -349,11 +353,11 @@ async function getSeasonSnapshots(teamKey: string): Promise<SeasonSnapshot[]> {
 	return db.query<SeasonSnapshot>(
 		`SELECT
 			k.season,
-			c.avg_zscore AS comp_score,
+			c.per70_rating AS comp_score,
 			c.avg_zscore_rank AS comp_rank,
-			c.avg_offensive_zscore AS comp_off_score,
+			c.per70_offensive_rating AS comp_off_score,
 			c.avg_offensive_zscore_rank AS comp_off_rank,
-			c.avg_defensive_zscore AS comp_def_score,
+			c.per70_defensive_rating AS comp_def_score,
 			c.avg_defensive_zscore_rank AS comp_def_rank,
 			k.rank AS kp_rank,
 			k.offensive_rating AS kp_offensive_rating,
@@ -1915,6 +1919,9 @@ export async function getTeamProfile(
 				avg_offensive_zscore_rank: 'avg_offensive_zscore_rank',
 				avg_defensive_zscore: 'avg_defensive_zscore',
 				avg_defensive_zscore_rank: 'avg_defensive_zscore_rank',
+				per70_rating: 'per70_rating',
+				per70_offensive_rating: 'per70_offensive_rating',
+				per70_defensive_rating: 'per70_defensive_rating',
 				sources: 'sources'
 			}),
 			seasonParams

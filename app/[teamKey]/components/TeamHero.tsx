@@ -73,7 +73,7 @@ export default function TeamHero() {
 									<span className="text-[22px] lg:text-[26px] font-semibold text-white leading-none tabular-nums">
 										{t.rank != null ? `#${t.rank}` : '—'}
 									</span>
-									{t.value != null && <span className="text-[11.5px] text-slate-400 tabular-nums">{t.value.toFixed(2)}</span>}
+									{t.value != null && <span className="text-[11.5px] text-slate-400 tabular-nums">{t.value}</span>}
 								</div>
 								{models.length > 0 && (
 									<div

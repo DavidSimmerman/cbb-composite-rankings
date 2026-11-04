@@ -74,7 +74,7 @@ export async function getRankings(season?: number): Promise<CompiledTeamData[]> 
 	// model combinations each, so ids/dates/timestamps would add hundreds of KB for nothing
 	const compositeRankings: (CompositeCombo & { team_key: string })[] = await db.query(
 		`SELECT team_key, sources, avg_zscore, avg_zscore_rank, avg_offensive_zscore, avg_offensive_zscore_rank,
-			avg_defensive_zscore, avg_defensive_zscore_rank
+			avg_defensive_zscore, avg_defensive_zscore_rank, per70_rating, per70_offensive_rating, per70_defensive_rating
 		FROM composite_rankings
 		WHERE season::int = $1
 			AND date = (SELECT MAX(date) FROM composite_rankings WHERE season::int = $1)

@@ -384,17 +384,18 @@ function vsAverage(team: GameTeam, opp: GameTeam, ratings: FullRatings | null): 
 }
 
 const DELTA_KEYS = {
-	comp: { r: 'avg_zscore', o: 'avg_offensive_zscore', d: 'avg_defensive_zscore' },
+	comp: { r: 'per70_rating', o: 'per70_offensive_rating', d: 'per70_defensive_rating' },
 	kp: { r: 'kp_rating', o: 'kp_offensive_rating', d: 'kp_defensive_rating' },
 	em: { r: 'em_rating', o: 'em_offensive_rating', d: 'em_defensive_rating' },
 	bt: { r: 'bt_rating', o: 'bt_offensive_rating', d: 'bt_defensive_rating' }
 } as const;
 const DELTA_Z = {
+	comp: { r: 'avg_zscore', o: 'avg_offensive_zscore', d: 'avg_defensive_zscore' },
 	kp: { r: 'kp_rating_zscore', o: 'kp_offensive_zscore', d: 'kp_defensive_zscore' },
 	em: { r: 'em_rating_zscore', o: 'em_offensive_zscore', d: 'em_defensive_zscore' },
 	bt: { r: 'bt_rating_zscore', o: 'bt_offensive_zscore', d: 'bt_defensive_zscore' }
 } as const;
-const FLIPPED = new Set(['kp_defensive_rating', 'bt_defensive_rating']);
+const FLIPPED = new Set(['kp_defensive_rating', 'bt_defensive_rating', 'per70_defensive_rating']);
 
 /** Old GameDeltas: rating the day before the game vs the first day after, per model. */
 function ratingChanges(history: ProfileRatingsHistory | undefined, gameDate: string) {
@@ -413,8 +414,10 @@ function ratingChanges(history: ProfileRatingsHistory | undefined, gameDate: str
 			if (m === 'comp') {
 				const bc = pickCompositeCombo(b.composite_combos, 'kp,em,bt,net') as unknown as Record<string, number> | undefined;
 				const ac = pickCompositeCombo(a.composite_combos, 'kp,em,bt,net') as unknown as Record<string, number> | undefined;
-				bv = num(bc?.[key]); av = num(ac?.[key]); br = num(bc?.[`${key}_rank`]); ar = num(ac?.[`${key}_rank`]);
-				bz = bv; az = av;
+				// Shown per 70 possessions; ranked by the z-score
+				const z = DELTA_Z.comp[s];
+				bv = num(bc?.[key]); av = num(ac?.[key]); br = num(bc?.[`${z}_rank`]); ar = num(ac?.[`${z}_rank`]);
+				bz = num(bc?.[z]); az = num(ac?.[z]);
 			} else {
 				const B = b as unknown as Record<string, number>, A = a as unknown as Record<string, number>;
 				bv = num(B[key]); av = num(A[key]); br = num(B[`${key}_rank`]); ar = num(A[`${key}_rank`]);
@@ -478,7 +481,7 @@ function modelCells(history: ProfileRatingsHistory | undefined, date: string | n
 		return { value: num(src?.[v]), rank, ork: o ? num(src?.[o]) : null, drk: d ? num(src?.[d]) : null };
 	};
 	const cells: Partial<Record<ModelKey, ModelCell>> = {};
-	const c = cell(comp, 'avg_zscore', 'avg_zscore_rank', 'avg_offensive_zscore_rank', 'avg_defensive_zscore_rank');
+	const c = cell(comp, 'per70_rating', 'avg_zscore_rank', 'avg_offensive_zscore_rank', 'avg_defensive_zscore_rank');
 	if (c) cells.comp = c;
 	for (const m of ['kp', 'em', 'bt'] as const) {
 		const x = cell(R, `${m}_rating`, `${m}_rating_rank`, `${m}_offensive_rating_rank`, `${m}_defensive_rating_rank`);
