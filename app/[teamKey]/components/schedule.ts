@@ -51,7 +51,7 @@ export function localTime(time: string | undefined) {
 }
 
 const keyMap: Record<RatingType, Record<RatingSource, keyof CompiledTeamData>> = {
-	rating: { composite: 'per70_rating', kenpom: 'kp_rating', evanmiya: 'em_rating', barttorvik: 'bt_rating' },
+	rating: { composite: 'rating_score', kenpom: 'kp_rating', evanmiya: 'em_rating', barttorvik: 'bt_rating' },
 	offensiveRating: {
 		composite: 'per70_offensive_rating',
 		kenpom: 'kp_offensive_rating',
@@ -99,7 +99,7 @@ export function ratingCell(
 	compositeKey: string
 ): CellValue {
 	const ratingKey = keyMap[ratingType][source];
-	// The composite shows its per-70 value but ranks by its z-score
+	// The composite shows its 0-100 rating / per-70 values but ranks by its z-score
 	const isComposite = source === 'composite';
 	const rankKey = isComposite ? `${zscoreKeyMap[ratingType].composite}_rank` : `${ratingKey}_rank`;
 

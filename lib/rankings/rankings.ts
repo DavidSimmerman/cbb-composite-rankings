@@ -2,12 +2,13 @@ import { chromium } from 'playwright';
 import { PostgresService } from '../database';
 import { ApPollTeam, getApPollRankings } from '../espn/ap-poll';
 import { getAllTeamData, TeamData } from '../espn/espn-team-data';
-import { CompiledTeamData, CompositeCombo, computeAverageZScores } from '../shared';
+import { CompiledTeamData, CompositeCombo, computeAverageZScores, RatingScale, ratingScore } from '../shared';
 import { updateBartTorvik } from './barttorvik';
 import { updateComposite } from './composite';
 import { updateEvanMiya } from './evanmiya';
 import { updateKenPom } from './kenpom';
 import { updateNet } from './net';
+import { getRatingScale } from './rating-scale';
 import { getSeasonSnapshot, SeasonSnapshot } from './snapshot';
 import { mapBaseTeams } from './utils';
 
@@ -64,17 +65,19 @@ export async function updateRankings(rankings: Ranking[]) {
 export async function getRankings(season?: number): Promise<CompiledTeamData[]> {
 	const start = performance.now();
 
-	const [snapshot, apRankings, teamData]: [SeasonSnapshot, ApPollTeam[], Record<string, TeamData>] = await Promise.all([
-		getSeasonSnapshot(season),
-		season === undefined ? getApPollRankings() : Promise.resolve([]),
-		getAllTeamData()
-	]);
+	const [snapshot, apRankings, teamData, scale]: [SeasonSnapshot, ApPollTeam[], Record<string, TeamData>, RatingScale | null] =
+		await Promise.all([
+			getSeasonSnapshot(season),
+			season === undefined ? getApPollRankings() : Promise.resolve([]),
+			getAllTeamData(),
+			getRatingScale()
+		]);
 
 	// Only the columns the browser shows: every page carries these for all 365 teams and up to 15
 	// model combinations each, so ids/dates/timestamps would add hundreds of KB for nothing
 	const compositeRankings: (CompositeCombo & { team_key: string })[] = await db.query(
 		`SELECT team_key, sources, avg_zscore, avg_zscore_rank, avg_offensive_zscore, avg_offensive_zscore_rank,
-			avg_defensive_zscore, avg_defensive_zscore_rank, per70_rating, per70_offensive_rating, per70_defensive_rating
+			avg_defensive_zscore, avg_defensive_zscore_rank, per70_offensive_rating, per70_defensive_rating
 		FROM composite_rankings
 		WHERE season::int = $1
 			AND date = (SELECT MAX(date) FROM composite_rankings WHERE season::int = $1)
@@ -87,9 +90,15 @@ export async function getRankings(season?: number): Promise<CompiledTeamData[]> 
 	let teams = computeAverageZScores(baseTeams);
 
 	const compositeMap: Record<string, Record<string, CompositeCombo>> = {};
-	for (const { team_key, ...combo } of compositeRankings) (compositeMap[team_key] ??= {})[combo.sources] = combo;
+	for (const { team_key, ...combo } of compositeRankings)
+		(compositeMap[team_key] ??= {})[combo.sources] = { ...combo, rating_score: ratingScore(combo.avg_zscore, scale) };
 
-	teams = teams.map(t => ({ ...t, composite_combos: compositeMap[t.team_key], metadata: teamData[t.team_key] }));
+	teams = teams.map(t => ({
+		...t,
+		rating_score: ratingScore(t.avg_zscore, scale),
+		composite_combos: compositeMap[t.team_key],
+		metadata: teamData[t.team_key]
+	}));
 
 	console.log(`getRankings took ${Math.round(performance.now() - start)}ms`);
 	return teams;

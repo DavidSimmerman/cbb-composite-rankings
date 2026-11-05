@@ -30,7 +30,7 @@ type Field = { value: keyof CompiledTeamData | null; rank: keyof CompiledTeamDat
 // NET only publishes a single rank: no rating value and no offense/defense split
 const FIELDS: Record<Model, Record<Stat, Field>> = {
 	comp: {
-		r: { value: 'per70_rating', rank: 'avg_zscore_rank' },
+		r: { value: 'rating_score', rank: 'avg_zscore_rank' },
 		o: { value: 'per70_offensive_rating', rank: 'avg_offensive_zscore_rank' },
 		d: { value: 'per70_defensive_rating', rank: 'avg_defensive_zscore_rank' }
 	},
@@ -72,13 +72,10 @@ export function rankOf(team: CompiledTeamData, m: Model, s: Stat): number | null
 	return f ? num(team[f.rank]) : null;
 }
 
-/** A composite net rating per 70 possessions: +22.0, -1.9 */
-export const signed = (v: number) => `${v > 0 ? '+' : ''}${v.toFixed(1)}`;
-
 export function formatValue(m: Model, s: Stat, v: number | null): string {
 	if (v == null) return '—';
 	if (m === 'bt' && s === 'r') return v.toFixed(4);
-	if (m === 'comp') return s === 'r' ? signed(v) : v.toFixed(1);
+	if (m === 'comp') return v.toFixed(1);
 	if (m === 'kp') return v.toFixed(2);
 	return v.toFixed(1);
 }

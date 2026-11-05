@@ -3,6 +3,7 @@ import { PostgresService } from '../database';
 import { ApPollTeam } from '../espn/ap-poll';
 import { getPartialGame } from '../espn/espn-game';
 import { EspnStats } from '../espn/espn-stats';
+import { ratingScore } from '../shared';
 import { EspnGame, getSchedule, getScheduleEnriched, ParsedEspnGame } from '../espn/schedule';
 import { ESPN_TEAM_IDS } from '../espn/espn-team-ids';
 import { getTeamData, type TeamData } from '../espn/espn-team-data';
@@ -13,6 +14,7 @@ import { CompositeRanking } from './composite';
 import { EvanMiyaRanking } from './evanmiya';
 import { KenPomRanking } from './kenpom';
 import { NetRanking } from './net';
+import { getRatingScale } from './rating-scale';
 import { getLatestSeason } from './snapshot';
 import { seasonChartWindow, trimStaticTail } from '../season';
 
@@ -30,7 +32,7 @@ export type FullRatings = Prefix<Omit<KenPomRanking, SystemFields>, 'kp'> &
 	Prefix<Omit<NetRanking, SystemFields>, 'net'> &
 	Prefix<Omit<ApPollTeam, SystemFields>, 'ap'> &
 	Prefix<Omit<CompositeRanking, SystemFields>, 'comp'> &
-	Prefix<Omit<EspnStats, SystemFields>, 'espn'> & { ap_rank: number | undefined };
+	Prefix<Omit<EspnStats, SystemFields>, 'espn'> & { ap_rank: number | undefined; comp_rating_score?: number | null };
 
 interface TeamProfileRow {
 	team_key: string;
@@ -87,7 +89,7 @@ interface CompositeProfileRow extends TeamProfileRow {
 	avg_offensive_zscore_rank: number;
 	avg_defensive_zscore: number;
 	avg_defensive_zscore_rank: number;
-	per70_rating: number | null;
+	rating_score: number | null;
 	per70_offensive_rating: number | null;
 	per70_defensive_rating: number | null;
 	sources: string;
@@ -290,7 +292,7 @@ async function getFullRatings(teamKey: string, season: number, isLatestSeason: b
 		db.query(
 			// Prefer kp,em,bt (what the March model was trained on), else the widest combo that season has
 			`SELECT avg_zscore, avg_zscore_rank, avg_offensive_zscore, avg_offensive_zscore_rank, avg_defensive_zscore, avg_defensive_zscore_rank,
-				per70_rating, per70_offensive_rating, per70_defensive_rating
+				per70_offensive_rating, per70_defensive_rating
 			FROM composite_rankings
 			WHERE team_key = $1
 				AND season::int = $2
@@ -353,7 +355,7 @@ async function getSeasonSnapshots(teamKey: string): Promise<SeasonSnapshot[]> {
 	return db.query<SeasonSnapshot>(
 		`SELECT
 			k.season,
-			c.per70_rating AS comp_score,
+			c.avg_zscore AS comp_score, -- z-score here; getTeamProfile turns it into the 0-100 rating
 			c.avg_zscore_rank AS comp_rank,
 			c.per70_offensive_rating AS comp_off_score,
 			c.avg_offensive_zscore_rank AS comp_off_rank,
@@ -1792,8 +1794,9 @@ export async function getTeamProfile(
 ): Promise<TeamProfile> {
 	const start = performance.now();
 
-	const [latestSeason, seasonRows] = await Promise.all([
+	const [latestSeason, scale, seasonRows] = await Promise.all([
 		getLatestSeason(),
+		getRatingScale(),
 		db.query<{ season: number }>(
 			`SELECT DISTINCT season::int AS season FROM kenpom_rankings WHERE team_key = $1 ORDER BY season DESC`,
 			[teamKey]
@@ -1919,7 +1922,6 @@ export async function getTeamProfile(
 				avg_offensive_zscore_rank: 'avg_offensive_zscore_rank',
 				avg_defensive_zscore: 'avg_defensive_zscore',
 				avg_defensive_zscore_rank: 'avg_defensive_zscore_rank',
-				per70_rating: 'per70_rating',
 				per70_offensive_rating: 'per70_offensive_rating',
 				per70_defensive_rating: 'per70_defensive_rating',
 				sources: 'sources'
@@ -1955,7 +1957,13 @@ export async function getTeamProfile(
 	const net = trimBySeason(netRankings, r => r.net_rank);
 	// Composite rows only count on days at least one source moved
 	const sourceDates = new Set([...kp, ...em, ...bt, ...net].map(r => r.date));
-	const composite = compositeRankings.filter(r => sourceDates.has(r.date));
+	const composite = compositeRankings
+		.filter(r => sourceDates.has(r.date))
+		.map(r => ({ ...r, rating_score: ratingScore(r.avg_zscore, scale) }));
+
+	// The composite rating is shown 0-100 (lib/rankings/rating-scale.ts)
+	for (const full of Object.values(fullRankings)) full.comp_rating_score = ratingScore(full.comp_avg_zscore, scale);
+	for (const snap of seasonSnapshots) snap.comp_score = ratingScore(snap.comp_score, scale) as number;
 
 	const byDate = <T extends TeamProfileRow>(rows: T[]) => new Map(rows.map(r => [r.date, r]));
 	const kpMap = byDate(kp);

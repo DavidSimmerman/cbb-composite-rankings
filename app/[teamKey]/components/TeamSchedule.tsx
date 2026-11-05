@@ -144,7 +144,7 @@ export default function TeamSchedule() {
 											key={c.type}
 											className="text-center px-2 border-t border-white/[0.05] group-hover:bg-white/[0.02]"
 										>
-											<Rating cell={ratingCell(g, c.type, viewMode, source, history, compositeKey)} />
+											<Rating cell={ratingCell(g, c.type, viewMode, source, history, compositeKey)} decimals={source === 'composite' ? 1 : 2} />
 										</td>
 									))}
 									<td className="text-center px-2 border-t border-white/[0.05] group-hover:bg-white/[0.02]">
@@ -214,12 +214,12 @@ function OpponentCell({ game: g }: { game: ParsedEspnGame }) {
 	);
 }
 
-function Rating({ cell }: { cell: ReturnType<typeof ratingCell> }) {
+function Rating({ cell, decimals }: { cell: ReturnType<typeof ratingCell>; decimals: number }) {
 	if (cell.kind === 'none') return <span className="text-slate-700">—</span>;
 	if (cell.kind === 'opponent') {
 		return (
 			<span className="inline-flex items-center gap-1.5">
-				<span className="text-slate-300">{(Math.round(cell.value * 100) / 100).toFixed(2)}</span>
+				<span className="text-slate-300">{cell.value.toFixed(decimals)}</span>
 				<RankChip rank={cell.rank} small />
 			</span>
 		);

@@ -11,10 +11,9 @@ export type CompositeCombo = Pick<
 	| 'avg_offensive_zscore_rank'
 	| 'avg_defensive_zscore'
 	| 'avg_defensive_zscore_rank'
-	| 'per70_rating'
 	| 'per70_offensive_rating'
 	| 'per70_defensive_rating'
->;
+> & { rating_score: number | null }; // 0-100, worked out when read (lib/rankings/rating-scale.ts)
 
 export type BaseTeamData = {
 	team_key: string;
@@ -69,7 +68,7 @@ export type CompiledTeamData = BaseTeamData & {
 	avg_offensive_zscore_rank: number;
 	avg_defensive_zscore: number;
 	avg_defensive_zscore_rank: number;
-	per70_rating: number | null;
+	rating_score: number | null;
 	per70_offensive_rating: number | null;
 	per70_defensive_rating: number | null;
 	composite_combos: Record<string, CompositeCombo>;
@@ -137,7 +136,7 @@ export function computeAverageZScores(
 }
 
 type Spread = { mean: number; sd: number };
-export type KenPomScale = { rating: Spread; offensive: Spread; defensive: Spread };
+export type KenPomScale = { offensive: Spread; defensive: Spread };
 
 function spread(values: number[]): Spread | null {
 	if (!values.length) return null;
@@ -147,33 +146,41 @@ function spread(values: number[]): Spread | null {
 
 /** KenPom's average and spread across every team, for putting composite z-scores on its scale. */
 export function kenPomScale(teams: BaseTeamData[]): KenPomScale | null {
-	const values = (k: 'kp_rating' | 'kp_offensive_rating' | 'kp_defensive_rating') =>
+	const values = (k: 'kp_offensive_rating' | 'kp_defensive_rating') =>
 		teams.map(t => t[k]).filter((v): v is number => typeof v === 'number');
-	const rating = spread(values('kp_rating'));
 	const offensive = spread(values('kp_offensive_rating'));
 	const defensive = spread(values('kp_defensive_rating'));
-	return rating && offensive && defensive ? { rating, offensive, defensive } : null;
+	return offensive && defensive ? { offensive, defensive } : null;
 }
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
 /**
- * Composite ratings read like KenPom's, per 70 possessions instead of 100: the averaged z-score is put
- * back on KenPom's scale that day, then scaled by 0.7. Rating is a net margin, offense is points
- * scored and defense is points allowed (lower is better; a positive defensive z-score is a good defense).
+ * Composite offense and defense read like KenPom's efficiencies, per 70 possessions instead of 100:
+ * the averaged z-score is put back on KenPom's scale that day, then scaled by 0.7. Offense is points
+ * scored, defense points allowed (lower is better; a positive defensive z-score is a good defense).
  * scripts/migrations/2026-11-composite-per70.sql does the same for stored rows.
  */
 export function toPer70(
-	z: Pick<CompiledTeamData, 'avg_zscore' | 'avg_offensive_zscore' | 'avg_defensive_zscore'>,
+	z: Pick<CompiledTeamData, 'avg_offensive_zscore' | 'avg_defensive_zscore'>,
 	scale: KenPomScale | null
-): Pick<CompiledTeamData, 'per70_rating' | 'per70_offensive_rating' | 'per70_defensive_rating'> {
-	if (!scale) return { per70_rating: null, per70_offensive_rating: null, per70_defensive_rating: null };
-	const { rating: r, offensive: o, defensive: d } = scale;
+): Pick<CompiledTeamData, 'per70_offensive_rating' | 'per70_defensive_rating'> {
+	if (!scale) return { per70_offensive_rating: null, per70_defensive_rating: null };
+	const { offensive: o, defensive: d } = scale;
 	return {
-		per70_rating: round2((r.mean + z.avg_zscore * r.sd) * 0.7),
 		per70_offensive_rating: round2((o.mean + z.avg_offensive_zscore * o.sd) * 0.7),
 		per70_defensive_rating: round2((d.mean - z.avg_defensive_zscore * d.sd) * 0.7)
 	};
+}
+
+/** Lowest and highest final composite z-score of any completed season (lib/rankings/rating-scale.ts) */
+export type RatingScale = { min: number; max: number };
+
+/** The composite rating on a 0-100 scale: 0 is the worst team on record, 100 the best. This season's
+ *  teams can land outside it. */
+export function ratingScore(z: unknown, scale: RatingScale | null): number | null {
+	if (!scale || typeof z !== 'number' || !Number.isFinite(z)) return null;
+	return Math.round(((z - scale.min) / (scale.max - scale.min)) * 1000) / 10;
 }
 
 export function rerankColumns(teams: CompiledTeamData[]): CompiledTeamData[] {

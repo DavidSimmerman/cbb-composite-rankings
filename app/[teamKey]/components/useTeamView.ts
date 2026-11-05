@@ -1,6 +1,5 @@
 'use client';
 
-import { signed } from '@/app/components/models';
 import { useRankings } from '@/app/context/RankingsContext';
 import { useTeamProfile } from '@/app/context/TeamProfileContext';
 import { teamTone } from '@/lib/team-colors';
@@ -10,8 +9,8 @@ import { MODEL_COLORS } from './ui';
 type ModelRank = { short: string; color: string; rank: number | null };
 export type Tile = { label: string; rank: number | null; value: string | null; models: ModelRank[] };
 
-// Composite values per 70 possessions: net rating signed, points scored / allowed plain
-const fmt = (v: number | null, sign = false) => (v == null ? null : sign ? signed(v) : v.toFixed(1));
+// Composite rating 0-100, offense / defense points per 70 possessions
+const fmt = (v: number | null) => (v == null ? null : v.toFixed(1));
 
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : v != null && v !== '' && Number.isFinite(Number(v)) ? Number(v) : null);
 
@@ -64,7 +63,7 @@ export function useTeamView() {
 			{
 				label: 'Composite',
 				rank: num(live ? team.avg_zscore_rank : full?.comp_avg_zscore_rank),
-				value: fmt(num(live ? team.per70_rating : full?.comp_per70_rating), true),
+				value: fmt(num(live ? team.rating_score : full?.comp_rating_score)),
 				models: [
 					m('kenpom', src?.kp_rating_rank),
 					m('evanmiya', src?.em_rating_rank),

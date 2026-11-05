@@ -364,8 +364,8 @@ function ChartCard({
 											let rankKey = '';
 
 											if (name === 'composite') {
-												// Shown per 70 possessions; ranked by the z-score
-												key = `per70_${metric}`;
+												// Rating 0-100, offense / defense per 70 possessions; ranked by the z-score
+												key = metric === 'rating' ? 'rating_score' : `per70_${metric}`;
 												rankKey = `avg_${metric.replace('rating', 'zscore')}_rank`;
 											} else if (name === 'kenpom') {
 												key = `kp_${metric}`;
