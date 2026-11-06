@@ -16,7 +16,7 @@ import { KenPomRanking } from './kenpom';
 import { NetRanking } from './net';
 import { getRatingScale } from './rating-scale';
 import { getLatestSeason } from './snapshot';
-import { seasonChartWindow, trimStaticTail } from '../season';
+import { isSeasonInProgress, seasonChartWindow, trimStaticTail } from '../season';
 
 const db = PostgresService.getInstance();
 
@@ -1940,15 +1940,14 @@ export async function getTeamProfile(
 	]);
 	const teamName = teamNameRow?.team ?? teamKey;
 
-	// Drop each season's trailing run of unchanged rows (the scrapers keep re-saving the final
-	// numbers after the last game, and the preseason numbers before the first)
+	// Drop each finished season's trailing run of unchanged rows (the scrapers keep re-saving the
+	// final numbers after the last game). The season in progress keeps every day: a team that
+	// hasn't played since Monday still has Monday's rating today, so its line runs to today.
 	function trimBySeason<T extends TeamProfileRow>(rows: T[], valueOf: (row: T) => unknown): T[] {
-		return historySeasons.flatMap(s =>
-			trimStaticTail(
-				rows.filter(r => Number(r.season) === s),
-				valueOf
-			)
-		);
+		return historySeasons.flatMap(s => {
+			const seasonRows = rows.filter(r => Number(r.season) === s);
+			return isSeasonInProgress(s) ? seasonRows : trimStaticTail(seasonRows, valueOf);
+		});
 	}
 
 	const kp = trimBySeason(kenpomRankings, r => r.kp_rating);
